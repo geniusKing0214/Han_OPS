@@ -106,7 +106,14 @@ export function FirestoreUsersPanel() {
                 <div key={row.uid}>
                   <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{row.email}</p>
+                      <p className="truncate text-sm font-medium">
+                        {row.displayName?.trim() || row.email}
+                      </p>
+                      {row.displayName?.trim() ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          이메일 · {row.email}
+                        </p>
+                      ) : null}
                       <p className="text-xs text-muted-foreground">
                         uid · {row.uid}
                       </p>
