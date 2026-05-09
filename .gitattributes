@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+# Keep Windows-native script line endings where expected
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
