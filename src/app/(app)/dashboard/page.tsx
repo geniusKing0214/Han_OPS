@@ -150,7 +150,7 @@ export default function DashboardPage() {
                     className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2.5"
                   >
                     <div>
-                      <p className="text-sm font-medium">{s.title}</p>
+                      <p className="text-sm font-medium">{s.eventTitle}</p>
                       <p className="text-xs text-muted-foreground">
                         {s.venue} · {s.date} {s.slotTime}
                       </p>
