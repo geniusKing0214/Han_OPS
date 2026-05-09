@@ -66,7 +66,7 @@ export function EventScheduleEditor({ event, onDeleted }: EventScheduleEditorPro
   };
 
   const handleSaveMeta = async () => {
-    if (!metaTitle.trim() || !metaVenue.trim()) return;
+    if (!metaTitle.trim() || !metaVenue.trim()) return false;
     setSaving(true);
     setSaveError("");
     try {
@@ -84,9 +84,11 @@ export function EventScheduleEditor({ event, onDeleted }: EventScheduleEditorPro
           ? err.message
           : "저장에 실패했습니다. 관리자 권한(admin) 및 Firestore rules 게시 상태를 확인하세요.",
       );
+      return false;
     } finally {
       setSaving(false);
     }
+    return true;
   };
 
   const handleDeleteEvent = async () => {
@@ -192,9 +194,14 @@ export function EventScheduleEditor({ event, onDeleted }: EventScheduleEditorPro
               type="button"
               variant="accent"
               disabled={saving || !metaTitle.trim() || !metaVenue.trim()}
-              onClick={() => void handleSaveMeta()}
+              onClick={() => {
+                void (async () => {
+                  const ok = await handleSaveMeta();
+                  if (ok) window.close();
+                })();
+              }}
             >
-              기본 정보 저장
+              수정 완료
             </Button>
             <Button
               type="button"
