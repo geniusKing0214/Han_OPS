@@ -11,14 +11,23 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-function hasMissingConfig() {
-  return Object.values(firebaseConfig).some((value) => !value);
-}
+const missingFirebaseVars = Object.entries({
+  NEXT_PUBLIC_FIREBASE_API_KEY: firebaseConfig.apiKey,
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: firebaseConfig.authDomain,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: firebaseConfig.projectId,
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: firebaseConfig.storageBucket,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: firebaseConfig.messagingSenderId,
+  NEXT_PUBLIC_FIREBASE_APP_ID: firebaseConfig.appId,
+})
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
 
 export const firebaseConfigError =
-  "Missing Firebase env vars. Copy .env.local.example to .env.local and fill NEXT_PUBLIC_FIREBASE_* values.";
+  missingFirebaseVars.length > 0
+    ? `Missing Firebase env vars: ${missingFirebaseVars.join(", ")}`
+    : "";
 
-export const isFirebaseConfigured = !hasMissingConfig();
+export const isFirebaseConfigured = missingFirebaseVars.length === 0;
 
 const app = isFirebaseConfigured
   ? getApps().length

@@ -20,6 +20,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: github-pages
     env:
       STATIC_EXPORT: "1"
       NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
