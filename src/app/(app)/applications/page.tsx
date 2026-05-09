@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyApplications } from "@/hooks/use-my-applications";
+import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
+import { Button } from "@/components/ui/button";
 import {
   statusLabels,
   type ApplicationItem,
@@ -30,7 +32,24 @@ function rowsForTab(
 
 export default function ApplicationsPage() {
   const [tab, setTab] = useState<(typeof tabConfig)[0]["value"]>("all");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [month, setMonth] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const { items, loading, error } = useMyApplications();
+
+  const activeRows = useMemo(() => rowsForTab(tab, items), [tab, items]);
+  const markedDates = useMemo(
+    () => new Set(activeRows.map((a) => a.date)),
+    [activeRows],
+  );
+  const selectedYmd = toYMD(selectedDate);
+  const selectedRows = useMemo(
+    () =>
+      activeRows
+        .filter((a) => a.date === selectedYmd)
+        .sort((a, b) => a.slotTime.localeCompare(b.slotTime)),
+    [activeRows, selectedYmd],
+  );
 
   return (
     <div className="space-y-6">
@@ -54,85 +73,168 @@ export default function ApplicationsPage() {
         value={tab}
         onValueChange={(v) => setTab(v as ApplicationStatus | "all")}
       >
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <TabsList className="inline-flex h-auto min-w-full flex-wrap justify-start gap-1 bg-muted p-1 sm:flex-nowrap">
-            {tabConfig.map((t) => (
-              <TabsTrigger
-                key={t.value}
-                value={t.value}
-                className="shrink-0 data-[state=active]:text-foreground"
-              >
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <TabsList className="inline-flex h-auto min-w-full flex-wrap justify-start gap-1 bg-muted p-1 sm:flex-nowrap">
+              {tabConfig.map((t) => (
+                <TabsTrigger
+                  key={t.value}
+                  value={t.value}
+                  className="shrink-0 data-[state=active]:text-foreground"
+                >
+                  {t.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+          <div className="flex gap-1 rounded-md border border-border bg-card p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "list" ? "accent" : "ghost"}
+              onClick={() => setViewMode("list")}
+            >
+              목록
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "calendar" ? "accent" : "ghost"}
+              onClick={() => setViewMode("calendar")}
+            >
+              달력
+            </Button>
+          </div>
         </div>
 
         {tabConfig.map((t) => {
           const rows = rowsForTab(t.value, items);
           return (
             <TabsContent key={t.value} value={t.value} className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {t.label}{" "}
-                    <span className="font-normal text-muted-foreground">
-                      · {rows.length}건
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {loading ? (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                      불러오는 중...
-                    </p>
-                  ) : rows.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                      해당 상태의 신청이 없습니다.
-                    </p>
-                  ) : (
-                    rows.map((a) => (
-                      <div
-                        key={a.id}
-                        className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="min-w-0">
-                          <p className="font-medium">{a.eventTitle}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {a.venue} ·{" "}
-                            <span className="tabular-nums">
-                              {a.date} {a.slotTime}
-                            </span>
-                          </p>
-                          {a.note ? (
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                              메모: {a.note}
-                            </p>
-                          ) : null}
-                          <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                            접수{" "}
-                            {a.submittedAt.replace("T", " ").slice(0, 16)}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={
-                            a.status === "approved"
-                              ? "success"
-                              : a.status === "pending"
-                                ? "warning"
-                                : a.status === "rejected"
-                                  ? "destructive"
-                                  : "default"
-                          }
-                          className="w-fit shrink-0"
+              {viewMode === "list" ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {t.label}{" "}
+                      <span className="font-normal text-muted-foreground">
+                        · {rows.length}건
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {loading ? (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        불러오는 중...
+                      </p>
+                    ) : rows.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        해당 상태의 신청이 없습니다.
+                      </p>
+                    ) : (
+                      rows.map((a) => (
+                        <div
+                          key={a.id}
+                          className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                         >
-                          {statusLabels[a.status]}
-                        </Badge>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
+                          <div className="min-w-0">
+                            <p className="font-medium">{a.eventTitle}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {a.venue} ·{" "}
+                              <span className="tabular-nums">
+                                {a.date} {a.slotTime}
+                              </span>
+                            </p>
+                            {a.note ? (
+                              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                메모: {a.note}
+                              </p>
+                            ) : null}
+                            <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                              접수{" "}
+                              {a.submittedAt.replace("T", " ").slice(0, 16)}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={
+                              a.status === "approved"
+                                ? "success"
+                                : a.status === "pending"
+                                  ? "warning"
+                                  : a.status === "rejected"
+                                    ? "destructive"
+                                    : "default"
+                            }
+                            className="w-fit shrink-0"
+                          >
+                            {statusLabels[a.status]}
+                          </Badge>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 lg:grid-cols-[360px,1fr]">
+                  <MiniCalendar
+                    month={month}
+                    selected={selectedDate}
+                    onMonthChange={setMonth}
+                    onSelect={setSelectedDate}
+                    markedDates={markedDates}
+                    mode="full"
+                  />
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        {t.label} · {selectedYmd}
+                        <span className="ml-2 font-normal text-muted-foreground">
+                          {selectedRows.length}건
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {loading ? (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                          불러오는 중...
+                        </p>
+                      ) : selectedRows.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                          선택한 날짜 신청 내역이 없습니다.
+                        </p>
+                      ) : (
+                        selectedRows.map((a) => (
+                          <div
+                            key={a.id}
+                            className="flex flex-col gap-2 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="min-w-0">
+                              <p className="font-medium">{a.eventTitle}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {a.venue} ·{" "}
+                                <span className="tabular-nums">{a.slotTime}</span>
+                              </p>
+                            </div>
+                            <Badge
+                              variant={
+                                a.status === "approved"
+                                  ? "success"
+                                  : a.status === "pending"
+                                    ? "warning"
+                                    : a.status === "rejected"
+                                      ? "destructive"
+                                      : "default"
+                              }
+                              className="w-fit shrink-0"
+                            >
+                              {statusLabels[a.status]}
+                            </Badge>
+                          </div>
+                        ))
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </TabsContent>
           );
         })}
