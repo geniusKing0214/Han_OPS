@@ -34,11 +34,19 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const approvedApps = myApplications.filter((a) => a.status === "approved");
-    const todayCount = approvedApps.filter((a) => a.date === today).length;
+    const uniqApprovedToday = new Set(
+      approvedApps
+        .filter((a) => a.date === today)
+        .map((a) => `${a.eventId ?? a.eventTitle}@${a.date}`),
+    );
+    const todayCount = uniqApprovedToday.size;
     const pending = myApplications.filter((a) => a.status === "pending").length;
-    const monthWorked = approvedApps.filter((a) =>
-      a.date.startsWith(thisMonth),
-    ).length;
+    const uniqApprovedMonth = new Set(
+      approvedApps
+        .filter((a) => a.date.startsWith(thisMonth))
+        .map((a) => `${a.eventId ?? a.eventTitle}@${a.date}`),
+    );
+    const monthWorked = uniqApprovedMonth.size;
 
     const appliedEventIds = new Set(
       myApplications

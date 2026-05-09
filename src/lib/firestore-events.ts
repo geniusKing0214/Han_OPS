@@ -2,15 +2,19 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
+  where,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import type { EventItem } from "@/types/schedule";
 
 export const EVENTS_COLLECTION = "events";
+const APPLICATIONS_COLLECTION = "applications";
 
 function docToEvent(id: string, data: Record<string, unknown>): EventItem | null {
   const title = data.title;
@@ -88,5 +92,9 @@ export async function saveEvent(event: EventItem): Promise<void> {
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {
+  const appSnap = await getDocs(
+    query(collection(db, APPLICATIONS_COLLECTION), where("eventId", "==", eventId)),
+  );
+  await Promise.all(appSnap.docs.map((d) => deleteDoc(d.ref)));
   await deleteDoc(doc(db, EVENTS_COLLECTION, eventId));
 }
