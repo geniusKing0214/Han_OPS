@@ -30,6 +30,18 @@ function parsePositiveInt(value: string, fallback: number) {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+function openTimePickerIfSupported(target: EventTarget | null) {
+  const el = target as HTMLInputElement | null;
+  if (!el || el.type !== "time") return;
+  if (typeof el.showPicker === "function") {
+    try {
+      el.showPicker();
+    } catch {
+      // Some browsers block showPicker() without a direct gesture.
+    }
+  }
+}
+
 export type EventScheduleEditorProps = {
   event: EventItem;
   /** Called after successful delete (navigate away in parent) */
@@ -297,7 +309,12 @@ export function EventScheduleEditor({ event, onDeleted }: EventScheduleEditorPro
                           </span>
                           <Input
                             type="time"
+                            step={60}
                             value={slot.start_time}
+                            onClick={(e) => openTimePickerIfSupported(e.currentTarget)}
+                            onTouchStart={(e) =>
+                              openTimePickerIfSupported(e.currentTarget)
+                            }
                             onChange={(e) =>
                               void persist(
                                 updateSlot(event, sess.id, slot.id, {
@@ -378,8 +395,13 @@ export function EventScheduleEditor({ event, onDeleted }: EventScheduleEditorPro
                       </span>
                       <Input
                         type="time"
+                        step={60}
                         value={
                           newSlotDraft[`${event.id}-${sess.id}`]?.time ?? "09:00"
+                        }
+                        onClick={(e) => openTimePickerIfSupported(e.currentTarget)}
+                        onTouchStart={(e) =>
+                          openTimePickerIfSupported(e.currentTarget)
                         }
                         onChange={(e) =>
                           setNewSlotDraft((p) => ({
