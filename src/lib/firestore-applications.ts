@@ -5,6 +5,7 @@ import {
   doc,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -12,6 +13,8 @@ import {
 
 import { db } from "@/lib/firebase";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
+import type { EventItem } from "@/types/schedule";
+import { EVENTS_COLLECTION } from "@/lib/firestore-events";
 
 export const APPLICATIONS_COLLECTION = "applications";
 
@@ -46,6 +49,10 @@ function docToApplicationItem(
 ): ApplicationItem {
   return {
     id,
+    userId: typeof data.userId === "string" ? data.userId : undefined,
+    eventId: typeof data.eventId === "string" ? data.eventId : undefined,
+    sessionId: typeof data.sessionId === "string" ? data.sessionId : undefined,
+    slotId: typeof data.slotId === "string" ? data.slotId : undefined,
     eventTitle: typeof data.eventTitle === "string" ? data.eventTitle : "",
     venue: typeof data.venue === "string" ? data.venue : "",
     date: typeof data.date === "string" ? data.date : "",
@@ -136,4 +143,77 @@ export async function updateApplicationStatus(
 ) {
   const ref = doc(db, APPLICATIONS_COLLECTION, applicationId);
   await updateDoc(ref, { status });
+}
+
+/**
+ * 관리자 의사결정 처리:
+ * - approved: applications 상태 업데이트 + events 슬롯 신청 인원(+1)
+ * - rejected: applications 상태만 업데이트
+ */
+export async function decideApplication(
+  applicationId: string,
+  status: "approved" | "rejected",
+) {
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+
+  await runTransaction(db, async (tx) => {
+    const appSnap = await tx.get(appRef);
+    if (!appSnap.exists()) {
+      throw new Error("신청 문서를 찾을 수 없습니다.");
+    }
+    const appData = appSnap.data() as Record<string, unknown>;
+    const currentStatus = normalizeStatus(appData.status);
+    if (currentStatus !== "pending") {
+      throw new Error("이미 처리된 신청입니다.");
+    }
+
+    const nextStatus: Exclude<ApplicationStatus, "pending"> = status;
+    tx.update(appRef, { status: nextStatus });
+
+    if (status !== "approved") return;
+
+    const eventId = typeof appData.eventId === "string" ? appData.eventId : "";
+    const sessionId =
+      typeof appData.sessionId === "string" ? appData.sessionId : "";
+    const slotId = typeof appData.slotId === "string" ? appData.slotId : "";
+    if (!eventId || !sessionId || !slotId) {
+      throw new Error("신청 데이터에 event/session/slot 정보가 없습니다.");
+    }
+
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+    const eventSnap = await tx.get(eventRef);
+    if (!eventSnap.exists()) {
+      throw new Error("대상 이벤트를 찾을 수 없습니다.");
+    }
+
+    const eventData = eventSnap.data() as Record<string, unknown>;
+    const sessions = Array.isArray(eventData.sessions)
+      ? (eventData.sessions as EventItem["sessions"])
+      : [];
+    let sessionFound = false;
+    let slotFound = false;
+    const nextSessions = sessions.map((sess) => {
+      if (sess.id !== sessionId) return sess;
+      sessionFound = true;
+      return {
+        ...sess,
+        slots: sess.slots.map((slot) => {
+          if (slot.id !== slotId) return slot;
+          slotFound = true;
+          if (slot.applied_count >= slot.capacity) {
+            throw new Error("슬롯이 이미 마감되어 승인할 수 없습니다.");
+          }
+          return { ...slot, applied_count: slot.applied_count + 1 };
+        }),
+      };
+    });
+    if (!sessionFound || !slotFound) {
+      throw new Error("이벤트의 세션/슬롯을 찾을 수 없습니다.");
+    }
+
+    tx.update(eventRef, {
+      sessions: nextSessions,
+      updatedAt: serverTimestamp(),
+    });
+  });
 }

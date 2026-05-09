@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import type { ApplicationItem } from "@/types/application";
-import { updateApplicationStatus } from "@/lib/firestore-applications";
+import { decideApplication } from "@/lib/firestore-applications";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,7 +32,7 @@ export function AdminConsole({
     setLocalError("");
     setBusyId(id);
     try {
-      await updateApplicationStatus(id, status);
+      await decideApplication(id, status);
     } catch (e) {
       setLocalError(
         e instanceof Error ? e.message : "상태 변경에 실패했습니다.",

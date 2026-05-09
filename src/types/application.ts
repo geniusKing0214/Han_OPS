@@ -6,6 +6,10 @@ export type ApplicationStatus =
 
 export type ApplicationItem = {
   id: string;
+  userId?: string;
+  eventId?: string;
+  sessionId?: string;
+  slotId?: string;
   eventTitle: string;
   venue: string;
   slotTime: string;
