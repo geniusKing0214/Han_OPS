@@ -1,0 +1,73 @@
+rules_version = '2';
+// Firestore 콘솔 → 빌드 → Firestore Database → 규칙(Rules) 에 이 내용을 붙여넣고 게시(Publish) 하세요.
+// 첫 관리자 만들기: 회원가입 후 콘솔 → Firestore → 컬렉션 `users` → 본인 uid 문서에서 `role` 을 `admin` 으로 수정.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function callerDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return isSignedIn() && callerDoc().data.role == "admin";
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      // 본인 최초 생성: 일반 사용자만 생성 가능 (관리자 승격은 기존 관리자 또는 콘솔에서 처리)
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == "member"
+        && request.resource.data.email is string
+        && request.resource.data.keys().hasOnly(["email", "role", "createdAt"]);
+
+      // 관리자: 모든 필드 수정 가능 / 일반: role 변경 불가
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.role == resource.data.role
+      );
+    }
+
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /notices/{noticeId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /applications/{appId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userId is string
+        && request.resource.data.status == "pending"
+        && request.resource.data.eventTitle is string
+        && request.resource.data.venue is string
+        && request.resource.data.date is string
+        && request.resource.data.slotTime is string
+        && request.resource.data.eventId is string
+        && request.resource.data.sessionId is string
+        && request.resource.data.slotId is string
+        && request.resource.data.note is string;
+
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
