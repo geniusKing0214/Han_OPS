@@ -1,28 +1,72 @@
-import {
-  Calendar,
-  CheckCircle2,
-  ClipboardList,
-  Timer,
-} from "lucide-react";
+"use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMemo } from "react";
+import { Calendar, CheckCircle2, ClipboardList, Timer } from "lucide-react";
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  dashboardStats,
-  todayShifts,
-} from "@/data/mock-dashboard";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
+import { useMyApplications } from "@/hooks/use-my-applications";
+import { useEvents } from "@/hooks/use-events";
+import { statusLabels } from "@/types/application";
 import { mockNotices, mockAdminAlerts } from "@/data/mock-notices";
 
+function toYmd(date: Date): string {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, "0");
+  const d = `${date.getDate()}`.padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function monthPrefix(date: Date): string {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, "0");
+  return `${y}-${m}`;
+}
+
 export default function DashboardPage() {
+  const { items: myApplications, loading: appsLoading } = useMyApplications();
+  const { events } = useEvents();
+  const today = toYmd(new Date());
+  const thisMonth = monthPrefix(new Date());
+
+  const stats = useMemo(() => {
+    const activeApps = myApplications.filter((a) => a.status !== "rejected");
+    const todayCount = activeApps.filter((a) => a.date === today).length;
+    const pending = myApplications.filter((a) => a.status === "pending").length;
+    const monthWorked = myApplications.filter(
+      (a) => a.status === "completed" && a.date.startsWith(thisMonth),
+    ).length;
+    const openSlots = events.reduce(
+      (acc, ev) =>
+        acc +
+        ev.sessions.reduce(
+          (sAcc, sess) =>
+            sAcc +
+            sess.slots.filter((slot) => slot.applied_count < slot.capacity).length,
+          0,
+        ),
+      0,
+    );
+    return {
+      todayShiftCount: todayCount,
+      pendingApprovals: pending,
+      openSlots,
+      monthWorked,
+    };
+  }, [events, myApplications, thisMonth, today]);
+
+  const myBlocks = useMemo(
+    () =>
+      [...myApplications]
+        .filter((a) => a.status !== "rejected")
+        .sort((a, b) => `${a.date} ${a.slotTime}`.localeCompare(`${b.date} ${b.slotTime}`))
+        .slice(0, 8),
+    [myApplications],
+  );
+
   return (
     <div className="space-y-8">
       <div>
@@ -40,7 +84,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {dashboardStats.todayShiftCount}
+              {stats.todayShiftCount}
             </p>
             <p className="text-xs text-muted-foreground">배정된 근무 블록</p>
           </CardContent>
@@ -52,7 +96,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {dashboardStats.pendingApprovals}
+              {stats.pendingApprovals}
             </p>
             <p className="text-xs text-muted-foreground">관리자 검토 필요</p>
           </CardContent>
@@ -64,7 +108,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {dashboardStats.openSlots}
+              {stats.openSlots}
             </p>
             <p className="text-xs text-muted-foreground">슬롯 잔여 존재</p>
           </CardContent>
@@ -76,7 +120,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {dashboardStats.monthWorked}
+              {stats.monthWorked}
             </p>
             <p className="text-xs text-muted-foreground">확정/완료 기준</p>
           </CardContent>
@@ -87,16 +131,20 @@ export default function DashboardPage() {
         <div className="space-y-6 xl:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>오늘 근무 리스트</CardTitle>
-              <CardDescription>배정 및 상태 요약</CardDescription>
+              <CardTitle>내 신청 블록</CardTitle>
+              <CardDescription>신청 내역 기반 · 빠른 확인용</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {todayShifts.length === 0 ? (
+              {appsLoading ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  오늘 배정된 근무가 없습니다.
+                  불러오는 중...
+                </p>
+              ) : myBlocks.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  신청한 블록이 없습니다.
                 </p>
               ) : (
-                todayShifts.map((s) => (
+                myBlocks.map((s) => (
                   <div
                     key={s.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2.5"
@@ -104,13 +152,21 @@ export default function DashboardPage() {
                     <div>
                       <p className="text-sm font-medium">{s.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {s.venue} · {s.time}
+                        {s.venue} · {s.date} {s.slotTime}
                       </p>
                     </div>
                     <Badge
-                      variant={s.status === "confirmed" ? "success" : "warning"}
+                      variant={
+                        s.status === "approved"
+                          ? "success"
+                          : s.status === "pending"
+                            ? "warning"
+                            : s.status === "completed"
+                              ? "default"
+                              : "destructive"
+                      }
                     >
-                      {s.status === "confirmed" ? "확정" : "대기"}
+                      {statusLabels[s.status]}
                     </Badge>
                   </div>
                 ))
