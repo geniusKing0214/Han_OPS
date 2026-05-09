@@ -168,9 +168,11 @@ export async function decideApplication(
     }
 
     const nextStatus: Exclude<ApplicationStatus, "pending"> = status;
-    tx.update(appRef, { status: nextStatus });
 
-    if (status !== "approved") return;
+    if (status !== "approved") {
+      tx.update(appRef, { status: nextStatus });
+      return;
+    }
 
     const eventId = typeof appData.eventId === "string" ? appData.eventId : "";
     const sessionId =
@@ -211,9 +213,11 @@ export async function decideApplication(
       throw new Error("이벤트의 세션/슬롯을 찾을 수 없습니다.");
     }
 
+    // 트랜잭션 규칙: 모든 read(tx.get) 후에 write(tx.update) 실행
     tx.update(eventRef, {
       sessions: nextSessions,
       updatedAt: serverTimestamp(),
     });
+    tx.update(appRef, { status: nextStatus });
   });
 }
