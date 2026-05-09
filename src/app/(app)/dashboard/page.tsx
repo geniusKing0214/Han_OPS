@@ -37,14 +37,14 @@ export default function DashboardPage() {
     const uniqApprovedToday = new Set(
       approvedApps
         .filter((a) => a.date === today)
-        .map((a) => `${a.eventId ?? a.eventTitle}@${a.date}`),
+        .map((a) => a.eventId ?? a.eventTitle),
     );
     const todayCount = uniqApprovedToday.size;
     const pending = myApplications.filter((a) => a.status === "pending").length;
     const uniqApprovedMonth = new Set(
       approvedApps
         .filter((a) => a.date.startsWith(thisMonth))
-        .map((a) => `${a.eventId ?? a.eventTitle}@${a.date}`),
+        .map((a) => a.eventId ?? a.eventTitle),
     );
     const monthWorked = uniqApprovedMonth.size;
 
