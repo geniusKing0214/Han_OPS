@@ -6,6 +6,7 @@ import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import type { EventItem } from "@/types/schedule";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { deleteEvent, saveEvent } from "@/lib/firestore-events";
+import { withBasePath } from "@/lib/base-path";
 import { updateSlot } from "@/lib/schedule-mutations";
 import { useEvents } from "@/hooks/use-events";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,9 @@ function parsePositiveInt(value: string, fallback: number) {
 }
 
 function openEventEditorInNewWindow(eventId: string) {
-  const path = `/admin/schedule/${encodeURIComponent(eventId)}`;
+  const path = withBasePath(
+    `/admin/schedule/edit?id=${encodeURIComponent(eventId)}`,
+  );
   window.open(path, "_blank", "noopener,noreferrer");
 }
 

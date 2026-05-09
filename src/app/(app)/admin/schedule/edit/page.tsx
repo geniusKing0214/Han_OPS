@@ -1,7 +1,8 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { EventScheduleEditor } from "@/components/admin/event-schedule-editor";
@@ -15,12 +16,32 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function AdminEventSchedulePage() {
-  const params = useParams();
+function AdminEventScheduleInner() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const eventId = params.eventId as string;
+  const eventId = searchParams.get("id")?.trim() ?? "";
   const { events, loading, error } = useEvents();
   const event = events.find((e) => e.id === eventId);
+
+  if (!eventId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">이벤트 ID가 없습니다</CardTitle>
+          <CardDescription>
+            Admin → 일정 →「새 창에서 편집」로 열거나, URL에{' '}
+            <span className="font-mono text-foreground">?id=일정-ID</span> 를
+            붙여 주세요.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button type="button" variant="accent" asChild>
+            <Link href="/admin/schedule">일정 목록으로</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -36,8 +57,7 @@ export default function AdminEventSchedulePage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">이벤트 편집</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          이 창에서만 편집해도 Firestore에 바로 반영되며, 다른 탭의 일정 화면과
-          동기화됩니다.
+          이 창에서 편집한 내용은 Firestore에 바로 반영됩니다.
         </p>
       </div>
 
@@ -56,7 +76,8 @@ export default function AdminEventSchedulePage() {
           <CardHeader>
             <CardTitle className="text-base">일정을 찾을 수 없습니다</CardTitle>
             <CardDescription>
-              ID <span className="font-mono text-foreground">{eventId}</span>에 해당하는
+              ID{" "}
+              <span className="font-mono text-foreground">{eventId}</span>에 해당하는
               이벤트가 없거나 삭제되었습니다.
             </CardDescription>
           </CardHeader>
@@ -75,5 +96,17 @@ export default function AdminEventSchedulePage() {
         />
       ) : null}
     </div>
+  );
+}
+
+export default function AdminEventScheduleEditPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className="text-sm text-muted-foreground">불러오는 중...</p>
+      }
+    >
+      <AdminEventScheduleInner />
+    </Suspense>
   );
 }
