@@ -2,6 +2,7 @@ import {
   type FirestoreError,
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -76,6 +77,21 @@ export type CreateApplicationInput = {
   note: string;
 };
 
+async function pruneMyApplicationsToFive(uid: string) {
+  const q = query(
+    collection(db, APPLICATIONS_COLLECTION),
+    where("userId", "==", uid),
+  );
+  const snap = await getDocs(q);
+  const docs = [...snap.docs].sort((a, b) => {
+    const aIso = timestampToIso((a.data() as Record<string, unknown>).createdAt);
+    const bIso = timestampToIso((b.data() as Record<string, unknown>).createdAt);
+    return bIso.localeCompare(aIso);
+  });
+  const overflow = docs.slice(5);
+  await Promise.all(overflow.map((d) => deleteDoc(d.ref)));
+}
+
 export async function createApplication(input: CreateApplicationInput) {
   const dupQuery = query(
     collection(db, APPLICATIONS_COLLECTION),
@@ -105,6 +121,9 @@ export async function createApplication(input: CreateApplicationInput) {
     status: "pending" as const,
     createdAt: serverTimestamp(),
   });
+
+  // 사용자별 신청 내역은 최신 5개만 유지
+  await pruneMyApplicationsToFive(input.userId);
 }
 
 export function subscribeMyApplications(

@@ -65,7 +65,7 @@ export default function DashboardPage() {
       [...myApplications]
         .filter((a) => a.status !== "rejected")
         .sort((a, b) => `${a.date} ${a.slotTime}`.localeCompare(`${b.date} ${b.slotTime}`))
-        .slice(0, 8),
+        .slice(0, 3),
     [myApplications],
   );
 
@@ -134,7 +134,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>내 신청 블록</CardTitle>
-              <CardDescription>신청 내역 기반 · 빠른 확인용</CardDescription>
+              <CardDescription>최근 3건만 표시 · 전체는 Applications에서 확인</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {appsLoading ? (
