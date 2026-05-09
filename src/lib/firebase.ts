@@ -15,12 +15,20 @@ function hasMissingConfig() {
   return Object.values(firebaseConfig).some((value) => !value);
 }
 
-if (hasMissingConfig()) {
-  throw new Error(
-    "Missing Firebase env vars. Copy .env.local.example to .env.local and fill NEXT_PUBLIC_FIREBASE_* values.",
-  );
-}
+export const firebaseConfigError =
+  "Missing Firebase env vars. Copy .env.local.example to .env.local and fill NEXT_PUBLIC_FIREBASE_* values.";
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const isFirebaseConfigured = !hasMissingConfig();
+
+const app = isFirebaseConfigured
+  ? getApps().length
+    ? getApp()
+    : initializeApp(firebaseConfig)
+  : null;
+
+export const auth = app
+  ? getAuth(app)
+  : (null as unknown as ReturnType<typeof getAuth>);
+export const db = app
+  ? getFirestore(app)
+  : (null as unknown as ReturnType<typeof getFirestore>);

@@ -15,7 +15,7 @@ import {
   useState,
 } from "react";
 
-import { auth } from "@/lib/firebase";
+import { auth, firebaseConfigError, isFirebaseConfigured } from "@/lib/firebase";
 import { googleAuthProvider } from "@/lib/google-auth";
 import {
   createMemberProfile,
@@ -52,6 +52,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isFirebaseConfigured || !auth) {
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
     let unsubProfile: (() => void) | undefined;
 
     const unsubAuth = onAuthStateChanged(auth, (nextUser) => {
@@ -108,10 +115,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    if (!isFirebaseConfigured || !auth) {
+      throw new Error(firebaseConfigError);
+    }
     await signInWithPopup(auth, googleAuthProvider);
   }, []);
 
   const logout = useCallback(async () => {
+    if (!isFirebaseConfigured || !auth) {
+      throw new Error(firebaseConfigError);
+    }
     await signOut(auth);
   }, []);
 
