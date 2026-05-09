@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   listPendingUsersForAdmin,
   setUserApprovalStatus,
@@ -13,6 +14,7 @@ import {
 
 export function SignupApprovalsPanel() {
   const [rows, setRows] = useState<ListedUserRow[]>([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -46,6 +48,21 @@ export function SignupApprovalsPanel() {
     }
   };
 
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredRows =
+    normalizedQuery.length === 0
+      ? rows
+      : rows.filter((row) => {
+          const nickname = row.displayName?.toLowerCase() ?? "";
+          const email = row.email.toLowerCase();
+          const uid = row.uid.toLowerCase();
+          return (
+            nickname.includes(normalizedQuery) ||
+            email.includes(normalizedQuery) ||
+            uid.includes(normalizedQuery)
+          );
+        });
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -58,6 +75,18 @@ export function SignupApprovalsPanel() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="닉네임, 이메일, uid 검색"
+            className="sm:max-w-xs"
+          />
+          <p className="text-xs text-muted-foreground">
+            대기 {filteredRows.length}건 / 전체 {rows.length}건
+          </p>
+        </div>
+
         {error ? (
           <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
             {error}
@@ -66,10 +95,10 @@ export function SignupApprovalsPanel() {
 
         {loading ? (
           <p className="text-sm text-muted-foreground">불러오는 중...</p>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <p className="text-sm text-muted-foreground">대기 중인 가입 요청이 없습니다.</p>
         ) : (
-          rows.map((row) => (
+          filteredRows.map((row) => (
             <div
               key={row.uid}
               className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
