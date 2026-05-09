@@ -156,6 +156,9 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                     </CardHeader>
                     {expanded && (
                       <CardContent className="space-y-2 border-t border-border bg-muted/30 px-5 py-4">
+                        <p className="text-xs text-muted-foreground">
+                          거절 처리된 신청은 같은 이벤트에 다시 신청할 수 있습니다.
+                        </p>
                         {session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
                           const alreadyAppliedEvent = appliedEventIds.has(event.id);
