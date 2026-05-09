@@ -12,7 +12,7 @@ function toErrorMessage(err: unknown) {
   return "요청 처리 중 오류가 발생했습니다.";
 }
 
-/** Google 계정으로만 로그인합니다. 신규 사용자는 첫 로그인 시 자동으로 등록됩니다. */
+/** Google 계정으로만 로그인합니다. 신규 사용자는 첫 로그인 후 관리자 승인 대기 상태가 됩니다. */
 export function AuthForm() {
   const { user, signInWithGoogle } = useAuth();
   const router = useRouter();
@@ -43,7 +43,7 @@ export function AuthForm() {
       <CardHeader>
         <CardTitle>로그인</CardTitle>
         <CardDescription>
-          Google 계정으로 로그인합니다. 신규 사용자는 첫 로그인으로 가입이 완료됩니다.
+          Google 계정으로 로그인합니다. 신규 사용자는 관리자 승인 후 이용할 수 있습니다.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

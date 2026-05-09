@@ -21,11 +21,12 @@ import {
   createMemberProfile,
   subscribeUserProfile,
 } from "@/lib/firestore-users";
-import type { UserRole } from "@/types/user";
+import type { UserApprovalStatus, UserRole } from "@/types/user";
 
 export type AuthProfile = {
   email: string;
   role: UserRole;
+  accountStatus: UserApprovalStatus;
   displayName?: string;
   phone?: string;
 };
@@ -35,6 +36,7 @@ type AuthContextValue = {
   profile: AuthProfile | null;
   loading: boolean;
   isAdmin: boolean;
+  canAccessApp: boolean;
   /** Google OAuth 로그인 (신규는 첫 로그인 시 자동 가입) */
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -44,6 +46,14 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function normalizeRole(role: unknown): UserRole {
   return role === "admin" ? "admin" : "member";
+}
+
+function normalizeAccountStatus(status: unknown): UserApprovalStatus {
+  if (status === "pending" || status === "approved" || status === "rejected") {
+    return status;
+  }
+  // Existing users without this field are treated as approved.
+  return "approved";
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -83,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await createMemberProfile(
                 nextUser.uid,
                 nextUser.email ?? "",
+                nextUser.displayName,
               );
             } catch {
               setLoading(false);
@@ -96,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 ? data.email
                 : nextUser.email ?? "",
             role: normalizeRole(data.role),
+            accountStatus: normalizeAccountStatus(data.accountStatus),
             displayName:
               typeof data.displayName === "string"
                 ? data.displayName
@@ -129,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isAdmin = profile?.role === "admin";
+  const canAccessApp = !!profile && (isAdmin || profile.accountStatus === "approved");
 
   const value = useMemo(
     () => ({
@@ -136,10 +149,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       loading,
       isAdmin,
+      canAccessApp,
       signInWithGoogle,
       logout,
     }),
-    [user, profile, loading, isAdmin, signInWithGoogle, logout],
+    [user, profile, loading, isAdmin, canAccessApp, signInWithGoogle, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

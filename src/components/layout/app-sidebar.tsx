@@ -49,7 +49,7 @@ const settingsNavItem: SidebarLink = {
 
 export function AppSidebar({ className }: { className?: string }) {
   const pathname = usePathname();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, profile, logout, isAdmin } = useAuth();
 
   const nav: SidebarLink[] = [
     ...baseNav,
@@ -95,7 +95,9 @@ export function AppSidebar({ className }: { className?: string }) {
       <Separator />
       <div className="space-y-2 p-4">
         <p className="truncate text-xs text-muted-foreground">
-          {user?.email ?? "로그인 사용자"}
+          {profile?.displayName
+            ? `${profile.displayName} (${user?.email ?? profile.email})`
+            : user?.email ?? "로그인 사용자"}
         </p>
         <Button
           type="button"

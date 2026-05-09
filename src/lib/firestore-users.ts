@@ -5,17 +5,23 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
-import type { UserProfileDoc, UserRole } from "@/types/user";
+import type { UserApprovalStatus, UserProfileDoc, UserRole } from "@/types/user";
 
 export const USERS_COLLECTION = "users";
 
-export async function createMemberProfile(uid: string, email: string) {
+export async function createMemberProfile(
+  uid: string,
+  email: string,
+  displayName?: string | null,
+) {
   const ref = doc(db, USERS_COLLECTION, uid);
   const existing = await getDoc(ref);
   if (existing.exists()) return;
@@ -23,6 +29,8 @@ export async function createMemberProfile(uid: string, email: string) {
   await setDoc(ref, {
     email,
     role: "member",
+    accountStatus: "pending",
+    displayName: typeof displayName === "string" ? displayName.trim() : "",
     createdAt: serverTimestamp(),
   });
 }
@@ -61,6 +69,25 @@ export async function listUsersForAdmin(): Promise<ListedUserRow[]> {
 export async function setUserRole(uid: string, role: UserRole) {
   const ref = doc(db, USERS_COLLECTION, uid);
   await updateDoc(ref, { role });
+}
+
+export async function setUserApprovalStatus(
+  uid: string,
+  accountStatus: UserApprovalStatus,
+) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  await updateDoc(ref, { accountStatus });
+}
+
+export async function listPendingUsersForAdmin(): Promise<ListedUserRow[]> {
+  const snap = await getDocs(
+    query(collection(db, USERS_COLLECTION), where("accountStatus", "==", "pending")),
+  );
+  const rows = snap.docs.map((d) => ({
+    uid: d.id,
+    ...(d.data() as UserProfileDoc),
+  }));
+  return rows.sort((a, b) => a.email.localeCompare(b.email, "ko"));
 }
 
 /** 본인 프로필 필드만 갱신 (역할·이메일 변경 없음) */

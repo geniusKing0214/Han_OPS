@@ -23,14 +23,22 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.auth.uid == userId
         && request.resource.data.role == "member"
+        && request.resource.data.accountStatus == "pending"
         && request.resource.data.email is string
-        && request.resource.data.keys().hasOnly(["email", "role", "createdAt"]);
+        && request.resource.data.keys().hasOnly([
+          "email",
+          "role",
+          "accountStatus",
+          "displayName",
+          "createdAt"
+        ]);
 
-      // 관리자: 모든 필드 수정 가능 / 일반: role 변경 불가
+      // 관리자: 모든 필드 수정 가능 / 일반: role/accountStatus 변경 불가
       allow update: if isAdmin() || (
         isSignedIn()
         && request.auth.uid == userId
         && request.resource.data.role == resource.data.role
+        && request.resource.data.accountStatus == resource.data.accountStatus
       );
     }
 

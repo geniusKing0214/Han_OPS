@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils";
 
 const items = [
   {
+    href: "/admin/registrations",
+    label: "가입 승인",
+    isActive: (p: string) =>
+      p === "/admin/registrations" || p.startsWith("/admin/registrations/"),
+  },
+  {
     href: "/admin/users",
     label: "사용자 관리",
     /** 활성: 사용자 구간만 (일정 경로와 구분) */
