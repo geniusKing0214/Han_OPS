@@ -33,27 +33,29 @@ export default function DashboardPage() {
   const thisMonth = monthPrefix(new Date());
 
   const stats = useMemo(() => {
-    const activeApps = myApplications.filter((a) => a.status !== "rejected");
-    const todayCount = activeApps.filter((a) => a.date === today).length;
+    const approvedApps = myApplications.filter((a) => a.status === "approved");
+    const todayCount = approvedApps.filter((a) => a.date === today).length;
     const pending = myApplications.filter((a) => a.status === "pending").length;
-    const monthWorked = myApplications.filter(
-      (a) => a.status === "completed" && a.date.startsWith(thisMonth),
+    const monthWorked = approvedApps.filter((a) =>
+      a.date.startsWith(thisMonth),
     ).length;
-    const openSlots = events.reduce(
-      (acc, ev) =>
-        acc +
-        ev.sessions.reduce(
-          (sAcc, sess) =>
-            sAcc +
-            sess.slots.filter((slot) => slot.applied_count < slot.capacity).length,
-          0,
-        ),
-      0,
+
+    const appliedEventIds = new Set(
+      myApplications
+        .filter(
+          (a) =>
+            (a.status === "pending" ||
+              a.status === "approved" ||
+              a.status === "completed") &&
+            a.eventId,
+        )
+        .map((a) => a.eventId as string),
     );
+    const availableEvents = events.filter((ev) => !appliedEventIds.has(ev.id)).length;
     return {
       todayShiftCount: todayCount,
       pendingApprovals: pending,
-      openSlots,
+      openSlots: availableEvents,
       monthWorked,
     };
   }, [events, myApplications, thisMonth, today]);
