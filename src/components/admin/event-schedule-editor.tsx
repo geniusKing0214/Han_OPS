@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 
 import type { EventItem } from "@/types/schedule";
@@ -47,15 +47,6 @@ export function EventScheduleEditor({ event, onDeleted }: EventScheduleEditorPro
   const [metaVenue, setMetaVenue] = useState(event.venue);
   const [metaNotice, setMetaNotice] = useState(event.notice ?? "");
   const [metaColor, setMetaColor] = useState(event.color ?? "#C8A96B");
-
-  useEffect(() => {
-    setMetaTitle(event.title);
-    setMetaVenue(event.venue);
-    setMetaNotice(event.notice ?? "");
-    setMetaColor(event.color ?? "#C8A96B");
-    setSessionDatePick("");
-    setNewSlotDraft({});
-  }, [event.id]);
 
   const persist = async (next: EventItem) => {
     setSaving(true);

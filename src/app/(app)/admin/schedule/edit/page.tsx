@@ -91,6 +91,7 @@ function AdminEventScheduleInner() {
 
       {event ? (
         <EventScheduleEditor
+          key={event.id}
           event={event}
           onDeleted={() => router.push("/admin/schedule")}
         />
