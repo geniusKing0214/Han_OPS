@@ -3,6 +3,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDocs,
   onSnapshot,
   query,
   runTransaction,
@@ -76,6 +77,21 @@ export type CreateApplicationInput = {
 };
 
 export async function createApplication(input: CreateApplicationInput) {
+  const dupQuery = query(
+    collection(db, APPLICATIONS_COLLECTION),
+    where("userId", "==", input.userId),
+    where("eventId", "==", input.eventId),
+  );
+  const dupSnap = await getDocs(dupQuery);
+  const hasActive = dupSnap.docs.some((d) => {
+    const data = d.data() as Record<string, unknown>;
+    const s = normalizeStatus(data.status);
+    return s === "pending" || s === "approved" || s === "completed";
+  });
+  if (hasActive) {
+    throw new Error("같은 이벤트에는 중복 신청할 수 없습니다.");
+  }
+
   await addDoc(collection(db, APPLICATIONS_COLLECTION), {
     userId: input.userId,
     eventId: input.eventId,
@@ -205,7 +221,9 @@ export async function decideApplication(
           if (slot.applied_count >= slot.capacity) {
             throw new Error("슬롯이 이미 마감되어 승인할 수 없습니다.");
           }
-          return { ...slot, applied_count: slot.applied_count + 1 };
+          const nextApplied = slot.applied_count + 1;
+          // 승인되면 해당 슬롯은 즉시 마감 처리
+          return { ...slot, applied_count: nextApplied, capacity: nextApplied };
         }),
       };
     });

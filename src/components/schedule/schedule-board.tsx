@@ -9,6 +9,7 @@ import {
   ApplySlotContext,
   ApplySlotSurface,
 } from "@/components/schedule/apply-slot";
+import { useMyApplications } from "@/hooks/use-my-applications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,10 +50,25 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
 
   const [applyOpen, setApplyOpen] = useState(false);
   const [applyCtx, setApplyCtx] = useState<ApplySlotContext | null>(null);
+  const { items: myApplications } = useMyApplications();
 
   const marked = useMarkedDates(events);
   const ymd = toYMD(selected);
   const rows = sessionsForDate(events, ymd);
+  const appliedEventIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const app of myApplications) {
+      if (
+        (app.status === "pending" ||
+          app.status === "approved" ||
+          app.status === "completed") &&
+        app.eventId
+      ) {
+        set.add(app.eventId);
+      }
+    }
+    return set;
+  }, [myApplications]);
 
   const toggleEvent = (id: string) => {
     setOpenEv((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -142,6 +158,8 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                       <CardContent className="space-y-2 border-t border-border bg-muted/30 px-5 py-4">
                         {session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
+                          const alreadyAppliedEvent = appliedEventIds.has(event.id);
+                          const blocked = full || alreadyAppliedEvent;
                           return (
                             <div
                               key={slot.id}
@@ -162,8 +180,8 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                               </div>
                               <Button
                                 size="sm"
-                                variant={full ? "outline" : "accent"}
-                                disabled={full}
+                                variant={blocked ? "outline" : "accent"}
+                                disabled={blocked}
                                 onClick={() => {
                                   setApplyCtx({
                                     eventId: event.id,
@@ -179,7 +197,7 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                                   setApplyOpen(true);
                                 }}
                               >
-                                신청
+                                {alreadyAppliedEvent ? "신청 완료" : full ? "마감" : "신청"}
                               </Button>
                             </div>
                           );
