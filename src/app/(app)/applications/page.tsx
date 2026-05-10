@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyApplications } from "@/hooks/use-my-applications";
+import { useEvents } from "@/hooks/use-events";
+import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +37,13 @@ export default function ApplicationsPage() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const { items, loading, error } = useMyApplications();
+  const { items: rawItems, loading: appsLoading, error } = useMyApplications();
+  const { events, loading: eventsLoading } = useEvents();
+  const items = useMemo(
+    () => filterApplicationsMatchingLiveSchedule(rawItems, events),
+    [rawItems, events],
+  );
+  const loading = appsLoading || eventsLoading;
 
   const activeRows = useMemo(() => rowsForTab(tab, items), [tab, items]);
   const markedDates = useMemo(

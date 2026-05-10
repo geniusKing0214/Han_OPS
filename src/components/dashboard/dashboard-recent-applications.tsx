@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,10 +11,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useMyApplications } from "@/hooks/use-my-applications";
+import { useEvents } from "@/hooks/use-events";
+import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
 import { statusLabels } from "@/types/application";
 
 export function DashboardRecentApplications() {
-  const { items, loading } = useMyApplications();
+  const { items: rawItems, loading: appsLoading } = useMyApplications();
+  const { events, loading: eventsLoading } = useEvents();
+  const items = useMemo(
+    () => filterApplicationsMatchingLiveSchedule(rawItems, events),
+    [rawItems, events],
+  );
+  const loading = appsLoading || eventsLoading;
   const recentApps = items.slice(0, 2);
 
   return (

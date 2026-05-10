@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
+import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
 import { statusLabels } from "@/types/application";
 import { mockNotices, mockAdminAlerts } from "@/data/mock-notices";
 
@@ -27,8 +28,12 @@ function monthPrefix(date: Date): string {
 }
 
 export default function DashboardPage() {
-  const { items: myApplications, loading: appsLoading } = useMyApplications();
+  const { items: rawApplications, loading: appsLoading } = useMyApplications();
   const { events } = useEvents();
+  const myApplications = useMemo(
+    () => filterApplicationsMatchingLiveSchedule(rawApplications, events),
+    [rawApplications, events],
+  );
   const today = toYmd(new Date());
   const thisMonth = monthPrefix(new Date());
 
