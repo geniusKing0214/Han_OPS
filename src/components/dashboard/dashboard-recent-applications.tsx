@@ -13,7 +13,7 @@ import { statusLabels } from "@/types/application";
 
 export function DashboardRecentApplications() {
   const { items, loading } = useMyApplications();
-  const recentApps = items.slice(0, 4);
+  const recentApps = items.slice(0, 2);
 
   return (
     <Card>
