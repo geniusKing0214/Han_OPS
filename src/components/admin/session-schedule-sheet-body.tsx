@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 
 import type { EventItem } from "@/types/schedule";
@@ -27,6 +27,14 @@ function parsePositiveInt(value: string, fallback: number) {
   const n = Number.parseInt(value, 10);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
+
+/** 빈 입력·잘못된 입력은 0으로 저장(blur 시) */
+function parseNonNegInt(value: string): number {
+  const n = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+type SlotFieldDraft = { start: string; cap: string; applied: string };
 
 function openTimePickerIfSupported(target: EventTarget | null) {
   const el = target as HTMLInputElement | null;
@@ -72,6 +80,18 @@ export function SessionScheduleSheetBody({
   const [saveError, setSaveError] = useState("");
   const [addSessionDatePick, setAddSessionDatePick] = useState("");
   const [newSlotDraft, setNewSlotDraft] = useState({ time: "09:00", cap: "4" });
+  const [slotDrafts, setSlotDrafts] = useState<Record<string, SlotFieldDraft>>(
+    {},
+  );
+  const slotDraftsRef = useRef(slotDrafts);
+  slotDraftsRef.current = slotDrafts;
+
+  const sessionReady = Boolean(live && session);
+  const slotIdsKey =
+    session?.slots
+      .map((s) => s.id)
+      .sort()
+      .join(",") ?? "";
 
   useEffect(() => {
     if (!live) return;
@@ -81,6 +101,84 @@ export function SessionScheduleSheetBody({
     setMetaColor(live.color ?? "#C8A96B");
     setSaveError("");
   }, [resetKey, live?.id]);
+
+  /** 시트를 열거나 세션을 바꿀 때 슬롯 입력값 초기화(Firestore 스냅샷마다는 초기화하지 않음) */
+  useEffect(() => {
+    if (!sessionReady) return;
+    const ln = events.find((e) => e.id === eventId);
+    const sn = ln?.sessions.find((s) => s.id === sessionId);
+    if (!ln || !sn) return;
+    const init: Record<string, SlotFieldDraft> = {};
+    for (const sl of sn.slots) {
+      init[sl.id] = {
+        start: sl.start_time,
+        cap: String(sl.capacity),
+        applied: String(sl.applied_count),
+      };
+    }
+    setSlotDrafts(init);
+  }, [resetKey, eventId, sessionId, sessionReady]);
+
+  /** 슬롯 행이 추가·삭제될 때만 드래프트 병합 */
+  useEffect(() => {
+    if (!slotIdsKey) return;
+    const ln = events.find((e) => e.id === eventId);
+    const sn = ln?.sessions.find((s) => s.id === sessionId);
+    if (!ln || !sn) return;
+    setSlotDrafts((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const sl of sn.slots) {
+        if (next[sl.id] === undefined) {
+          next[sl.id] = {
+            start: sl.start_time,
+            cap: String(sl.capacity),
+            applied: String(sl.applied_count),
+          };
+          changed = true;
+        }
+      }
+      for (const id of Object.keys(next)) {
+        if (!sn.slots.some((s) => s.id === id)) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [slotIdsKey, eventId, sessionId]);
+
+  const flushSlotDraft = useCallback(
+    (slotId: string) => {
+      const draft = slotDraftsRef.current[slotId];
+      const ln = events.find((e) => e.id === eventId);
+      const sn = ln?.sessions.find((s) => s.id === sessionId);
+      if (!draft || !ln || !sn) return;
+      const slot = sn.slots.find((s) => s.id === slotId);
+      if (!slot) return;
+
+      const cap = parseNonNegInt(draft.cap);
+      const applied = parseNonNegInt(draft.applied);
+      const start = draft.start.trim() || slot.start_time;
+
+      if (
+        cap === slot.capacity &&
+        applied === slot.applied_count &&
+        start === slot.start_time
+      ) {
+        return;
+      }
+
+      void onPersist(
+        updateSlot(ln, sessionId, slotId, {
+          start_time: start,
+          capacity: cap,
+          applied_count: applied,
+        }),
+      );
+    },
+    [eventId, sessionId, events, onPersist],
+  );
 
   const handleSaveMeta = async () => {
     if (!live) return false;
@@ -140,7 +238,6 @@ export function SessionScheduleSheetBody({
             <Input
               value={metaTitle}
               onChange={(e) => setMetaTitle(e.target.value)}
-              disabled={saving}
             />
           </div>
           <div className="space-y-2">
@@ -148,7 +245,6 @@ export function SessionScheduleSheetBody({
             <Input
               value={metaVenue}
               onChange={(e) => setMetaVenue(e.target.value)}
-              disabled={saving}
             />
           </div>
           <div className="space-y-2">
@@ -157,7 +253,6 @@ export function SessionScheduleSheetBody({
               value={metaNotice}
               onChange={(e) => setMetaNotice(e.target.value)}
               className="min-h-[72px]"
-              disabled={saving}
             />
           </div>
           <div className="space-y-2">
@@ -168,13 +263,11 @@ export function SessionScheduleSheetBody({
                 className="h-9 w-14 cursor-pointer p-1"
                 value={metaColor}
                 onChange={(e) => setMetaColor(e.target.value)}
-                disabled={saving}
               />
               <Input
                 value={metaColor}
                 onChange={(e) => setMetaColor(e.target.value)}
                 className="flex-1 font-mono text-xs"
-                disabled={saving}
               />
             </div>
           </div>
@@ -218,7 +311,6 @@ export function SessionScheduleSheetBody({
               type="date"
               className="w-full max-w-[200px]"
               value={session.date}
-              disabled={saving}
               onChange={(e) => {
                 const v = e.target.value;
                 if (!v) return;
@@ -233,10 +325,17 @@ export function SessionScheduleSheetBody({
           <Separator />
 
           <p className="text-xs text-muted-foreground">
-            슬롯별 시작 시간·정원·신청 인원. 변경 시 곧바로 저장됩니다.
+            슬롯별 시작 시간·정원·신청 인원은 입력 후 다른 칸으로 이동하거나
+            키보드의「완료」를 누르면 저장됩니다.
           </p>
           <div className="space-y-3">
-            {session.slots.map((slot) => (
+            {session.slots.map((slot) => {
+              const d = slotDrafts[slot.id] ?? {
+                start: slot.start_time,
+                cap: String(slot.capacity),
+                applied: String(slot.applied_count),
+              };
+              return (
               <div
                 key={slot.id}
                 className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-end"
@@ -247,19 +346,25 @@ export function SessionScheduleSheetBody({
                     <Input
                       type="time"
                       step={60}
-                      value={slot.start_time}
+                      value={d.start}
                       onClick={(e) => openTimePickerIfSupported(e.currentTarget)}
                       onTouchStart={(e) =>
                         openTimePickerIfSupported(e.currentTarget)
                       }
                       onChange={(e) =>
-                        void onPersist(
-                          updateSlot(live, sessionId, slot.id, {
-                            start_time: e.target.value,
-                          }),
-                        )
+                        setSlotDrafts((p) => {
+                          const cur = p[slot.id] ?? {
+                            start: slot.start_time,
+                            cap: String(slot.capacity),
+                            applied: String(slot.applied_count),
+                          };
+                          return {
+                            ...p,
+                            [slot.id]: { ...cur, start: e.target.value },
+                          };
+                        })
                       }
-                      disabled={saving}
+                      onBlur={() => flushSlotDraft(slot.id)}
                     />
                   </div>
                   <div className="space-y-1">
@@ -267,39 +372,47 @@ export function SessionScheduleSheetBody({
                       모집 인원 (정원)
                     </span>
                     <Input
-                      type="number"
-                      min={0}
-                      value={slot.capacity}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={d.cap}
                       onChange={(e) =>
-                        void onPersist(
-                          updateSlot(live, sessionId, slot.id, {
-                            capacity: parsePositiveInt(
-                              e.target.value,
-                              slot.capacity,
-                            ),
-                          }),
-                        )
+                        setSlotDrafts((p) => {
+                          const cur = p[slot.id] ?? {
+                            start: slot.start_time,
+                            cap: String(slot.capacity),
+                            applied: String(slot.applied_count),
+                          };
+                          return {
+                            ...p,
+                            [slot.id]: { ...cur, cap: e.target.value },
+                          };
+                        })
                       }
-                      disabled={saving}
+                      onBlur={() => flushSlotDraft(slot.id)}
                     />
                   </div>
                   <div className="space-y-1">
                     <span className="text-[11px] text-muted-foreground">신청 인원</span>
                     <Input
-                      type="number"
-                      min={0}
-                      value={slot.applied_count}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={d.applied}
                       onChange={(e) =>
-                        void onPersist(
-                          updateSlot(live, sessionId, slot.id, {
-                            applied_count: parsePositiveInt(
-                              e.target.value,
-                              slot.applied_count,
-                            ),
-                          }),
-                        )
+                        setSlotDrafts((p) => {
+                          const cur = p[slot.id] ?? {
+                            start: slot.start_time,
+                            cap: String(slot.capacity),
+                            applied: String(slot.applied_count),
+                          };
+                          return {
+                            ...p,
+                            [slot.id]: { ...cur, applied: e.target.value },
+                          };
+                        })
                       }
-                      disabled={saving}
+                      onBlur={() => flushSlotDraft(slot.id)}
                     />
                   </div>
                 </div>
@@ -317,7 +430,8 @@ export function SessionScheduleSheetBody({
                   슬롯 삭제
                 </Button>
               </div>
-            ))}
+            );
+            })}
           </div>
 
           <Separator />
@@ -335,19 +449,18 @@ export function SessionScheduleSheetBody({
                   onChange={(e) =>
                     setNewSlotDraft((p) => ({ ...p, time: e.target.value }))
                   }
-                  disabled={saving}
                 />
               </div>
               <div className="space-y-1">
                 <span className="text-[11px] text-muted-foreground">모집 인원</span>
                 <Input
-                  type="number"
-                  min={1}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   value={newSlotDraft.cap}
                   onChange={(e) =>
                     setNewSlotDraft((p) => ({ ...p, cap: e.target.value }))
                   }
-                  disabled={saving}
                 />
               </div>
             </div>
@@ -384,7 +497,6 @@ export function SessionScheduleSheetBody({
               className="w-[180px]"
               value={addSessionDatePick}
               onChange={(e) => setAddSessionDatePick(e.target.value)}
-              disabled={saving}
             />
             <Button
               type="button"
