@@ -7,6 +7,9 @@ export type ApplicationStatus =
 export type ApplicationItem = {
   id: string;
   userId?: string;
+  /** 신청 시점 표시명(관리자 목록용) */
+  applicantDisplayName?: string;
+  applicantEmail?: string;
   eventId?: string;
   sessionId?: string;
   slotId?: string;

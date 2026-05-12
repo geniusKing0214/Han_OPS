@@ -52,6 +52,12 @@ function docToApplicationItem(
   return {
     id,
     userId: typeof data.userId === "string" ? data.userId : undefined,
+    applicantDisplayName:
+      typeof data.applicantDisplayName === "string"
+        ? data.applicantDisplayName
+        : undefined,
+    applicantEmail:
+      typeof data.applicantEmail === "string" ? data.applicantEmail : undefined,
     eventId: typeof data.eventId === "string" ? data.eventId : undefined,
     sessionId: typeof data.sessionId === "string" ? data.sessionId : undefined,
     slotId: typeof data.slotId === "string" ? data.slotId : undefined,
@@ -67,6 +73,8 @@ function docToApplicationItem(
 
 export type CreateApplicationInput = {
   userId: string;
+  applicantDisplayName: string;
+  applicantEmail: string;
   eventId: string;
   sessionId: string;
   slotId: string;
@@ -110,6 +118,8 @@ export async function createApplication(input: CreateApplicationInput) {
 
   await addDoc(collection(db, APPLICATIONS_COLLECTION), {
     userId: input.userId,
+    applicantDisplayName: input.applicantDisplayName.trim(),
+    applicantEmail: input.applicantEmail.trim(),
     eventId: input.eventId,
     sessionId: input.sessionId,
     slotId: input.slotId,

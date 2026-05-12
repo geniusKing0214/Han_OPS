@@ -71,6 +71,20 @@ export function AdminConsole({
             >
               <div className="min-w-0">
                 <p className="font-medium">{a.eventTitle}</p>
+                <p className="text-sm text-foreground">
+                  신청자:{" "}
+                  <span className="font-medium">
+                    {a.applicantDisplayName?.trim() ||
+                      a.userId?.slice(0, 8) ||
+                      "알 수 없음"}
+                  </span>
+                  {a.applicantEmail ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      ({a.applicantEmail})
+                    </span>
+                  ) : null}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {a.venue} ·{" "}
                   <span className="tabular-nums">

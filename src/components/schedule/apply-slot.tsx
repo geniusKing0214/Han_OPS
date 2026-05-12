@@ -45,7 +45,7 @@ export function ApplySlotSurface({
   ctx: ApplySlotContext | null;
 }) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -108,8 +108,17 @@ export function ApplySlotSurface({
     setSubmitError("");
     setSubmitting(true);
     try {
+      const applicantDisplayName = (
+        profile?.displayName?.trim() ||
+        user.displayName?.trim() ||
+        user.email?.split("@")[0] ||
+        "회원"
+      ).slice(0, 80);
+      const applicantEmail = user.email ?? "";
       await createApplication({
         userId: user.uid,
+        applicantDisplayName,
+        applicantEmail,
         eventId: ctx.eventId,
         sessionId: ctx.sessionId,
         slotId: ctx.slotId,

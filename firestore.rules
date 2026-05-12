@@ -60,6 +60,8 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.userId is string
+        && request.resource.data.applicantDisplayName is string
+        && request.resource.data.applicantEmail is string
         && request.resource.data.status == "pending"
         && request.resource.data.eventTitle is string
         && request.resource.data.venue is string
