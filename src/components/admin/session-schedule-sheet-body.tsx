@@ -79,12 +79,15 @@ export function SessionScheduleSheetBody({
   const [metaColor, setMetaColor] = useState("#C8A96B");
   const [saveError, setSaveError] = useState("");
   const [addSessionDatePick, setAddSessionDatePick] = useState("");
+  const [sessionDateDraft, setSessionDateDraft] = useState("");
   const [newSlotDraft, setNewSlotDraft] = useState({ time: "09:00", cap: "4" });
   const [slotDrafts, setSlotDrafts] = useState<Record<string, SlotFieldDraft>>(
     {},
   );
   const slotDraftsRef = useRef(slotDrafts);
   slotDraftsRef.current = slotDrafts;
+  const sessionDateDraftRef = useRef(sessionDateDraft);
+  sessionDateDraftRef.current = sessionDateDraft;
 
   const sessionReady = Boolean(live && session);
   const slotIdsKey =
@@ -147,6 +150,17 @@ export function SessionScheduleSheetBody({
       return changed ? next : prev;
     });
   }, [slotIdsKey, eventId, sessionId]);
+
+  const sessionDateSyncKey = live && session ? `${sessionId}:${session.date}` : "";
+
+  useEffect(() => {
+    if (!sessionDateSyncKey) return;
+    const sn = events
+      .find((e) => e.id === eventId)
+      ?.sessions.find((s) => s.id === sessionId);
+    if (!sn?.date) return;
+    setSessionDateDraft(sn.date);
+  }, [resetKey, sessionDateSyncKey, eventId, sessionId]);
 
   const flushSlotDraft = useCallback(
     (slotId: string) => {
@@ -309,16 +323,24 @@ export function SessionScheduleSheetBody({
             <label className="text-[11px] text-muted-foreground">세션 날짜</label>
             <Input
               type="date"
-              className="w-full max-w-[200px]"
-              value={session.date}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (!v) return;
-                void onPersist(setSessionDate(live, sessionId, v));
+              className="min-h-11 w-full max-w-full sm:max-w-[220px]"
+              value={sessionDateDraft || session.date}
+              onChange={(e) => setSessionDateDraft(e.target.value)}
+              onInput={(e) =>
+                setSessionDateDraft((e.target as HTMLInputElement).value)
+              }
+              onBlur={() => {
+                const next = sessionDateDraftRef.current;
+                const ln = events.find((e) => e.id === eventId);
+                const sn = ln?.sessions.find((s) => s.id === sessionId);
+                if (!ln || !sn || !next) return;
+                if (next === sn.date) return;
+                void onPersist(setSessionDate(ln, sessionId, next));
               }}
             />
             <p className="text-[11px] text-muted-foreground">
-              날짜를 바꾸면「날짜별 그룹」에서 다른 날로 이동합니다.
+              날짜를 바꾼 뒤 다른 칸을 탭하거나 바깥을 누르면 저장됩니다. 같은 화면에서
+              아래「다른 날짜 세션 추가」도 사용할 수 있습니다.
             </p>
           </div>
 
@@ -491,23 +513,29 @@ export function SessionScheduleSheetBody({
           <p className="text-xs font-medium text-muted-foreground">
             이 이벤트에 다른 날짜 세션 추가
           </p>
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
             <Input
               type="date"
-              className="w-[180px]"
+              className="min-h-11 w-full min-w-0 sm:max-w-[220px]"
               value={addSessionDatePick}
               onChange={(e) => setAddSessionDatePick(e.target.value)}
+              onInput={(e) =>
+                setAddSessionDatePick((e.target as HTMLInputElement).value)
+              }
             />
             <Button
               type="button"
               size="sm"
               variant="default"
-              disabled={saving || !addSessionDatePick}
+              className="w-full shrink-0 sm:w-auto"
+              disabled={!addSessionDatePick.trim()}
               onClick={() => {
-                const d = addSessionDatePick;
+                const d = addSessionDatePick.trim();
                 if (!d) return;
+                const ln = events.find((e) => e.id === eventId);
+                if (!ln) return;
                 void (async () => {
-                  await onPersist(addSession(live, d));
+                  await onPersist(addSession(ln, d));
                   setAddSessionDatePick("");
                 })();
               }}
