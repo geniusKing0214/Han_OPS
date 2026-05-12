@@ -90,6 +90,27 @@ export async function listPendingUsersForAdmin(): Promise<ListedUserRow[]> {
   return rows.sort((a, b) => a.email.localeCompare(b.email, "ko"));
 }
 
+/** 관리자 화면용: 여러 uid의 프로필(이메일·닉네임)을 한 번에 조회 */
+export async function getUserProfilesByIds(
+  uids: string[],
+): Promise<Map<string, { email: string; displayName: string }>> {
+  const unique = [...new Set(uids.map((u) => u.trim()).filter(Boolean))];
+  const map = new Map<string, { email: string; displayName: string }>();
+  await Promise.all(
+    unique.map(async (uid) => {
+      const snap = await getDoc(doc(db, USERS_COLLECTION, uid));
+      if (!snap.exists()) return;
+      const data = snap.data() as UserProfileDoc;
+      map.set(uid, {
+        email: typeof data.email === "string" ? data.email : "",
+        displayName:
+          typeof data.displayName === "string" ? data.displayName.trim() : "",
+      });
+    }),
+  );
+  return map;
+}
+
 /** 본인 프로필 필드만 갱신 (역할·이메일 변경 없음) */
 export async function updateOwnProfile(
   uid: string,

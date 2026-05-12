@@ -7,7 +7,7 @@ export type ApplicationStatus =
 export type ApplicationItem = {
   id: string;
   userId?: string;
-  /** 신청 시점 표시명(관리자 목록용) */
+  /** 프로필/구글 닉네임(설정 시). 없으면 UI에서 이메일로 대체 표시 */
   applicantDisplayName?: string;
   applicantEmail?: string;
   eventId?: string;

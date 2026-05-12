@@ -108,12 +108,9 @@ export function ApplySlotSurface({
     setSubmitError("");
     setSubmitting(true);
     try {
-      const applicantDisplayName = (
-        profile?.displayName?.trim() ||
-        user.displayName?.trim() ||
-        user.email?.split("@")[0] ||
-        "회원"
-      ).slice(0, 80);
+      const nick =
+        profile?.displayName?.trim() || user.displayName?.trim() || "";
+      const applicantDisplayName = nick.slice(0, 80);
       const applicantEmail = user.email ?? "";
       await createApplication({
         userId: user.uid,
