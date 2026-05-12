@@ -42,6 +42,20 @@ export function removeSession(event: EventItem, sessionId: string): EventItem {
   };
 }
 
+export function setSessionDate(
+  event: EventItem,
+  sessionId: string,
+  date: string,
+): EventItem {
+  const d = date.trim();
+  return {
+    ...event,
+    sessions: event.sessions.map((s) =>
+      s.id === sessionId ? { ...s, date: d } : s,
+    ),
+  };
+}
+
 export function addSlot(
   event: EventItem,
   sessionId: string,

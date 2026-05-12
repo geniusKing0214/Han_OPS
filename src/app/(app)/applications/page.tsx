@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
+import { buildApplicationDateMarkers } from "@/lib/schedule-calendar-markers";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,9 +47,9 @@ export default function ApplicationsPage() {
   const loading = appsLoading || eventsLoading;
 
   const activeRows = useMemo(() => rowsForTab(tab, items), [tab, items]);
-  const markedDates = useMemo(
-    () => new Set(activeRows.map((a) => a.date)),
-    [activeRows],
+  const dateMarkers = useMemo(
+    () => buildApplicationDateMarkers(activeRows, events),
+    [activeRows, events],
   );
   const selectedYmd = toYMD(selectedDate);
   const selectedRows = useMemo(
@@ -188,7 +189,7 @@ export default function ApplicationsPage() {
                     selected={selectedDate}
                     onMonthChange={setMonth}
                     onSelect={setSelectedDate}
-                    markedDates={markedDates}
+                    dateMarkers={dateMarkers}
                     mode="full"
                   />
                   <Card>

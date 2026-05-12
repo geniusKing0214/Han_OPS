@@ -31,8 +31,13 @@ export type MiniCalendarProps = {
   selected: Date;
   onMonthChange: (m: Date) => void;
   onSelect: (d: Date) => void;
-  /** Dates (yyyy-mm-dd) that have at least one session */
+  /** Dates (yyyy-mm-dd) that have at least one session — 점은 테마 강조색 */
   markedDates?: Set<string>;
+  /**
+   * 날짜별 점 색상(CSS). 빈 문자열이면 테마 강조색.
+   * 설정 시 이 값이 우선합니다.
+   */
+  dateMarkers?: Map<string, string[]>;
   mode?: "mini" | "full";
   className?: string;
 };
@@ -43,6 +48,7 @@ export function MiniCalendar({
   onMonthChange,
   onSelect,
   markedDates,
+  dateMarkers,
   mode = "mini",
   className,
 }: MiniCalendarProps) {
@@ -121,7 +127,14 @@ export function MiniCalendar({
           const isToday = sameYMD(cell, today);
           const isSelected = sameYMD(cell, selected);
           const ymd = toYMD(cell);
-          const marked = markedDates?.has(ymd);
+          const fromMap = dateMarkers?.get(ymd);
+          const markerColors =
+            fromMap && fromMap.length > 0
+              ? fromMap
+              : markedDates?.has(ymd)
+                ? [""]
+                : [];
+          const hasMarkers = markerColors.length > 0;
 
           return (
             <button
@@ -129,7 +142,7 @@ export function MiniCalendar({
               type="button"
               onClick={() => onSelect(cell)}
               className={cn(
-                "flex aspect-square items-center justify-center rounded-md text-sm tabular-nums transition-colors",
+                "flex aspect-square flex-col items-center justify-center rounded-md text-sm tabular-nums transition-colors",
                 isFull && "min-h-12 text-base",
                 "hover:bg-surface-hover",
                 isSelected &&
@@ -138,18 +151,38 @@ export function MiniCalendar({
                 !isSelected && !isToday && "text-foreground",
               )}
             >
-              <span className="relative inline-flex">
-                {cell.getDate()}
-                {marked && !isSelected && (
-                  <span className="absolute -bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-accent/80" />
-                )}
+              <span className="relative inline-flex flex-col items-center gap-0.5">
+                <span>{cell.getDate()}</span>
+                {hasMarkers ? (
+                  <span
+                    className={cn(
+                      "flex max-w-[90%] justify-center gap-0.5",
+                      isSelected && "drop-shadow-[0_0_1px_rgba(0,0,0,0.85)]",
+                    )}
+                  >
+                    {markerColors.slice(0, 4).map((c, idx) => (
+                      <span
+                        key={`${ymd}-m-${idx}`}
+                        className={cn(
+                          "size-1.5 shrink-0 rounded-full ring-1 ring-background/80",
+                          !c &&
+                            (isSelected
+                              ? "bg-accent-foreground"
+                              : "bg-accent/90"),
+                        )}
+                        style={c ? { backgroundColor: c } : undefined}
+                        aria-hidden
+                      />
+                    ))}
+                  </span>
+                ) : null}
               </span>
             </button>
           );
         })}
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        · 표시: 일정이 있는 날짜(골드 점). 달력은 날짜 선택용입니다.
+        · 표시: 일정이 있는 날짜(이벤트 색 점, 미설정 시 강조색). 달력은 날짜 선택용입니다.
       </p>
     </div>
   );

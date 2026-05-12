@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 
 import type { EventItem, Session } from "@/types/schedule";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
+import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
 import {
   ApplySlotContext,
   ApplySlotSurface,
@@ -20,18 +21,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-function useMarkedDates(events: EventItem[]) {
-  return useMemo(() => {
-    const s = new Set<string>();
-    for (const ev of events) {
-      for (const sess of ev.sessions) {
-        s.add(sess.date);
-      }
-    }
-    return s;
-  }, [events]);
-}
 
 function sessionsForDate(events: EventItem[], ymd: string) {
   const out: { event: EventItem; session: Session }[] = [];
@@ -52,7 +41,7 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
   const [applyCtx, setApplyCtx] = useState<ApplySlotContext | null>(null);
   const { items: myApplications } = useMyApplications();
 
-  const marked = useMarkedDates(events);
+  const dateMarkers = useMemo(() => buildSessionDateMarkers(events), [events]);
   const ymd = toYMD(selected);
   const rows = sessionsForDate(events, ymd);
   const appliedEventIds = useMemo(() => {
@@ -87,7 +76,7 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
           selected={selected}
           onMonthChange={setMonth}
           onSelect={setSelected}
-          markedDates={marked}
+          dateMarkers={dateMarkers}
           mode="full"
         />
         </div>
