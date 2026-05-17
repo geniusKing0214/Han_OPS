@@ -4,6 +4,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -14,6 +15,11 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import {
+  notifyAdminsOnApplicationSubmitted,
+  notifyMemberOnApplicationApproved,
+  notifyMemberOnApplicationRejected,
+} from "@/lib/firestore-notifications";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
 import type { EventItem } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
@@ -116,7 +122,7 @@ export async function createApplication(input: CreateApplicationInput) {
     throw new Error("같은 이벤트에는 중복 신청할 수 없습니다.");
   }
 
-  await addDoc(collection(db, APPLICATIONS_COLLECTION), {
+  const appRef = await addDoc(collection(db, APPLICATIONS_COLLECTION), {
     userId: input.userId,
     applicantDisplayName: input.applicantDisplayName.trim(),
     applicantEmail: input.applicantEmail.trim(),
@@ -131,6 +137,22 @@ export async function createApplication(input: CreateApplicationInput) {
     status: "pending" as const,
     createdAt: serverTimestamp(),
   });
+
+  try {
+    await notifyAdminsOnApplicationSubmitted({
+      applicationId: appRef.id,
+      createdByUserId: input.userId,
+      applicantName: input.applicantDisplayName.trim(),
+      applicantEmail: input.applicantEmail.trim(),
+      eventId: input.eventId,
+      eventTitle: input.eventTitle,
+      eventDate: input.date,
+      slotTime: input.slotTime,
+      location: input.venue,
+    });
+  } catch {
+    // 신청은 성공 — 알림만 실패할 수 있음 (config/admins 미설정 등)
+  }
 
   // 사용자별 신청 내역은 최신 5개만 유지
   await pruneMyApplicationsToFive(input.userId);
@@ -198,6 +220,7 @@ export async function updateApplicationStatus(
 export async function decideApplication(
   applicationId: string,
   status: "approved" | "rejected",
+  options?: { rejectionReason?: string },
 ) {
   const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
 
@@ -215,7 +238,10 @@ export async function decideApplication(
     const nextStatus: Exclude<ApplicationStatus, "pending"> = status;
 
     if (status !== "approved") {
-      tx.update(appRef, { status: nextStatus });
+      const rejectPatch: Record<string, unknown> = { status: nextStatus };
+      const reason = options?.rejectionReason?.trim();
+      if (reason) rejectPatch.rejectionReason = reason;
+      tx.update(appRef, rejectPatch);
       return;
     }
 
@@ -267,4 +293,39 @@ export async function decideApplication(
     });
     tx.update(appRef, { status: nextStatus });
   });
+
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) return;
+  const appData = appSnap.data() as Record<string, unknown>;
+  const userId = typeof appData.userId === "string" ? appData.userId : "";
+  if (!userId) return;
+
+  const notifyInput = {
+    targetUserId: userId,
+    targetEmail:
+      typeof appData.applicantEmail === "string"
+        ? appData.applicantEmail
+        : undefined,
+    applicationId,
+    eventId: typeof appData.eventId === "string" ? appData.eventId : undefined,
+    eventTitle:
+      typeof appData.eventTitle === "string" ? appData.eventTitle : "",
+    eventDate: typeof appData.date === "string" ? appData.date : "",
+    slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
+    location: typeof appData.venue === "string" ? appData.venue : "",
+    rejectionReason:
+      typeof appData.rejectionReason === "string"
+        ? appData.rejectionReason
+        : options?.rejectionReason,
+  };
+
+  try {
+    if (status === "approved") {
+      await notifyMemberOnApplicationApproved(notifyInput);
+    } else {
+      await notifyMemberOnApplicationRejected(notifyInput);
+    }
+  } catch {
+    // 승인/거절은 완료 — 알림만 실패할 수 있음
+  }
 }

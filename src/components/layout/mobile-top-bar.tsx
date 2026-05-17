@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 
+import { NotificationsCenter } from "@/components/notifications/notifications-center";
 import { cn } from "@/lib/utils";
 
 export function MobileTopBar({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-14 items-center border-b border-border bg-background/80 px-4 backdrop-blur md:hidden",
+        "sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur md:hidden",
         className,
       )}
     >
@@ -16,7 +17,9 @@ export function MobileTopBar({ className }: { className?: string }) {
         <span className="text-foreground">HAN</span>
         <span className="ml-1 text-accent">OPS</span>
       </Link>
-      <span className="ml-auto text-xs text-muted-foreground">딜러팀</span>
+      <div className="ml-auto flex items-center gap-1">
+        <NotificationsCenter />
+      </div>
     </header>
   );
 }

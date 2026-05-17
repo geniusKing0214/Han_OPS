@@ -52,6 +52,38 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /config/admins {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn()
+        && resource.data.targetUserId == request.auth.uid;
+
+      allow create: if isSignedIn() && (
+        (
+          request.resource.data.type == 'application_submitted'
+          && request.resource.data.createdByUserId == request.auth.uid
+          && request.resource.data.targetRole == 'admin'
+          && request.resource.data.targetUserId is string
+        )
+        ||
+        (
+          isAdmin()
+          && request.resource.data.type in ['application_approved', 'application_rejected']
+          && request.resource.data.targetRole == 'member'
+          && request.resource.data.targetUserId is string
+        )
+      );
+
+      allow update: if isSignedIn()
+        && resource.data.targetUserId == request.auth.uid
+        && request.resource.data.targetUserId == resource.data.targetUserId
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isRead', 'readAt']);
+    }
+
     match /applications/{appId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid || isAdmin()
