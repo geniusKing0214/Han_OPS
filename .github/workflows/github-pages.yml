@@ -1,5 +1,5 @@
-# GitHub 저장소 설정 → Pages → Build: GitHub Actions
-# 빌드에 필요한 Firebase 공개 값은 Repository secrets 로 등록하세요.
+# Settings → Pages → Source: GitHub Actions (브랜치 배포는 끄세요)
+# Firebase: Settings → Secrets and variables → Actions → Variables (또는 Environment github-pages)
 
 name: Deploy GitHub Pages
 
@@ -20,16 +20,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
     env:
       STATIC_EXPORT: "1"
       NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-      # NEXT_PUBLIC_* 값은 공개 값이므로 Repository Variables를 권장합니다.
-      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
-      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
-      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
-      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
-      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
-      NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +32,31 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
+      - name: Resolve Firebase env (secrets or variables)
+        env:
+          K_API: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          K_AUTH: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          K_PID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          K_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          K_SENDER: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          K_APP: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          V_API: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          V_AUTH: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          V_PID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          V_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          V_SENDER: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          V_APP: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+        run: |
+          pick() { [ -n "$1" ] && echo "$1" || echo "$2"; }
+          {
+            echo "NEXT_PUBLIC_FIREBASE_API_KEY=$(pick "$K_API" "$V_API")"
+            echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$(pick "$K_AUTH" "$V_AUTH")"
+            echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=$(pick "$K_PID" "$V_PID")"
+            echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$(pick "$K_BUCKET" "$V_BUCKET")"
+            echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(pick "$K_SENDER" "$V_SENDER")"
+            echo "NEXT_PUBLIC_FIREBASE_APP_ID=$(pick "$K_APP" "$V_APP")"
+          } >> "$GITHUB_ENV"
 
       - name: Validate Firebase env vars
         run: |
@@ -56,7 +76,7 @@ jobs:
           done
           if [ -n "$missing" ]; then
             echo "Missing env vars:$missing"
-            echo "Set them in Settings > Secrets and variables > Actions (Repository or Environment github-pages)."
+            echo "Add them under Repository OR Environment (github-pages) → Actions variables/secrets."
             exit 1
           fi
 
@@ -64,8 +84,14 @@ jobs:
         run: |
           npm ci
           npm run build
-          # Jekyll이 _next 등을 스킵하지 않도록 (Next 정적 자산)
           touch out/.nojekyll
+          if [ ! -f out/index.html ]; then
+            echo "Build did not produce out/index.html"
+            ls -la out || true
+            exit 1
+          fi
+          echo "Build OK — pages:"
+          ls out | head -20
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
