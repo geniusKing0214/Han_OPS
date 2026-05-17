@@ -13,6 +13,10 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  # deploy-pages 등 일부 Actions의 Node 20 deprecation 경고 제거
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: pages
   cancel-in-progress: true
