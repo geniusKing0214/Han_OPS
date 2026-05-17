@@ -26,6 +26,18 @@ STATIC_EXPORT=1 NEXT_PUBLIC_BASE_PATH=/Han_OPS npm run build
 
 이 레포에는 [`.github/workflows/github-pages.yml`](./.github/workflows/github-pages.yml) 워크플로가 포함되어 있습니다. 저장소 이름이 URL 경로와 같습니다. 예: 레포가 `Han_OPS`이면 사이트 주소는 `https://<본인-ID>.github.io/Han_OPS/` 형태입니다.
 
+### 접속 주소 (404 방지)
+
+| 주소 | 결과 |
+|------|------|
+| `https://geniusking0214.github.io/Han_OPS/` | **앱** (로그인·대시보드) |
+| `https://geniusking0214.github.io/` | GitHub 기본 **404** (이 레포는 프로젝트 Pages라 루트에 사이트 없음) |
+
+북마크·공유·Firebase Authorized domains는 **`…/Han_OPS/`** 까지 포함한 주소를 쓰세요.  
+`https://geniusking0214.github.io/` 만 열면 스크린샷과 같은 “There isn't a GitHub Pages site here” 가 나옵니다.
+
+루트(`github.io/`)에서도 자동 이동하려면 GitHub에 **`geniusking0214.github.io`** 이름의 **별도** public 레포를 만들고, [redirect-root/index.html](./redirect-root/index.html) 내용만 그 레포 루트의 `index.html` 로 넣은 뒤 Pages를 **main / root** 로 켜면 됩니다.
+
 ### 1) Repository secrets 등록
 
 GitHub 레포 → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
