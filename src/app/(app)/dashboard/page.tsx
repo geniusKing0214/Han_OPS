@@ -101,57 +101,57 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          ?�영 ?�황 개요 · ?�이???�동 ?�에??�??�면?�로 ?�스?�할 ???�습?�다.
+          운영 현황 개요 · 데이터 연동 전에는 빈 화면으로 테스트할 수 있습니다.
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">?�늘 ?�정</CardTitle>
+            <CardTitle className="text-sm font-medium">오늘 일정</CardTitle>
             <Calendar className="size-4 text-accent" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
               {stats.todayShiftCount}
             </p>
-            <p className="text-xs text-muted-foreground">배정??근무 블록</p>
+            <p className="text-xs text-muted-foreground">배정된 근무 블록</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">?�인 ?��?/CardTitle>
+            <CardTitle className="text-sm font-medium">승인 대기</CardTitle>
             <Timer className="size-4 text-amber-400/90" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
               {stats.pendingApprovals}
             </p>
-            <p className="text-xs text-muted-foreground">관리자 검???�요</p>
+            <p className="text-xs text-muted-foreground">관리자 검토 필요</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">?�청 가???�정</CardTitle>
+            <CardTitle className="text-sm font-medium">신청 가능 일정</CardTitle>
             <ClipboardList className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
               {stats.openSlots}
             </p>
-            <p className="text-xs text-muted-foreground">?�롯 ?�여 존재</p>
+            <p className="text-xs text-muted-foreground">슬롯 잔여 존재</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">?�번 ??근무</CardTitle>
+            <CardTitle className="text-sm font-medium">이번 달 근무</CardTitle>
             <CheckCircle2 className="size-4 text-emerald-400/90" />
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
               {stats.monthWorked}
             </p>
-            <p className="text-xs text-muted-foreground">?�정/?�료 기�?</p>
+            <p className="text-xs text-muted-foreground">확정/완료 기준</p>
           </CardContent>
         </Card>
       </div>
@@ -160,17 +160,17 @@ export default function DashboardPage() {
         <div className="space-y-6 xl:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>???�청 블록</CardTitle>
-              <CardDescription>최근 3건만 ?�시 · ?�체??Applications?�서 ?�인</CardDescription>
+              <CardTitle>내 신청 블록</CardTitle>
+              <CardDescription>최근 3건만 표시 · 전체는 Applications에서 확인</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {appsLoading ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  불러?�는 �?..
+                  불러오는 중...
                 </p>
               ) : myBlocks.length === 0 ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  ?�청??블록???�습?�다.
+                  신청한 블록이 없습니다.
                 </p>
               ) : (
                 myBlocks.map((s) => (
@@ -209,23 +209,23 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <Card className="xl:sticky xl:top-24">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle>최근 공�?</CardTitle>
+              <CardTitle>최근 공지</CardTitle>
               <Link
                 href="/notices"
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                ?�체 보기
+                전체 보기
               </Link>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[220px] pr-3">
                 {noticesLoading ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    불러?�는 �?..
+                    불러오는 중...
                   </p>
                 ) : recentNotices.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    공�? ?�음 · Notices 메뉴?�서 ?�인?�세??
+                    공지 없음 · Notices 메뉴에서 확인하세요.
                   </p>
                 ) : (
                   <ul className="space-y-4">
@@ -252,13 +252,13 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>관리자 ?�림</CardTitle>
-              <CardDescription>?�영 콘솔 ?�약</CardDescription>
+              <CardTitle>관리자 알림</CardTitle>
+              <CardDescription>운영 콘솔 요약</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {mockAdminAlerts.length === 0 ? (
                 <p className="py-2 text-sm text-muted-foreground">
-                  ?�림 ?�음
+                  알림 없음
                 </p>
               ) : (
                 mockAdminAlerts.map((a) => (
