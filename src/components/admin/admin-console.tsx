@@ -237,7 +237,8 @@ export function AdminConsole({
             </Button>
             <Button
               type="button"
-              variant="destructive"
+              variant="outline"
+              className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
               disabled={busyId === rejectTarget?.id}
               onClick={() => void confirmReject()}
             >
