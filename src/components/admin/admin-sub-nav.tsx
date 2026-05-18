@@ -43,26 +43,35 @@ export function AdminSubNav() {
 
   return (
     <nav
-      className="flex flex-wrap gap-2 border-b border-border pb-px"
+      className="border-b border-border pb-px"
       aria-label="Admin 하위 메뉴"
     >
-      {items.map(({ href, label, isActive }) => {
-        const active = isActive(pathname);
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "-mb-px inline-flex items-center border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "border-accent text-foreground"
-                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
-            )}
-          >
-            {label}
-          </Link>
-        );
-      })}
+      <div
+        className={cn(
+          "items-stretch gap-0",
+          "flex flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          "md:grid md:grid-cols-5 md:overflow-visible",
+        )}
+      >
+        {items.map(({ href, label, isActive }) => {
+          const active = isActive(pathname);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "-mb-px inline-flex shrink-0 items-center justify-center whitespace-nowrap border-b-2 px-2.5 py-2 text-center text-sm font-medium transition-colors sm:px-3",
+                "md:min-w-0 md:px-2",
+                active
+                  ? "border-accent text-foreground"
+                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
