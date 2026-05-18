@@ -30,6 +30,12 @@ const items = [
     isActive: (p: string) =>
       p === "/admin/applications" || p.startsWith("/admin/applications/"),
   },
+  {
+    href: "/admin/roster",
+    label: "신청 인원 관리",
+    isActive: (p: string) =>
+      p === "/admin/roster" || p.startsWith("/admin/roster/"),
+  },
 ] as const;
 
 export function AdminSubNav() {

@@ -1,0 +1,86 @@
+import type { ApplicationItem, ApplicationStatus } from "@/types/application";
+import type { EventItem, Session, Slot } from "@/types/schedule";
+
+export type SlotStatusCounts = {
+  total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+  completed: number;
+};
+
+export function countApplicationsByStatus(
+  apps: ApplicationItem[],
+): SlotStatusCounts {
+  const counts: SlotStatusCounts = {
+    total: apps.length,
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+    completed: 0,
+  };
+  for (const a of apps) {
+    if (a.status === "approved") counts.approved += 1;
+    else if (a.status === "pending") counts.pending += 1;
+    else if (a.status === "rejected") counts.rejected += 1;
+    else if (a.status === "completed") counts.completed += 1;
+  }
+  return counts;
+}
+
+export function applicationsForSlot(
+  apps: ApplicationItem[],
+  eventId: string,
+  sessionId: string,
+  slotId: string,
+): ApplicationItem[] {
+  return apps
+    .filter(
+      (a) =>
+        a.eventId === eventId &&
+        a.sessionId === sessionId &&
+        a.slotId === slotId,
+    )
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+}
+
+export function eventsWithSessionsOnDate(
+  events: EventItem[],
+  date: string,
+): { event: EventItem; sessions: Session[] }[] {
+  return events
+    .map((event) => ({
+      event,
+      sessions: event.sessions.filter((s) => s.date === date),
+    }))
+    .filter((row) => row.sessions.length > 0)
+    .sort((a, b) => a.event.title.localeCompare(b.event.title, "ko"));
+}
+
+export function slotKey(eventId: string, sessionId: string, slotId: string) {
+  return `${eventId}:${sessionId}:${slotId}`;
+}
+
+export function formatSlotTimeLabel(slot: Slot): string {
+  return slot.start_time.trim() || "—";
+}
+
+export function statusBadgeVariant(
+  status: ApplicationStatus,
+): "success" | "warning" | "destructive" | "default" {
+  if (status === "approved") return "success";
+  if (status === "pending") return "warning";
+  if (status === "rejected") return "destructive";
+  return "default";
+}
+
+export function formatSubmittedAt(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("ko-KR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso.replace("T", " ").slice(0, 16);
+  }
+}

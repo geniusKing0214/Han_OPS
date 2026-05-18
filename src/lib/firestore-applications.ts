@@ -14,6 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 
+import { assertAdmin } from "@/lib/admin-access";
 import { db } from "@/lib/firebase";
 import {
   notifyAdminsOnApplicationSubmitted,
@@ -74,6 +75,9 @@ function docToApplicationItem(
     status: normalizeStatus(data.status),
     submittedAt: timestampToIso(data.createdAt),
     note: typeof data.note === "string" ? data.note : undefined,
+    rejectionReason:
+      typeof data.rejectionReason === "string" ? data.rejectionReason : undefined,
+    adminMemo: typeof data.adminMemo === "string" ? data.adminMemo : undefined,
   };
 }
 
@@ -181,35 +185,110 @@ export function subscribeMyApplications(
   );
 }
 
+/** 관리자: 특정 날짜(YYYY-MM-DD) 신청 전체 구독 */
+export function subscribeApplicationsByDateForAdmin(
+  date: string,
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, APPLICATIONS_COLLECTION),
+        where("date", "==", date),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "관리자 권한이 필요합니다.",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
 /** 관리자: 대기 중 신청만 구독 */
 export function subscribePendingApplicationsForAdmin(
   onData: (items: ApplicationItem[]) => void,
   onError?: (error: FirestoreError) => void,
 ) {
-  const q = query(
-    collection(db, APPLICATIONS_COLLECTION),
-    where("status", "==", "pending"),
-  );
-  return onSnapshot(
-    q,
-    (snap) => {
-      const items = snap.docs
-        .map((d) =>
-          docToApplicationItem(d.id, d.data() as Record<string, unknown>),
-        )
-        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-      onData(items);
-    },
-    (err) => onError?.(err),
-  );
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, APPLICATIONS_COLLECTION),
+        where("status", "==", "pending"),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "관리자 권한이 필요합니다.",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
 }
 
 export async function updateApplicationStatus(
   applicationId: string,
   status: Exclude<ApplicationStatus, "pending">,
 ) {
+  await assertAdmin();
   const ref = doc(db, APPLICATIONS_COLLECTION, applicationId);
   await updateDoc(ref, { status });
+}
+
+/** 관리자: 신청 문서에 관리자 메모 저장 */
+export async function updateApplicationAdminMemo(
+  applicationId: string,
+  adminMemo: string,
+) {
+  await assertAdmin();
+  const ref = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  await updateDoc(ref, { adminMemo: adminMemo.trim() });
 }
 
 /**
@@ -222,6 +301,7 @@ export async function decideApplication(
   status: "approved" | "rejected",
   options?: { rejectionReason?: string },
 ) {
+  await assertAdmin();
   const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
 
   await runTransaction(db, async (tx) => {

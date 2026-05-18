@@ -20,7 +20,12 @@ export type ApplicationItem = {
   status: ApplicationStatus;
   /** ISO 문자열 */
   submittedAt: string;
+  /** 신청자 메모 */
   note?: string;
+  /** 거절 시 관리자 사유 */
+  rejectionReason?: string;
+  /** 관리자 메모 (선택) */
+  adminMemo?: string;
 };
 
 export const statusLabels: Record<ApplicationStatus, string> = {
