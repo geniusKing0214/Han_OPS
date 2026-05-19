@@ -31,6 +31,7 @@ export async function createMemberProfile(
     role: "member",
     accountStatus: "pending",
     displayName: typeof displayName === "string" ? displayName.trim() : "",
+    total_points: 0,
     createdAt: serverTimestamp(),
   });
 }
@@ -93,9 +94,14 @@ export async function listPendingUsersForAdmin(): Promise<ListedUserRow[]> {
 /** 관리자 화면용: 여러 uid의 프로필(이메일·닉네임)을 한 번에 조회 */
 export async function getUserProfilesByIds(
   uids: string[],
-): Promise<Map<string, { email: string; displayName: string }>> {
+): Promise<
+  Map<string, { email: string; displayName: string; totalPoints: number }>
+> {
   const unique = [...new Set(uids.map((u) => u.trim()).filter(Boolean))];
-  const map = new Map<string, { email: string; displayName: string }>();
+  const map = new Map<
+    string,
+    { email: string; displayName: string; totalPoints: number }
+  >();
   await Promise.all(
     unique.map(async (uid) => {
       const snap = await getDoc(doc(db, USERS_COLLECTION, uid));
@@ -105,10 +111,32 @@ export async function getUserProfilesByIds(
         email: typeof data.email === "string" ? data.email : "",
         displayName:
           typeof data.displayName === "string" ? data.displayName.trim() : "",
+        totalPoints:
+          typeof data.total_points === "number" ? data.total_points : 0,
       });
     }),
   );
   return map;
+}
+
+/** 관리자: 전체 사용자 목록 실시간 구독 (랭킹용) */
+export function subscribeAllUsersForAdmin(
+  onData: (rows: ListedUserRow[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  return onSnapshot(
+    collection(db, USERS_COLLECTION),
+    (snap) => {
+      const rows = snap.docs
+        .map((d) => ({
+          uid: d.id,
+          ...(d.data() as UserProfileDoc),
+        }))
+        .filter((r) => r.role === "member");
+      onData(rows);
+    },
+    (err) => onError?.(err),
+  );
 }
 
 /** 본인 프로필 필드만 갱신 (역할·이메일 변경 없음) */

@@ -11,17 +11,18 @@ import {
   formatSlotTimeLabel,
   formatSubmittedAt,
   slotKey,
-  statusBadgeVariant,
 } from "@/lib/admin-application-roster";
+import { ApplicationWorkActions } from "@/components/admin/application-work-actions";
 import {
   decideApplication,
   updateApplicationAdminMemo,
 } from "@/lib/firestore-applications";
+import { setApplicationWorkStatus } from "@/lib/firestore-points";
+import type { WorkStatus } from "@/types/points";
 import { getUserProfilesByIds } from "@/lib/firestore-users";
 import { useAdminApplicationsByDate } from "@/hooks/use-admin-applications-by-date";
 import { useEvents } from "@/hooks/use-events";
 import type { ApplicationItem } from "@/types/application";
-import { statusLabels } from "@/types/application";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -83,6 +84,7 @@ type SlotRosterProps = {
   busyId: string | null;
   onApprove: (id: string) => void;
   onReject: (app: ApplicationItem) => void;
+  onWorkStatus: (id: string, status: WorkStatus) => void;
   onMemoBlur: (id: string, memo: string) => void;
 };
 
@@ -97,6 +99,7 @@ function SlotRosterRow({
   busyId,
   onApprove,
   onReject,
+  onWorkStatus,
   onMemoBlur,
 }: SlotRosterProps) {
   const slotApps = useMemo(
@@ -155,9 +158,6 @@ function SlotRosterRow({
                       <p className="break-all text-xs text-muted-foreground">
                         {resolveEmail(a, profiles)}
                       </p>
-                      <Badge variant={statusBadgeVariant(a.status)} className="mt-1">
-                        {statusLabels[a.status]}
-                      </Badge>
                       <p className="text-xs text-muted-foreground tabular-nums">
                         신청 {formatSubmittedAt(a.submittedAt)}
                       </p>
@@ -166,29 +166,13 @@ function SlotRosterRow({
                         {adminMemoDisplay(a)}
                       </p>
                     </div>
-                    {a.status === "pending" ? (
-                      <div className="flex shrink-0 flex-wrap gap-1.5">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="accent"
-                          disabled={busyId === a.id}
-                          onClick={() => onApprove(a.id)}
-                        >
-                          승인
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="text-red-400 hover:bg-red-500/10"
-                          disabled={busyId === a.id}
-                          onClick={() => onReject(a)}
-                        >
-                          거절
-                        </Button>
-                      </div>
-                    ) : null}
+                    <ApplicationWorkActions
+                      application={a}
+                      busy={busyId === a.id}
+                      onApprove={() => onApprove(a.id)}
+                      onReject={() => onReject(a)}
+                      onWorkStatus={(ws) => onWorkStatus(a.id, ws)}
+                    />
                   </div>
                   <div className="mt-2">
                     <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -213,7 +197,7 @@ function SlotRosterRow({
 }
 
 export function ApplicationRosterPanel() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [date, setDate] = useState(() => toYmd(new Date()));
   const { events, loading: eventsLoading, error: eventsError } = useEvents();
   const { items: applications, loading: appsLoading, error: appsError } =
@@ -283,6 +267,21 @@ export function ApplicationRosterPanel() {
     } catch (e) {
       setLocalError(
         e instanceof Error ? e.message : "처리에 실패했습니다.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleWorkStatus = async (id: string, workStatus: WorkStatus) => {
+    if (!user) return;
+    setLocalError("");
+    setBusyId(id);
+    try {
+      await setApplicationWorkStatus(id, workStatus, user.uid);
+    } catch (e) {
+      setLocalError(
+        e instanceof Error ? e.message : "근무 처리에 실패했습니다.",
       );
     } finally {
       setBusyId(null);
@@ -407,6 +406,9 @@ export function ApplicationRosterPanel() {
                                     busyId={busyId}
                                     onApprove={(id) => void setStatus(id, "approved")}
                                     onReject={setRejectTarget}
+                                    onWorkStatus={(id, ws) =>
+                                      void handleWorkStatus(id, ws)
+                                    }
                                     onMemoBlur={(id, memo) =>
                                       void handleMemoBlur(id, memo)
                                     }

@@ -95,6 +95,8 @@ service cloud.firestore {
         && request.resource.data.applicantDisplayName is string
         && request.resource.data.applicantEmail is string
         && request.resource.data.status == "pending"
+        && request.resource.data.work_status == "not_checked"
+        && request.resource.data.points_awarded == false
         && request.resource.data.eventTitle is string
         && request.resource.data.venue is string
         && request.resource.data.date is string
@@ -108,6 +110,10 @@ service cloud.firestore {
       allow delete: if isAdmin() || (
         isSignedIn() && resource.data.userId == request.auth.uid
       );
+    }
+
+    match /point_logs/{logId} {
+      allow read, create, update, delete: if isAdmin();
     }
 
     match /{document=**} {

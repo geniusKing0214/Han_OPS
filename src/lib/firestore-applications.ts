@@ -22,6 +22,7 @@ import {
   notifyMemberOnApplicationRejected,
 } from "@/lib/firestore-notifications";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
+import type { WorkStatus } from "@/types/points";
 import type { EventItem } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
 
@@ -38,6 +39,18 @@ function timestampToIso(value: unknown): string {
   }
   if (typeof value === "string") return value;
   return new Date().toISOString();
+}
+
+function normalizeWorkStatus(value: unknown): WorkStatus {
+  if (
+    value === "completed" ||
+    value === "no_show" ||
+    value === "late_cancel" ||
+    value === "not_checked"
+  ) {
+    return value;
+  }
+  return "not_checked";
 }
 
 function normalizeStatus(value: unknown): ApplicationStatus {
@@ -78,6 +91,15 @@ function docToApplicationItem(
     rejectionReason:
       typeof data.rejectionReason === "string" ? data.rejectionReason : undefined,
     adminMemo: typeof data.adminMemo === "string" ? data.adminMemo : undefined,
+    workStatus: normalizeWorkStatus(data.work_status),
+    pointsAwarded: Boolean(data.points_awarded),
+    completedAt: data.completed_at
+      ? timestampToIso(data.completed_at)
+      : undefined,
+    completedByAdmin:
+      typeof data.completed_by_admin === "string"
+        ? data.completed_by_admin
+        : undefined,
   };
 }
 
@@ -139,6 +161,8 @@ export async function createApplication(input: CreateApplicationInput) {
     slotTime: input.slotTime,
     note: input.note,
     status: "pending" as const,
+    work_status: "not_checked",
+    points_awarded: false,
     createdAt: serverTimestamp(),
   });
 
@@ -183,6 +207,59 @@ export function subscribeMyApplications(
     },
     (err) => onError?.(err),
   );
+}
+
+function lastDayOfMonth(monthKey: string): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${monthKey}-${String(last).padStart(2, "0")}`;
+}
+
+/** 관리자: 월간 신청 전체 구독 (date 필드 범위) */
+export function subscribeApplicationsInMonthForAdmin(
+  monthKey: string,
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+  const start = `${monthKey}-01`;
+  const end = lastDayOfMonth(monthKey);
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, APPLICATIONS_COLLECTION),
+        where("date", ">=", start),
+        where("date", "<=", end),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "관리자 권한이 필요합니다.",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
 }
 
 /** 관리자: 특정 날짜(YYYY-MM-DD) 신청 전체 구독 */

@@ -13,4 +13,6 @@ export type UserProfileDoc = {
   displayName?: string;
   /** 연락처(전화 등) */
   phone?: string;
+  /** 누적 포인트 */
+  total_points?: number;
 };

@@ -1,0 +1,568 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  CalendarX2,
+  CheckCircle2,
+  ClipboardList,
+  Download,
+  Search,
+  Star,
+  Trophy,
+  UserCircle2,
+  X,
+} from "lucide-react";
+
+import { useAuth } from "@/components/providers/auth-provider";
+import {
+  buildRankingRows,
+  computeMonthStats,
+  exportRankingCsv,
+  type RankingRow,
+} from "@/lib/admin-ranking";
+import { subscribeApplicationsInMonthForAdmin } from "@/lib/firestore-applications";
+import { subscribePointLogsByMonth, subscribePointLogsByUser } from "@/lib/firestore-points";
+import { subscribeAllUsersForAdmin, type ListedUserRow } from "@/lib/firestore-users";
+import { useEvents } from "@/hooks/use-events";
+import type { ApplicationItem } from "@/types/application";
+import type { PointLogDoc } from "@/types/points";
+import { POINT_POLICY } from "@/types/points";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}`;
+}
+
+function formatMonthLabel(monthKey: string): string {
+  const [y, m] = monthKey.split("-");
+  return `${y}년 ${Number(m)}월`;
+}
+
+function formatLogDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const mm = `${d.getMonth() + 1}`.padStart(2, "0");
+    const dd = `${d.getDate()}`.padStart(2, "0");
+    return `${mm}/${dd}`;
+  } catch {
+    return iso.slice(5, 10).replace("-", "/");
+  }
+}
+
+function rankMedal(rank: number): string | null {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return null;
+}
+
+export function PointsDashboard() {
+  const { isAdmin, user, profile } = useAuth();
+  const { events } = useEvents();
+  const [monthKey, setMonthKey] = useState(currentMonthKey);
+  const [venue, setVenue] = useState("");
+  const [eventId, setEventId] = useState("");
+  const [search, setSearch] = useState("");
+  const [applications, setApplications] = useState<ApplicationItem[]>([]);
+  const [pointLogs, setPointLogs] = useState<PointLogDoc[]>([]);
+  const [users, setUsers] = useState<ListedUserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selected, setSelected] = useState<RankingRow | null>(null);
+  const [userLogs, setUserLogs] = useState<PointLogDoc[]>([]);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    setLoading(true);
+    setError("");
+    const unsubs = [
+      subscribeApplicationsInMonthForAdmin(
+        monthKey,
+        (items) => {
+          setApplications(items);
+          setLoading(false);
+        },
+        (e) => {
+          setError(e.message);
+          setLoading(false);
+        },
+      ),
+      subscribePointLogsByMonth(monthKey, setPointLogs),
+      subscribeAllUsersForAdmin(setUsers, (e) => setError(e.message)),
+    ];
+    return () => unsubs.forEach((u) => u());
+  }, [isAdmin, monthKey]);
+
+  useEffect(() => {
+    if (!selected?.userId || !isAdmin) {
+      setUserLogs([]);
+      return;
+    }
+    return subscribePointLogsByUser(selected.userId, monthKey, setUserLogs);
+  }, [selected?.userId, monthKey, isAdmin]);
+
+  const venues = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of events) {
+      if (e.venue?.trim()) set.add(e.venue.trim());
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [events]);
+
+  const filters = useMemo(
+    () => ({
+      venue: venue || undefined,
+      eventId: eventId || undefined,
+      search,
+    }),
+    [venue, eventId, search],
+  );
+
+  const ranking = useMemo(
+    () => buildRankingRows(users, applications, pointLogs, filters),
+    [users, applications, pointLogs, filters],
+  );
+
+  const stats = useMemo(
+    () =>
+      computeMonthStats(applications, pointLogs, {
+        venue: venue || undefined,
+        eventId: eventId || undefined,
+      }),
+    [applications, pointLogs, venue, eventId],
+  );
+
+  const openDetail = (row: RankingRow) => {
+    setSelected(row);
+    setDetailOpen(true);
+  };
+
+  if (!isAdmin) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        관리자만 포인트/랭킹 관리에 접근할 수 있습니다.
+      </p>
+    );
+  }
+
+  const statCards = [
+    {
+      label: "총 신청",
+      value: stats.totalApplications,
+      icon: ClipboardList,
+      tone: "text-violet-400",
+    },
+    {
+      label: "승인",
+      value: stats.approvedCount,
+      icon: CheckCircle2,
+      tone: "text-blue-400",
+    },
+    {
+      label: "근무완료",
+      value: stats.completedCount,
+      icon: CheckCircle2,
+      tone: "text-emerald-400",
+    },
+    {
+      label: "결근",
+      value: stats.noShowCount,
+      icon: CalendarX2,
+      tone: "text-red-400",
+    },
+    {
+      label: "당일취소",
+      value: stats.lateCancelCount,
+      icon: CalendarX2,
+      tone: "text-amber-400",
+    },
+    {
+      label: "이번 달 포인트",
+      value: `${stats.monthlyPointsTotal.toLocaleString()}P`,
+      icon: Star,
+      tone: "text-accent",
+    },
+  ];
+
+  const detailPanel = selected ? (
+    <Card className="border-border/80 bg-gradient-to-b from-muted/50 to-background lg:sticky lg:top-20">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+        <CardTitle className="text-base">유저 상세 정보</CardTitle>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8 shrink-0 lg:hidden"
+          onClick={() => setDetailOpen(false)}
+        >
+          <X className="size-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+            <UserCircle2 className="size-7 text-muted-foreground" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold">{selected.name}</p>
+            <p className="break-all text-xs text-muted-foreground">{selected.email}</p>
+            <Badge variant="outline" className="mt-1">
+              일반 유저
+            </Badge>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-accent/30 bg-accent/10 p-3 text-center">
+            <p className="text-xs text-muted-foreground">월간 포인트</p>
+            <p className="text-lg font-semibold text-accent tabular-nums">
+              {selected.monthlyPoints}P
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/40 p-3 text-center">
+            <p className="text-xs text-muted-foreground">누적 포인트</p>
+            <p className="text-lg font-semibold tabular-nums">
+              {selected.totalPoints.toLocaleString()}P
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-center text-xs">
+          <div className="rounded-md bg-muted/40 py-2">
+            <p className="text-muted-foreground">신청</p>
+            <p className="font-medium tabular-nums">{selected.applicationCount}</p>
+          </div>
+          <div className="rounded-md bg-muted/40 py-2">
+            <p className="text-muted-foreground">승인</p>
+            <p className="font-medium tabular-nums">{selected.approvedCount}</p>
+          </div>
+          <div className="rounded-md bg-muted/40 py-2">
+            <p className="text-muted-foreground">근무완료</p>
+            <p className="font-medium tabular-nums text-emerald-400">
+              {selected.completedCount}
+            </p>
+          </div>
+          <div className="rounded-md bg-muted/40 py-2">
+            <p className="text-muted-foreground">결근</p>
+            <p className="font-medium tabular-nums text-red-400">
+              {selected.noShowCount}
+            </p>
+          </div>
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium">
+            최근 활동 ({formatMonthLabel(monthKey)})
+          </p>
+          <ScrollArea className="h-48 pr-2">
+            {userLogs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">활동 내역이 없습니다.</p>
+            ) : (
+              <ul className="space-y-2">
+                {userLogs.slice(0, 12).map((log) => (
+                  <li
+                    key={log.id}
+                    className="flex items-start justify-between gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs"
+                  >
+                    <span className="text-muted-foreground tabular-nums">
+                      {formatLogDate(log.created_at)}
+                    </span>
+                    <span className="min-w-0 flex-1 text-foreground">{log.reason}</span>
+                    <span
+                      className={cn(
+                        "shrink-0 font-medium tabular-nums",
+                        log.points >= 0 ? "text-emerald-400" : "text-red-400",
+                      )}
+                    >
+                      {log.points >= 0 ? "+" : ""}
+                      {log.points}P
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ScrollArea>
+        </div>
+      </CardContent>
+    </Card>
+  ) : (
+    <Card className="hidden border-dashed border-border/80 bg-muted/20 lg:flex lg:min-h-[320px] lg:items-center lg:justify-center">
+      <p className="text-sm text-muted-foreground">랭킹에서 유저를 선택하세요</p>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">포인트/랭킹 관리</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            유저별 신청·근무 현황과 포인트를 확인하고 관리할 수 있습니다.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="hidden sm:inline">{profile?.email ?? user?.email}</span>
+          <Badge variant="accent">관리자</Badge>
+        </div>
+      </div>
+
+      <Card className="border-accent/20 bg-muted/20">
+        <CardContent className="flex flex-wrap gap-4 py-3 text-xs text-muted-foreground">
+          <span>
+            근무완료 <strong className="text-emerald-400">+{POINT_POLICY.completed}P</strong>
+          </span>
+          <span>
+            결근 <strong className="text-red-400">{POINT_POLICY.no_show}P</strong>
+          </span>
+          <span>
+            당일취소 <strong className="text-amber-400">{POINT_POLICY.late_cancel}P</strong>
+          </span>
+          <span>신청 시 포인트 미지급 · 동일 건 중복 지급 방지</span>
+        </CardContent>
+      </Card>
+
+      <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {statCards.map(({ label, value, icon: Icon, tone }) => (
+          <Card
+            key={label}
+            className="min-w-[140px] shrink-0 border-border/80 bg-gradient-to-br from-muted/60 to-background"
+          >
+            <CardContent className="space-y-2 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <Icon className={cn("size-4", tone)} />
+              </div>
+              <p className="text-xl font-semibold tabular-nums">{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-end">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">월 선택</label>
+            <Input
+              type="month"
+              value={monthKey}
+              onChange={(e) => setMonthKey(e.target.value)}
+              className="w-full min-w-[140px] tabular-nums sm:w-auto"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">매장</label>
+            <select
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              className="flex h-9 w-full min-w-[120px] rounded-md border border-border bg-background px-3 text-sm"
+            >
+              <option value="">전체</option>
+              {venues.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">이벤트</label>
+            <select
+              value={eventId}
+              onChange={(e) => setEventId(e.target.value)}
+              className="flex h-9 w-full min-w-[160px] rounded-md border border-border bg-background px-3 text-sm"
+            >
+              <option value="">전체</option>
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="relative min-w-[180px] flex-1 space-y-1">
+            <label className="text-xs text-muted-foreground">유저 검색</label>
+            <Search className="pointer-events-none absolute left-2.5 top-8 size-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="이름, 이메일"
+              className="pl-8"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => {
+              setVenue("");
+              setEventId("");
+              setSearch("");
+            }}
+          >
+            초기화
+          </Button>
+          <Button
+            type="button"
+            variant="accent"
+            className="shrink-0 gap-1.5"
+            onClick={() => exportRankingCsv(ranking, monthKey)}
+            disabled={ranking.length === 0}
+          >
+            <Download className="size-4" />
+            엑셀 다운로드
+          </Button>
+        </CardContent>
+      </Card>
+
+      {error ? (
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-3">
+            <Trophy className="size-5 text-accent" />
+            <CardTitle className="text-base">
+              랭킹 리스트 ({formatMonthLabel(monthKey)})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">
+                불러오는 중...
+              </p>
+            ) : ranking.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">
+                표시할 데이터가 없습니다.
+              </p>
+            ) : (
+              <>
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                        <th className="px-4 py-2 font-medium">순위</th>
+                        <th className="px-2 py-2 font-medium">이름</th>
+                        <th className="px-2 py-2 font-medium">이메일</th>
+                        <th className="px-2 py-2 text-right font-medium">신청</th>
+                        <th className="px-2 py-2 text-right font-medium">승인</th>
+                        <th className="px-2 py-2 text-right font-medium">완료</th>
+                        <th className="px-2 py-2 text-right font-medium">결근</th>
+                        <th className="px-2 py-2 text-right font-medium">당취</th>
+                        <th className="px-2 py-2 text-right font-medium">월간</th>
+                        <th className="px-4 py-2 text-right font-medium">누적</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ranking.map((row, idx) => {
+                        const rank = idx + 1;
+                        const active = selected?.userId === row.userId;
+                        return (
+                          <tr
+                            key={row.userId}
+                            className={cn(
+                              "cursor-pointer border-b border-border/60 transition-colors hover:bg-muted/40",
+                              active && "bg-accent/10",
+                            )}
+                            onClick={() => openDetail(row)}
+                          >
+                            <td className="px-4 py-2.5 tabular-nums">
+                              {rankMedal(rank) ?? rank}
+                            </td>
+                            <td className="max-w-[100px] truncate px-2 py-2.5 font-medium">
+                              {row.name}
+                            </td>
+                            <td className="max-w-[140px] truncate px-2 py-2.5 text-muted-foreground">
+                              {row.email}
+                            </td>
+                            <td className="px-2 py-2.5 text-right tabular-nums">
+                              {row.applicationCount}
+                            </td>
+                            <td className="px-2 py-2.5 text-right tabular-nums">
+                              {row.approvedCount}
+                            </td>
+                            <td className="px-2 py-2.5 text-right tabular-nums text-emerald-400">
+                              {row.completedCount}
+                            </td>
+                            <td className="px-2 py-2.5 text-right tabular-nums text-red-400">
+                              {row.noShowCount}
+                            </td>
+                            <td className="px-2 py-2.5 text-right tabular-nums text-amber-400">
+                              {row.lateCancelCount}
+                            </td>
+                            <td className="px-2 py-2.5 text-right font-medium tabular-nums text-accent">
+                              {row.monthlyPoints}P
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums">
+                              {row.totalPoints.toLocaleString()}P
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="space-y-2 p-3 md:hidden">
+                  {ranking.map((row, idx) => {
+                    const rank = idx + 1;
+                    return (
+                      <button
+                        key={row.userId}
+                        type="button"
+                        className={cn(
+                          "w-full rounded-lg border border-border bg-muted/30 p-3 text-left transition-colors hover:bg-muted/50",
+                          selected?.userId === row.userId && "border-accent/50 bg-accent/10",
+                        )}
+                        onClick={() => openDetail(row)}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium">
+                            {rankMedal(rank) ?? `${rank}위`} {row.name}
+                          </span>
+                          <span className="text-sm font-semibold text-accent tabular-nums">
+                            {row.monthlyPoints}P
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {row.email}
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          신청 {row.applicationCount} · 승인 {row.approvedCount} · 완료{" "}
+                          {row.completedCount} · 누적 {row.totalPoints}P
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="hidden lg:block">{detailPanel}</div>
+      </div>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto lg:hidden">
+          <DialogHeader>
+            <DialogTitle>유저 상세</DialogTitle>
+          </DialogHeader>
+          {detailPanel}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -36,6 +36,12 @@ const items = [
     isActive: (p: string) =>
       p === "/admin/roster" || p.startsWith("/admin/roster/"),
   },
+  {
+    href: "/admin/points",
+    label: "포인트/랭킹",
+    isActive: (p: string) =>
+      p === "/admin/points" || p.startsWith("/admin/points/"),
+  },
 ] as const;
 
 export function AdminSubNav() {
@@ -50,7 +56,7 @@ export function AdminSubNav() {
         className={cn(
           "items-stretch gap-0",
           "flex flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:grid md:grid-cols-5 md:overflow-visible",
+          "md:overflow-visible lg:grid lg:grid-cols-7",
         )}
       >
         {items.map(({ href, label, isActive }) => {

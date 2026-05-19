@@ -1,3 +1,5 @@
+import type { WorkStatus } from "@/types/points";
+
 export type ApplicationStatus =
   | "pending"
   | "approved"
@@ -26,6 +28,10 @@ export type ApplicationItem = {
   rejectionReason?: string;
   /** 관리자 메모 (선택) */
   adminMemo?: string;
+  workStatus?: WorkStatus;
+  pointsAwarded?: boolean;
+  completedAt?: string;
+  completedByAdmin?: string;
 };
 
 export const statusLabels: Record<ApplicationStatus, string> = {
