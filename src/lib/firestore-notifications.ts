@@ -2,6 +2,7 @@ import {
   type FirestoreError,
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -286,4 +287,8 @@ export async function markAllNotificationsRead(
     });
   }
   await batch.commit();
+}
+
+export async function deleteNotification(notificationId: string) {
+  await deleteDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId));
 }

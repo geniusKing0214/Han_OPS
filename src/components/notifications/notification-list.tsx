@@ -1,19 +1,21 @@
 "use client";
 
 import { NotificationCard } from "@/components/notifications/notification-card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types/notification";
 
 export function NotificationList({
   items,
   loading,
   onSelect,
-  maxHeightClass = "max-h-[min(420px,70dvh)]",
+  onDelete,
+  className,
 }: {
   items: NotificationItem[];
   loading?: boolean;
   onSelect: (item: NotificationItem) => void;
-  maxHeightClass?: string;
+  onDelete?: (item: NotificationItem) => void;
+  className?: string;
 }) {
   if (loading) {
     return (
@@ -32,16 +34,15 @@ export function NotificationList({
   }
 
   return (
-    <ScrollArea className={maxHeightClass}>
-      <div className="space-y-2 p-1 pr-3">
-        {items.map((item) => (
-          <NotificationCard
-            key={item.id}
-            item={item}
-            onClick={() => onSelect(item)}
-          />
-        ))}
-      </div>
-    </ScrollArea>
+    <div className={cn("space-y-2", className)}>
+      {items.map((item) => (
+        <NotificationCard
+          key={item.id}
+          item={item}
+          onClick={() => onSelect(item)}
+          onDelete={onDelete ? () => onDelete(item) : undefined}
+        />
+      ))}
+    </div>
   );
 }

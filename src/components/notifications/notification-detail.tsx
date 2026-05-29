@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, UserPlus, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Trash2, UserPlus, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -12,10 +12,12 @@ import { notificationTypeLabels } from "@/types/notification";
 export function NotificationDetail({
   item,
   onBack,
+  onDelete,
   scheduleHref,
 }: {
   item: NotificationItem;
   onBack: () => void;
+  onDelete?: () => void;
   scheduleHref: string;
 }) {
   const Icon =
@@ -51,8 +53,8 @@ export function NotificationDetail({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-border pb-3">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border pb-3">
         <Button
           type="button"
           variant="ghost"
@@ -63,10 +65,22 @@ export function NotificationDetail({
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h3 className="text-sm font-semibold">알림 상세</h3>
+        <h3 className="min-w-0 flex-1 text-sm font-semibold">알림 상세</h3>
+        {onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 shrink-0 text-muted-foreground hover:text-red-400"
+            aria-label="알림 삭제"
+            onClick={onDelete}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        ) : null}
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4">
         <div className="flex flex-col items-center text-center">
           <div
             className={cn(
@@ -98,7 +112,7 @@ export function NotificationDetail({
         </dl>
       </div>
 
-      <div className="border-t border-border pt-4">
+      <div className="shrink-0 border-t border-border pt-4">
         <Button variant="accent" className="w-full" asChild>
           <Link href={scheduleHref} onClick={onBack}>
             관련 일정 보기

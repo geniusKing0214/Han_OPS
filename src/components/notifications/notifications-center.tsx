@@ -9,6 +9,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useNotifications } from "@/hooks/use-notifications";
 import {
+  deleteNotification,
   markAllNotificationsRead,
   markNotificationRead,
   syncAdminUidsConfig,
@@ -56,15 +57,6 @@ export function NotificationsCenter({ className }: { className?: string }) {
   }, [isAdmin, user]);
 
   useEffect(() => {
-    if (!open || isDesktop) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open, isDesktop]);
-
-  useEffect(() => {
     if (!open || !isDesktop) return;
     const onDoc = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -95,6 +87,17 @@ export function NotificationsCenter({ className }: { className?: string }) {
     setDetail(item);
   };
 
+  const handleDelete = async (item: NotificationItem) => {
+    try {
+      await deleteNotification(item.id);
+      if (detail?.id === item.id) {
+        setDetail(null);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleMarkAllRead = async () => {
     if (!user) return;
     try {
@@ -105,7 +108,7 @@ export function NotificationsCenter({ className }: { className?: string }) {
   };
 
   const panelHeader = (
-    <div className="flex items-center justify-between gap-2 border-b border-border pb-3">
+    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border pb-3">
       <h3 className="text-sm font-semibold">알림</h3>
       <Button
         type="button"
@@ -119,6 +122,12 @@ export function NotificationsCenter({ className }: { className?: string }) {
       </Button>
     </div>
   );
+
+  const listFooter = items.length > 0 ? (
+    <p className="shrink-0 pt-2 text-center text-[11px] text-muted-foreground">
+      탭하면 읽음 처리 · 휴지통으로 삭제
+    </p>
+  ) : null;
 
   const bellButton = (
     <Button
@@ -146,20 +155,17 @@ export function NotificationsCenter({ className }: { className?: string }) {
       {bellButton}
 
       {isDesktop && open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[min(380px,calc(100dvw-2rem))] rounded-xl border border-border bg-card p-4 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-2 flex w-[min(380px,calc(100dvw-2rem))] max-h-[min(70dvh,520px)] flex-col overflow-hidden rounded-xl border border-border bg-card p-4 shadow-xl">
           {panelHeader}
-          <div className="mt-3">
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <NotificationList
               items={items}
               loading={loading}
               onSelect={(item) => void handleSelect(item)}
+              onDelete={(item) => void handleDelete(item)}
             />
           </div>
-          {items.some((n) => n.applicationId || n.eventId) ? (
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              카드를 누르면 읽음 처리됩니다.
-            </p>
-          ) : null}
+          {listFooter}
         </div>
       ) : null}
 
@@ -167,29 +173,33 @@ export function NotificationsCenter({ className }: { className?: string }) {
         <Sheet open={open} onOpenChange={handleOpenChange}>
           <SheetContent
             side="bottom"
-            className="flex max-h-[88dvh] flex-col rounded-t-xl px-4 pt-2"
+            className="flex max-h-[88dvh] flex-col overflow-hidden rounded-t-xl px-4 pt-2 [&>button]:top-6"
           >
             <div className="mx-auto mb-2 h-1 w-10 shrink-0 rounded-full bg-muted" />
             {detail ? (
-              <NotificationDetail
-                item={detail}
-                onBack={() => setDetail(null)}
-                scheduleHref={scheduleHrefFor(detail, isAdmin)}
-              />
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <NotificationDetail
+                  item={detail}
+                  onBack={() => setDetail(null)}
+                  onDelete={() => void handleDelete(detail)}
+                  scheduleHref={scheduleHrefFor(detail, isAdmin)}
+                />
+              </div>
             ) : (
               <>
-                <SheetHeader className="space-y-0 text-left">
+                <SheetHeader className="shrink-0 space-y-0 pr-10 text-left">
                   <SheetTitle className="sr-only">알림</SheetTitle>
                   {panelHeader}
                 </SheetHeader>
-                <div className="mt-3 min-h-0 flex-1">
+                <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
                   <NotificationList
                     items={items}
                     loading={loading}
                     onSelect={(item) => void handleSelect(item)}
-                    maxHeightClass="max-h-[min(60dvh,520px)]"
+                    onDelete={(item) => void handleDelete(item)}
                   />
                 </div>
+                {listFooter}
               </>
             )}
           </SheetContent>

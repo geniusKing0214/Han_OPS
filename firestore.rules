@@ -82,6 +82,9 @@ service cloud.firestore {
         && request.resource.data.targetUserId == resource.data.targetUserId
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['isRead', 'readAt']);
+
+      allow delete: if isSignedIn()
+        && resource.data.targetUserId == request.auth.uid;
     }
 
     match /applications/{appId} {
