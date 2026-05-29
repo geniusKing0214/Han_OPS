@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 
 import { assertAdmin } from "@/lib/admin-access";
+import { todayYmd } from "@/lib/application-cancel";
 import { db } from "@/lib/firebase";
 import {
   notifyAdminsOnApplicationSubmitted,
@@ -465,4 +466,78 @@ export async function decideApplication(
   } catch {
     // 승인/거절은 완료 — 알림만 실패할 수 있음
   }
+}
+
+/** 본인 신청 취소: pending/rejected는 삭제, approved는 슬롯 정원 복구 후 삭제 */
+export async function cancelMyApplication(applicationId: string, uid: string) {
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+
+  await runTransaction(db, async (tx) => {
+    const appSnap = await tx.get(appRef);
+    if (!appSnap.exists()) {
+      throw new Error("신청을 찾을 수 없습니다.");
+    }
+    const appData = appSnap.data() as Record<string, unknown>;
+    const userId = typeof appData.userId === "string" ? appData.userId : "";
+    if (userId !== uid) {
+      throw new Error("본인 신청만 취소할 수 있습니다.");
+    }
+
+    const status = normalizeStatus(appData.status);
+    if (status === "completed") {
+      throw new Error("완료된 신청은 취소할 수 없습니다.");
+    }
+
+    if (status === "pending" || status === "rejected") {
+      tx.delete(appRef);
+      return;
+    }
+
+    if (status === "approved") {
+      const date = typeof appData.date === "string" ? appData.date : "";
+      if (date && date < todayYmd()) {
+        throw new Error("지난 일정은 취소할 수 없습니다.");
+      }
+
+      const eventId = typeof appData.eventId === "string" ? appData.eventId : "";
+      const sessionId =
+        typeof appData.sessionId === "string" ? appData.sessionId : "";
+      const slotId = typeof appData.slotId === "string" ? appData.slotId : "";
+      if (!eventId || !sessionId || !slotId) {
+        throw new Error("신청 데이터에 event/session/slot 정보가 없습니다.");
+      }
+
+      const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+      const eventSnap = await tx.get(eventRef);
+      if (!eventSnap.exists()) {
+        tx.delete(appRef);
+        return;
+      }
+
+      const eventData = eventSnap.data() as Record<string, unknown>;
+      const sessions = Array.isArray(eventData.sessions)
+        ? (eventData.sessions as EventItem["sessions"])
+        : [];
+
+      const nextSessions = sessions.map((sess) => {
+        if (sess.id !== sessionId) return sess;
+        return {
+          ...sess,
+          slots: sess.slots.map((slot) => {
+            if (slot.id !== slotId) return slot;
+            return {
+              ...slot,
+              applied_count: Math.max(0, slot.applied_count - 1),
+            };
+          }),
+        };
+      });
+
+      tx.update(eventRef, {
+        sessions: nextSessions,
+        updatedAt: serverTimestamp(),
+      });
+      tx.delete(appRef);
+    }
+  });
 }
