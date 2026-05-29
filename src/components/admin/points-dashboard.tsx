@@ -26,6 +26,11 @@ import {
   filterApplicationsMatchingLiveSchedule,
   filterPointLogsMatchingLiveApplications,
 } from "@/lib/applications-match-schedule";
+import {
+  eventsInMonth,
+  uniqueEventFilterOptions,
+  uniqueVenuesFromEvents,
+} from "@/lib/points-filter-options";
 import { useEvents } from "@/hooks/use-events";
 import type { ApplicationItem } from "@/types/application";
 import type { PointLogDoc } from "@/types/points";
@@ -110,13 +115,28 @@ export function PointsDashboard() {
     return subscribePointLogsByUser(selected.userId, monthKey, setUserLogs);
   }, [selected?.userId, monthKey, isAdmin]);
 
-  const venues = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of events) {
-      if (e.venue?.trim()) set.add(e.venue.trim());
-    }
-    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
-  }, [events]);
+  const monthEvents = useMemo(
+    () => eventsInMonth(events, monthKey),
+    [events, monthKey],
+  );
+
+  const venues = useMemo(
+    () => uniqueVenuesFromEvents(monthEvents),
+    [monthEvents],
+  );
+
+  const eventOptions = useMemo(
+    () => uniqueEventFilterOptions(monthEvents),
+    [monthEvents],
+  );
+
+  useEffect(() => {
+    if (venue && !venues.includes(venue)) setVenue("");
+  }, [venue, venues]);
+
+  useEffect(() => {
+    if (eventId && !eventOptions.some((o) => o.id === eventId)) setEventId("");
+  }, [eventId, eventOptions]);
 
   const liveApplications = useMemo(
     () => filterApplicationsMatchingLiveSchedule(applications, events),
@@ -405,9 +425,9 @@ export function PointsDashboard() {
               className="flex h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
             >
               <option value="">전체</option>
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.title}
+              {eventOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
                 </option>
               ))}
             </select>
