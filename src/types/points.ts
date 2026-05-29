@@ -26,3 +26,10 @@ export const POINT_POLICY = {
   no_show: -10,
   late_cancel: -5,
 } as const;
+
+export const POINT_TYPE_LABELS: Record<PointType, string> = {
+  completed: "근무완료",
+  no_show: "결근",
+  late_cancel: "당일취소",
+  adjustment: "관리자 조정",
+};

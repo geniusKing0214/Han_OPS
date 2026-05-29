@@ -252,6 +252,61 @@ export function subscribePointLogsByUser(
   };
 }
 
+/** 관리자: 유저 포인트 수동 지급/차감 */
+export async function adjustUserPoints(input: {
+  userId: string;
+  points: number;
+  reason: string;
+  monthKey: string;
+  adminUid: string;
+}) {
+  await assertAdmin();
+
+  const delta = Math.trunc(input.points);
+  if (!delta) {
+    throw new Error("포인트는 0이 아닌 정수여야 합니다.");
+  }
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new Error("조정 사유를 입력해 주세요.");
+  }
+  if (!input.monthKey.trim()) {
+    throw new Error("적용 월 정보가 없습니다.");
+  }
+
+  const userRef = doc(db, USERS_COLLECTION, input.userId);
+
+  await runTransaction(db, async (tx) => {
+    const userSnap = await tx.get(userRef);
+    if (!userSnap.exists()) {
+      throw new Error("사용자를 찾을 수 없습니다.");
+    }
+    const data = userSnap.data() as Record<string, unknown>;
+    const currentTotal =
+      typeof data.total_points === "number" ? data.total_points : 0;
+    const nextTotal = currentTotal + delta;
+    if (nextTotal < 0) {
+      throw new Error("누적 포인트가 0 미만이 될 수 없습니다.");
+    }
+
+    tx.update(userRef, { total_points: nextTotal });
+
+    const logRef = doc(collection(db, POINT_LOGS_COLLECTION));
+    tx.set(logRef, {
+      user_id: input.userId,
+      application_id: "",
+      point_type: "adjustment",
+      points: delta,
+      reason: reason.startsWith("[관리자 조정]")
+        ? reason
+        : `[관리자 조정] ${reason}`,
+      created_by_admin: input.adminUid,
+      created_at: serverTimestamp(),
+      month_key: input.monthKey.trim(),
+    });
+  });
+}
+
 /** 관리자: 월간 포인트 로그 일괄 조회 (랭킹 집계용) */
 export async function fetchPointLogsByMonth(
   monthKey: string,

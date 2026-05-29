@@ -12,6 +12,7 @@ import {
   UserCircle2,
 } from "lucide-react";
 
+import { AdminPointAdjustForm } from "@/components/admin/admin-point-adjust-form";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   buildRankingRows,
@@ -34,7 +35,7 @@ import {
 import { useEvents } from "@/hooks/use-events";
 import type { ApplicationItem } from "@/types/application";
 import type { PointLogDoc } from "@/types/points";
-import { POINT_POLICY } from "@/types/points";
+import { POINT_POLICY, POINT_TYPE_LABELS } from "@/types/points";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -184,7 +185,13 @@ export function PointsDashboard() {
         .filter((a) => a.userId === selected.userId)
         .map((a) => a.id),
     );
-    return userLogs.filter((l) => liveAppIds.has(l.application_id));
+    return userLogs
+      .filter(
+        (l) =>
+          (l.point_type === "adjustment" && !l.application_id?.trim()) ||
+          liveAppIds.has(l.application_id),
+      )
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
   }, [userLogs, liveApplications, selected?.userId]);
 
   const selectRow = (row: RankingRow) => {
@@ -288,33 +295,50 @@ export function PointsDashboard() {
             </p>
           </div>
         </div>
+        {user?.uid ? (
+          <AdminPointAdjustForm
+            userId={selected.userId}
+            monthKey={monthKey}
+            adminUid={user.uid}
+          />
+        ) : null}
         <div>
           <p className="mb-2 text-sm font-medium">
-            최근 활동 ({formatMonthLabel(monthKey)})
+            포인트 내역 ({formatMonthLabel(monthKey)})
           </p>
-          <ScrollArea className="h-48 pr-2">
+          <ScrollArea className="h-56 pr-2">
             {selectedUserLogs.length === 0 ? (
-              <p className="text-xs text-muted-foreground">활동 내역이 없습니다.</p>
+              <p className="text-xs text-muted-foreground">내역이 없습니다.</p>
             ) : (
               <ul className="space-y-2">
-                {selectedUserLogs.slice(0, 12).map((log) => (
+                {selectedUserLogs.map((log) => (
                   <li
                     key={log.id}
-                    className="flex items-start justify-between gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs"
+                    className="space-y-1 rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs"
                   >
-                    <span className="text-muted-foreground tabular-nums">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge
+                        variant={
+                          log.point_type === "adjustment" ? "accent" : "outline"
+                        }
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {POINT_TYPE_LABELS[log.point_type]}
+                      </Badge>
+                      <span
+                        className={cn(
+                          "shrink-0 font-semibold tabular-nums",
+                          log.points >= 0 ? "text-emerald-400" : "text-red-400",
+                        )}
+                      >
+                        {log.points >= 0 ? "+" : ""}
+                        {log.points}P
+                      </span>
+                    </div>
+                    <p className="leading-snug text-foreground">{log.reason}</p>
+                    <p className="text-[10px] text-muted-foreground tabular-nums">
                       {formatLogDate(log.created_at)}
-                    </span>
-                    <span className="min-w-0 flex-1 text-foreground">{log.reason}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 font-medium tabular-nums",
-                        log.points >= 0 ? "text-emerald-400" : "text-red-400",
-                      )}
-                    >
-                      {log.points >= 0 ? "+" : ""}
-                      {log.points}P
-                    </span>
+                    </p>
                   </li>
                 ))}
               </ul>
