@@ -22,6 +22,10 @@ import {
 import { subscribeApplicationsInMonthForAdmin } from "@/lib/firestore-applications";
 import { subscribePointLogsByMonth, subscribePointLogsByUser } from "@/lib/firestore-points";
 import { subscribeAllUsersForAdmin, type ListedUserRow } from "@/lib/firestore-users";
+import {
+  filterApplicationsMatchingLiveSchedule,
+  filterPointLogsMatchingLiveApplications,
+} from "@/lib/applications-match-schedule";
 import { useEvents } from "@/hooks/use-events";
 import type { ApplicationItem } from "@/types/application";
 import type { PointLogDoc } from "@/types/points";
@@ -114,6 +118,16 @@ export function PointsDashboard() {
     return [...set].sort((a, b) => a.localeCompare(b, "ko"));
   }, [events]);
 
+  const liveApplications = useMemo(
+    () => filterApplicationsMatchingLiveSchedule(applications, events),
+    [applications, events],
+  );
+
+  const livePointLogs = useMemo(
+    () => filterPointLogsMatchingLiveApplications(pointLogs, liveApplications),
+    [pointLogs, liveApplications],
+  );
+
   const filters = useMemo(
     () => ({
       venue: venue || undefined,
@@ -124,18 +138,34 @@ export function PointsDashboard() {
   );
 
   const ranking = useMemo(
-    () => buildRankingRows(users, applications, pointLogs, filters),
-    [users, applications, pointLogs, filters],
+    () => buildRankingRows(users, liveApplications, livePointLogs, filters),
+    [users, liveApplications, livePointLogs, filters],
   );
 
   const stats = useMemo(
     () =>
-      computeMonthStats(applications, pointLogs, {
+      computeMonthStats(liveApplications, livePointLogs, {
         venue: venue || undefined,
         eventId: eventId || undefined,
       }),
-    [applications, pointLogs, venue, eventId],
+    [liveApplications, livePointLogs, venue, eventId],
   );
+
+  useEffect(() => {
+    if (!selected?.userId) return;
+    const updated = ranking.find((r) => r.userId === selected.userId);
+    if (updated) setSelected(updated);
+  }, [ranking, selected?.userId]);
+
+  const selectedUserLogs = useMemo(() => {
+    if (!selected?.userId) return [];
+    const liveAppIds = new Set(
+      liveApplications
+        .filter((a) => a.userId === selected.userId)
+        .map((a) => a.id),
+    );
+    return userLogs.filter((l) => liveAppIds.has(l.application_id));
+  }, [userLogs, liveApplications, selected?.userId]);
 
   const selectRow = (row: RankingRow) => {
     setSelected(row);
@@ -243,11 +273,11 @@ export function PointsDashboard() {
             최근 활동 ({formatMonthLabel(monthKey)})
           </p>
           <ScrollArea className="h-48 pr-2">
-            {userLogs.length === 0 ? (
+            {selectedUserLogs.length === 0 ? (
               <p className="text-xs text-muted-foreground">활동 내역이 없습니다.</p>
             ) : (
               <ul className="space-y-2">
-                {userLogs.slice(0, 12).map((log) => (
+                {selectedUserLogs.slice(0, 12).map((log) => (
                   <li
                     key={log.id}
                     className="flex items-start justify-between gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs"

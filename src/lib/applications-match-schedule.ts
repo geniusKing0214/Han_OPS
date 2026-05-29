@@ -1,4 +1,5 @@
 import type { ApplicationItem } from "@/types/application";
+import type { PointLogDoc } from "@/types/points";
 import type { EventItem } from "@/types/schedule";
 
 /**
@@ -32,4 +33,13 @@ export function filterApplicationsMatchingLiveSchedule(
 
     return true;
   });
+}
+
+/** 삭제·변경된 일정에 묶인 포인트 로그 제외 */
+export function filterPointLogsMatchingLiveApplications(
+  logs: PointLogDoc[],
+  liveApplications: ApplicationItem[],
+): PointLogDoc[] {
+  const liveAppIds = new Set(liveApplications.map((a) => a.id));
+  return logs.filter((l) => liveAppIds.has(l.application_id));
 }
