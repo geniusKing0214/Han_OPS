@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useNotices } from "@/hooks/use-notices";
 import {
-  dismissNoticeForWeek,
+  dismissNoticeFor24Hours,
   findImportantNoticeToShow,
 } from "@/lib/notice-dismissal";
 
@@ -58,9 +58,9 @@ export function ImportantNoticeDialog() {
     setOpen(false);
   };
 
-  const handleDismissWeek = () => {
+  const handleDismiss24Hours = () => {
     if (!user?.uid || !notice) return;
-    dismissNoticeForWeek(user.uid, notice.id);
+    dismissNoticeFor24Hours(user.uid, notice.id);
     setOpen(false);
   };
 
@@ -82,18 +82,28 @@ export function ImportantNoticeDialog() {
             <Badge variant="warning">중요</Badge>
           </div>
           <DialogDescription className="text-left">
-            {formatWhen(notice.created_at)} · {notice.author}
+            {formatWhen(notice.created_at)}
           </DialogDescription>
         </DialogHeader>
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
           {notice.content}
         </p>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button type="button" variant="outline" onClick={handleClose}>
-            닫기
+        <DialogFooter className="flex-col gap-2 sm:flex-col sm:gap-2">
+          <Button
+            type="button"
+            variant="accent"
+            className="w-full"
+            onClick={handleDismiss24Hours}
+          >
+            24시간 닫기
           </Button>
-          <Button type="button" variant="accent" onClick={handleDismissWeek}>
-            1주일간 닫기
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={handleClose}
+          >
+            닫기
           </Button>
         </DialogFooter>
       </DialogContent>
