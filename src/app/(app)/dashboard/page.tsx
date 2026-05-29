@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
+import { ImportantNoticeDialog } from "@/components/dashboard/important-notice-dialog";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { useNotices } from "@/hooks/use-notices";
@@ -98,6 +99,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <ImportantNoticeDialog />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
