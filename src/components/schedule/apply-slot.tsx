@@ -178,7 +178,7 @@ export function ApplySlotSurface({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto">
+      <SheetContent side="bottom">
         <SheetHeader>
           <SheetTitle>슬롯 신청</SheetTitle>
           <SheetDescription>

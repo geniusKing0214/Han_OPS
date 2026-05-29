@@ -55,8 +55,8 @@ export function AdminSubNav() {
       <div
         className={cn(
           "items-stretch gap-0",
-          "flex flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:overflow-visible lg:grid lg:grid-cols-7",
+          "flex min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          "md:overflow-visible lg:grid lg:grid-cols-6",
         )}
       >
         {items.map(({ href, label, isActive }) => {

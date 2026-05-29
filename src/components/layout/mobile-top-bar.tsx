@@ -9,7 +9,7 @@ export function MobileTopBar({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur md:hidden",
+        "sticky top-0 z-30 flex min-h-14 items-center gap-2 border-b border-border bg-background/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden",
         className,
       )}
     >

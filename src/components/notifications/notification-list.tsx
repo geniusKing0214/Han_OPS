@@ -8,7 +8,7 @@ export function NotificationList({
   items,
   loading,
   onSelect,
-  maxHeightClass = "max-h-[min(420px,70vh)]",
+  maxHeightClass = "max-h-[min(420px,70dvh)]",
 }: {
   items: NotificationItem[];
   loading?: boolean;

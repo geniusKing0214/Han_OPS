@@ -74,7 +74,7 @@ export function MobileBottomNav({ className }: { className?: string }) {
               더보기
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-xl">
+          <SheetContent side="bottom" className="max-h-[85dvh] rounded-t-xl">
             <SheetHeader>
               <SheetTitle>메뉴</SheetTitle>
             </SheetHeader>

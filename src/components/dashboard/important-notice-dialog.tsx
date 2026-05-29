@@ -73,7 +73,7 @@ export function ImportantNoticeDialog() {
         if (!next) handleClose();
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg [&>button]:hidden">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg [&>button]:hidden">
         <DialogHeader>
           <div className="flex flex-wrap items-center gap-2 pr-6">
             <DialogTitle className="text-left leading-snug">

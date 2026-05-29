@@ -326,7 +326,7 @@ export function PointsDashboard() {
           <p className="mb-2 text-sm font-medium">
             포인트 내역 ({formatMonthLabel(monthKey)})
           </p>
-          <ScrollArea className="h-56 pr-2">
+          <ScrollArea className="max-h-[min(14rem,38dvh)] pr-2 lg:h-56 lg:max-h-none">
             {selectedUserLogs.length === 0 ? (
               <p className="text-xs text-muted-foreground">내역이 없습니다.</p>
             ) : (
@@ -382,7 +382,7 @@ export function PointsDashboard() {
   );
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="min-w-0 space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
@@ -649,7 +649,7 @@ export function PointsDashboard() {
                         </button>
                         {expanded ? (
                           <div className="space-y-3 border-t border-border px-3 pb-3 pt-2">
-                            <div className="grid grid-cols-3 gap-1.5 text-center text-[11px] sm:grid-cols-6 sm:text-xs">
+                            <div className="grid grid-cols-2 gap-1.5 text-center text-[11px] min-[360px]:grid-cols-3 sm:grid-cols-6 sm:text-xs">
                               <div className="rounded-md bg-background/60 px-1 py-1.5">
                                 <p className="text-muted-foreground">신청</p>
                                 <p className="font-medium tabular-nums">
@@ -710,11 +710,8 @@ export function PointsDashboard() {
       </div>
 
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent
-          side="bottom"
-          className="max-h-[92vh] overflow-y-auto rounded-t-xl p-4 pb-10 lg:hidden"
-        >
-          <SheetHeader className="text-left">
+        <SheetContent side="bottom" className="p-4 pt-6 lg:hidden">
+          <SheetHeader className="pr-10 text-left">
             <SheetTitle>유저 상세 · 포인트 조정</SheetTitle>
             <SheetDescription>
               지급·차감 내역은 아래 포인트 내역에 저장됩니다.

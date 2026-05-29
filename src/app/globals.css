@@ -11,7 +11,13 @@
     @apply border-border;
   }
 
+  html {
+    overflow-x: clip;
+  }
+
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    overflow-x: clip;
   }
 }

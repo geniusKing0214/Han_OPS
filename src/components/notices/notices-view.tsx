@@ -134,7 +134,7 @@ export function NoticesView() {
       ) : null}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editId ? "공지 수정" : "새 공지"}</DialogTitle>
             <DialogDescription>

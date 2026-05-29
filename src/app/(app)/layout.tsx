@@ -11,13 +11,13 @@ export default function AppLayout({
 }>) {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen min-w-0 overflow-x-clip">
         <AppSidebar />
-        <div className="flex flex-1 flex-col md:pl-60">
+        <div className="flex min-w-0 flex-1 flex-col md:pl-60">
           <MobileTopBar />
           <AppHeader />
-          <main className="flex-1 px-4 py-6 pb-28 md:px-8 md:py-10 md:pb-10">
-            <div className="mx-auto w-full max-w-5xl">{children}</div>
+          <main className="flex-1 overflow-x-clip px-4 py-6 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px)+1rem)] md:px-8 md:py-10 md:pb-10">
+            <div className="mx-auto w-full min-w-0 max-w-5xl">{children}</div>
           </main>
           <MobileBottomNav />
         </div>

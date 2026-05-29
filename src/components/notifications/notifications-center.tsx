@@ -146,7 +146,7 @@ export function NotificationsCenter({ className }: { className?: string }) {
       {bellButton}
 
       {isDesktop && open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,380px)] rounded-xl border border-border bg-card p-4 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-2 w-[min(380px,calc(100dvw-2rem))] rounded-xl border border-border bg-card p-4 shadow-xl">
           {panelHeader}
           <div className="mt-3">
             <NotificationList
@@ -167,7 +167,7 @@ export function NotificationsCenter({ className }: { className?: string }) {
         <Sheet open={open} onOpenChange={handleOpenChange}>
           <SheetContent
             side="bottom"
-            className="flex max-h-[88vh] flex-col rounded-t-xl px-4 pb-6 pt-2"
+            className="flex max-h-[88dvh] flex-col rounded-t-xl px-4 pt-2"
           >
             <div className="mx-auto mb-2 h-1 w-10 shrink-0 rounded-full bg-muted" />
             {detail ? (
@@ -187,7 +187,7 @@ export function NotificationsCenter({ className }: { className?: string }) {
                     items={items}
                     loading={loading}
                     onSelect={(item) => void handleSelect(item)}
-                    maxHeightClass="max-h-[min(60vh,520px)]"
+                    maxHeightClass="max-h-[min(60dvh,520px)]"
                   />
                 </div>
               </>
