@@ -2,7 +2,6 @@ import {
   type FirestoreError,
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -117,21 +116,6 @@ export type CreateApplicationInput = {
   note: string;
 };
 
-async function pruneMyApplicationsToFive(uid: string) {
-  const q = query(
-    collection(db, APPLICATIONS_COLLECTION),
-    where("userId", "==", uid),
-  );
-  const snap = await getDocs(q);
-  const docs = [...snap.docs].sort((a, b) => {
-    const aIso = timestampToIso((a.data() as Record<string, unknown>).createdAt);
-    const bIso = timestampToIso((b.data() as Record<string, unknown>).createdAt);
-    return bIso.localeCompare(aIso);
-  });
-  const overflow = docs.slice(5);
-  await Promise.all(overflow.map((d) => deleteDoc(d.ref)));
-}
-
 export async function createApplication(input: CreateApplicationInput) {
   const dupQuery = query(
     collection(db, APPLICATIONS_COLLECTION),
@@ -181,9 +165,6 @@ export async function createApplication(input: CreateApplicationInput) {
   } catch {
     // 신청은 성공 — 알림만 실패할 수 있음 (config/admins 미설정 등)
   }
-
-  // 사용자별 신청 내역은 최신 5개만 유지
-  await pruneMyApplicationsToFive(input.userId);
 }
 
 export function subscribeMyApplications(
@@ -434,8 +415,7 @@ export async function decideApplication(
             throw new Error("슬롯이 이미 마감되어 승인할 수 없습니다.");
           }
           const nextApplied = slot.applied_count + 1;
-          // 승인되면 해당 슬롯은 즉시 마감 처리
-          return { ...slot, applied_count: nextApplied, capacity: nextApplied };
+          return { ...slot, applied_count: nextApplied };
         }),
       };
     });
