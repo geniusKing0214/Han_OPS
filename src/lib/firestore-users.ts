@@ -132,7 +132,7 @@ export function subscribeAllUsersForAdmin(
           uid: d.id,
           ...(d.data() as UserProfileDoc),
         }))
-        .filter((r) => r.role === "member");
+        .filter((r) => r.role !== "admin");
       onData(rows);
     },
     (err) => onError?.(err),

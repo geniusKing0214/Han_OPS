@@ -10,7 +10,6 @@ import {
   Star,
   Trophy,
   UserCircle2,
-  X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -32,12 +31,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 function currentMonthKey(): string {
@@ -82,7 +75,6 @@ export function PointsDashboard() {
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<RankingRow | null>(null);
   const [userLogs, setUserLogs] = useState<PointLogDoc[]>([]);
-  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -145,9 +137,8 @@ export function PointsDashboard() {
     [applications, pointLogs, venue, eventId],
   );
 
-  const openDetail = (row: RankingRow) => {
+  const selectRow = (row: RankingRow) => {
     setSelected(row);
-    setDetailOpen(true);
   };
 
   if (!isAdmin) {
@@ -481,7 +472,7 @@ export function PointsDashboard() {
                               "cursor-pointer border-b border-border/60 transition-colors hover:bg-muted/40",
                               active && "bg-accent/10",
                             )}
-                            onClick={() => openDetail(row)}
+                            onClick={() => selectRow(row)}
                           >
                             <td className="px-4 py-2.5 tabular-nums">
                               {rankMedal(rank) ?? rank}
@@ -524,14 +515,9 @@ export function PointsDashboard() {
                   {ranking.map((row, idx) => {
                     const rank = idx + 1;
                     return (
-                      <button
+                      <div
                         key={row.userId}
-                        type="button"
-                        className={cn(
-                          "w-full rounded-lg border border-border bg-muted/30 p-3 text-left transition-colors active:bg-muted/50",
-                          selected?.userId === row.userId && "border-accent/50 bg-accent/10",
-                        )}
-                        onClick={() => openDetail(row)}
+                        className="w-full rounded-lg border border-border bg-muted/30 p-3"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -583,7 +569,7 @@ export function PointsDashboard() {
                             </p>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -595,23 +581,6 @@ export function PointsDashboard() {
         <div className="hidden lg:block">{detailPanelDesktop}</div>
       </div>
 
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto p-4 sm:p-6 lg:hidden [&>button]:hidden">
-          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
-            <DialogTitle className="text-base">유저 상세</DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-3 top-3 size-8"
-              onClick={() => setDetailOpen(false)}
-            >
-              <X className="size-4" />
-            </Button>
-          </DialogHeader>
-          {detailBody}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

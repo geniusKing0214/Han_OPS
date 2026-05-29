@@ -15,6 +15,58 @@ export type RankingRow = {
   totalPoints: number;
 };
 
+type ApplicantHint = { name: string; email: string };
+
+function buildApplicantHintMap(
+  applications: ApplicationItem[],
+): Map<string, ApplicantHint> {
+  const map = new Map<string, ApplicantHint>();
+  const sorted = [...applications].sort((a, b) =>
+    b.submittedAt.localeCompare(a.submittedAt),
+  );
+  for (const a of sorted) {
+    const uid = a.userId?.trim();
+    if (!uid) continue;
+    const name = a.applicantDisplayName?.trim() ?? "";
+    const email = a.applicantEmail?.trim() ?? "";
+    const prev = map.get(uid);
+    map.set(uid, {
+      name: name || prev?.name || "",
+      email: email || prev?.email || "",
+    });
+  }
+  return map;
+}
+
+function resolveDisplayName(
+  uid: string,
+  user: ListedUserRow | undefined,
+  hints: Map<string, ApplicantHint>,
+): string {
+  const fromProfile = user?.displayName?.trim();
+  if (fromProfile) return fromProfile;
+  const fromApp = hints.get(uid)?.name;
+  if (fromApp) return fromApp;
+  const email = user?.email?.trim() || hints.get(uid)?.email;
+  if (email) {
+    const local = email.split("@")[0]?.trim();
+    if (local) return local;
+  }
+  return "이름 없음";
+}
+
+function resolveEmail(
+  uid: string,
+  user: ListedUserRow | undefined,
+  hints: Map<string, ApplicantHint>,
+): string {
+  const fromProfile = user?.email?.trim();
+  if (fromProfile) return fromProfile;
+  const fromApp = hints.get(uid)?.email;
+  if (fromApp) return fromApp;
+  return "—";
+}
+
 export type MonthStats = {
   totalApplications: number;
   approvedCount: number;
@@ -83,6 +135,8 @@ export function buildRankingRows(
     appStats.set(uid, s);
   }
 
+  const applicantHints = buildApplicantHintMap(applications);
+
   const userIds = new Set<string>([
     ...users.map((u) => u.uid),
     ...appStats.keys(),
@@ -93,8 +147,8 @@ export function buildRankingRows(
 
   for (const uid of userIds) {
     const user = users.find((u) => u.uid === uid);
-    const name = user?.displayName?.trim() || "—";
-    const email = user?.email?.trim() || "—";
+    const name = resolveDisplayName(uid, user, applicantHints);
+    const email = resolveEmail(uid, user, applicantHints);
     if (search) {
       const hay = `${name} ${email}`.toLowerCase();
       if (!hay.includes(search)) continue;
