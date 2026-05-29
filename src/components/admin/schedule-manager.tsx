@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import type { EventItem } from "@/types/schedule";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -24,8 +25,25 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
+function currentMonthKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function shiftMonthKey(monthKey: string, delta: number): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonthLabel(monthKey: string): string {
+  const [y, m] = monthKey.split("-");
+  return `${y}년 ${Number(m)}월`;
+}
+
 export function ScheduleManager() {
   const { events, loading, error } = useEvents();
+  const [monthKey, setMonthKey] = useState(currentMonthKey);
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -44,13 +62,19 @@ export function ScheduleManager() {
     >();
     for (const event of events) {
       for (const session of event.sessions) {
+        if (!session.date.startsWith(monthKey)) continue;
         const list = map.get(session.date) ?? [];
         list.push({ event, session });
         map.set(session.date, list);
       }
     }
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [events]);
+  }, [events, monthKey]);
+
+  const monthStats = useMemo(() => {
+    const sessionCount = grouped.reduce((sum, [, rows]) => sum + rows.length, 0);
+    return { dayCount: grouped.length, sessionCount };
+  }, [grouped]);
 
   const handleDeleteEventFromSheet = async () => {
     if (!detailCtx) return;
@@ -86,8 +110,7 @@ export function ScheduleManager() {
         <div>
           <h2 className="text-lg font-semibold">Schedule Manager</h2>
           <p className="text-sm text-muted-foreground">
-            날짜별 그룹에서 세션을 눌러 편집합니다. 기본 정보·슬롯·세션 날짜를 한곳에서
-            관리합니다.
+            월별로 세션을 확인하고, 날짜별 그룹에서 탭하여 편집합니다.
           </p>
         </div>
         <Button
@@ -114,6 +137,53 @@ export function ScheduleManager() {
           일정 로드 오류: {error}
         </p>
       ) : null}
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 p-3 sm:gap-3 sm:p-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0"
+            aria-label="이전 달"
+            onClick={() => setMonthKey((m) => shiftMonthKey(m, -1))}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Input
+            type="month"
+            value={monthKey}
+            onChange={(e) => setMonthKey(e.target.value)}
+            className="h-9 w-[9.5rem] shrink-0 tabular-nums sm:w-40"
+            aria-label="월 선택"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9 shrink-0"
+            aria-label="다음 달"
+            onClick={() => setMonthKey((m) => shiftMonthKey(m, 1))}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{formatMonthLabel(monthKey)}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {monthStats.dayCount}일 · {monthStats.sessionCount}개 세션
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="shrink-0 text-xs"
+            onClick={() => setMonthKey(currentMonthKey())}
+          >
+            이번 달
+          </Button>
+        </CardContent>
+      </Card>
 
       <Sheet
         open={detailOpen}
@@ -161,14 +231,14 @@ export function ScheduleManager() {
 
       <div className="space-y-4">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          날짜별 세션
+          {formatMonthLabel(monthKey)} · 날짜별 세션
         </h3>
         {grouped.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
               {events.length === 0 && !loading
                 ? "등록된 일정이 없습니다.「스케줄 생성」으로 추가하세요."
-                : "표시할 세션이 없습니다. 이벤트에 날짜(세션)를 추가하세요."}
+                : `${formatMonthLabel(monthKey)}에 표시할 세션이 없습니다. 다른 달을 선택하거나 이벤트에 세션을 추가하세요.`}
             </CardContent>
           </Card>
         ) : (
