@@ -197,21 +197,8 @@ export function PointsDashboard() {
     },
   ];
 
-  const detailPanel = selected ? (
-    <Card className="border-border/80 bg-gradient-to-b from-muted/50 to-background lg:sticky lg:top-20">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
-        <CardTitle className="text-base">유저 상세 정보</CardTitle>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0 lg:hidden"
-          onClick={() => setDetailOpen(false)}
-        >
-          <X className="size-4" />
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const detailBody = selected ? (
+    <div className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex size-12 items-center justify-center rounded-full bg-muted">
             <UserCircle2 className="size-7 text-muted-foreground" />
@@ -293,7 +280,15 @@ export function PointsDashboard() {
             )}
           </ScrollArea>
         </div>
-      </CardContent>
+    </div>
+  ) : null;
+
+  const detailPanelDesktop = detailBody ? (
+    <Card className="border-border/80 bg-gradient-to-b from-muted/50 to-background lg:sticky lg:top-20">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">유저 상세 정보</CardTitle>
+      </CardHeader>
+      <CardContent>{detailBody}</CardContent>
     </Card>
   ) : (
     <Card className="hidden border-dashed border-border/80 bg-muted/20 lg:flex lg:min-h-[320px] lg:items-center lg:justify-center">
@@ -302,22 +297,26 @@ export function PointsDashboard() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">포인트/랭킹 관리</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
+            포인트/랭킹 관리
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             유저별 신청·근무 현황과 포인트를 확인하고 관리할 수 있습니다.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">{profile?.email ?? user?.email}</span>
+        <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+          <span className="hidden max-w-[160px] truncate sm:inline md:max-w-none">
+            {profile?.email ?? user?.email}
+          </span>
           <Badge variant="accent">관리자</Badge>
         </div>
       </div>
 
       <Card className="border-accent/20 bg-muted/20">
-        <CardContent className="flex flex-wrap gap-4 py-3 text-xs text-muted-foreground">
+        <CardContent className="flex flex-col gap-2 py-3 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-4">
           <span>
             근무완료 <strong className="text-emerald-400">+{POINT_POLICY.completed}P</strong>
           </span>
@@ -327,36 +326,38 @@ export function PointsDashboard() {
           <span>
             당일취소 <strong className="text-amber-400">{POINT_POLICY.late_cancel}P</strong>
           </span>
-          <span>신청 시 포인트 미지급 · 동일 건 중복 지급 방지</span>
+          <span className="leading-relaxed">
+            신청 시 포인트 미지급 · 동일 건 중복 지급 방지
+          </span>
         </CardContent>
       </Card>
 
-      <div className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {statCards.map(({ label, value, icon: Icon, tone }) => (
           <Card
             key={label}
-            className="min-w-[140px] shrink-0 border-border/80 bg-gradient-to-br from-muted/60 to-background"
+            className="border-border/80 bg-gradient-to-br from-muted/60 to-background"
           >
-            <CardContent className="space-y-2 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <Icon className={cn("size-4", tone)} />
+            <CardContent className="space-y-1.5 p-3 sm:space-y-2 sm:p-4">
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-[11px] text-muted-foreground sm:text-xs">{label}</p>
+                <Icon className={cn("size-3.5 shrink-0 sm:size-4", tone)} />
               </div>
-              <p className="text-xl font-semibold tabular-nums">{value}</p>
+              <p className="text-lg font-semibold tabular-nums sm:text-xl">{value}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
       <Card>
-        <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:flex-wrap lg:items-end">
+        <CardContent className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:flex lg:flex-row lg:flex-wrap lg:items-end">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">월 선택</label>
             <Input
               type="month"
               value={monthKey}
               onChange={(e) => setMonthKey(e.target.value)}
-              className="w-full min-w-[140px] tabular-nums sm:w-auto"
+              className="w-full tabular-nums"
             />
           </div>
           <div className="space-y-1">
@@ -364,7 +365,7 @@ export function PointsDashboard() {
             <select
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
-              className="flex h-9 w-full min-w-[120px] rounded-md border border-border bg-background px-3 text-sm"
+              className="flex h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
             >
               <option value="">전체</option>
               {venues.map((v) => (
@@ -374,12 +375,12 @@ export function PointsDashboard() {
               ))}
             </select>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 sm:col-span-2 lg:col-span-1 lg:min-w-[180px]">
             <label className="text-xs text-muted-foreground">이벤트</label>
             <select
               value={eventId}
               onChange={(e) => setEventId(e.target.value)}
-              className="flex h-9 w-full min-w-[160px] rounded-md border border-border bg-background px-3 text-sm"
+              className="flex h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
             >
               <option value="">전체</option>
               {events.map((ev) => (
@@ -389,38 +390,42 @@ export function PointsDashboard() {
               ))}
             </select>
           </div>
-          <div className="relative min-w-[180px] flex-1 space-y-1">
+          <div className="space-y-1 sm:col-span-2 lg:min-w-[200px] lg:flex-1">
             <label className="text-xs text-muted-foreground">유저 검색</label>
-            <Search className="pointer-events-none absolute left-2.5 top-8 size-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="이름, 이메일"
-              className="pl-8"
-            />
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="이름, 이메일"
+                className="pl-8"
+              />
+            </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="shrink-0"
-            onClick={() => {
-              setVenue("");
-              setEventId("");
-              setSearch("");
-            }}
-          >
-            초기화
-          </Button>
-          <Button
-            type="button"
-            variant="accent"
-            className="shrink-0 gap-1.5"
-            onClick={() => exportRankingCsv(ranking, monthKey)}
-            disabled={ranking.length === 0}
-          >
-            <Download className="size-4" />
-            엑셀 다운로드
-          </Button>
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-full lg:flex lg:w-auto lg:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full min-h-9"
+              onClick={() => {
+                setVenue("");
+                setEventId("");
+                setSearch("");
+              }}
+            >
+              초기화
+            </Button>
+            <Button
+              type="button"
+              variant="accent"
+              className="w-full min-h-9 gap-1.5"
+              onClick={() => exportRankingCsv(ranking, monthKey)}
+              disabled={ranking.length === 0}
+            >
+              <Download className="size-4 shrink-0" />
+              <span className="truncate">엑셀 다운로드</span>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -449,7 +454,7 @@ export function PointsDashboard() {
               </p>
             ) : (
               <>
-                <div className="hidden overflow-x-auto md:block">
+                <div className="hidden overflow-x-auto lg:block">
                   <table className="w-full min-w-[720px] text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs text-muted-foreground">
@@ -515,7 +520,7 @@ export function PointsDashboard() {
                   </table>
                 </div>
 
-                <div className="space-y-2 p-3 md:hidden">
+                <div className="space-y-2 p-2 sm:p-3 lg:hidden">
                   {ranking.map((row, idx) => {
                     const rank = idx + 1;
                     return (
@@ -523,26 +528,61 @@ export function PointsDashboard() {
                         key={row.userId}
                         type="button"
                         className={cn(
-                          "w-full rounded-lg border border-border bg-muted/30 p-3 text-left transition-colors hover:bg-muted/50",
+                          "w-full rounded-lg border border-border bg-muted/30 p-3 text-left transition-colors active:bg-muted/50",
                           selected?.userId === row.userId && "border-accent/50 bg-accent/10",
                         )}
                         onClick={() => openDetail(row)}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium">
-                            {rankMedal(rank) ?? `${rank}위`} {row.name}
-                          </span>
-                          <span className="text-sm font-semibold text-accent tabular-nums">
-                            {row.monthlyPoints}P
-                          </span>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-medium leading-snug">
+                              {rankMedal(rank) ?? `${rank}위`} {row.name}
+                            </span>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {row.email}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold text-accent tabular-nums">
+                              {row.monthlyPoints}P
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">월간</p>
+                          </div>
                         </div>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">
-                          {row.email}
-                        </p>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          신청 {row.applicationCount} · 승인 {row.approvedCount} · 완료{" "}
-                          {row.completedCount} · 누적 {row.totalPoints}P
-                        </p>
+                        <div className="mt-3 grid grid-cols-3 gap-1.5 text-center text-[11px] sm:grid-cols-6 sm:text-xs">
+                          <div className="rounded-md bg-background/60 px-1 py-1.5">
+                            <p className="text-muted-foreground">신청</p>
+                            <p className="font-medium tabular-nums">{row.applicationCount}</p>
+                          </div>
+                          <div className="rounded-md bg-background/60 px-1 py-1.5">
+                            <p className="text-muted-foreground">승인</p>
+                            <p className="font-medium tabular-nums">{row.approvedCount}</p>
+                          </div>
+                          <div className="rounded-md bg-background/60 px-1 py-1.5">
+                            <p className="text-muted-foreground">완료</p>
+                            <p className="font-medium tabular-nums text-emerald-400">
+                              {row.completedCount}
+                            </p>
+                          </div>
+                          <div className="rounded-md bg-background/60 px-1 py-1.5">
+                            <p className="text-muted-foreground">결근</p>
+                            <p className="font-medium tabular-nums text-red-400">
+                              {row.noShowCount}
+                            </p>
+                          </div>
+                          <div className="rounded-md bg-background/60 px-1 py-1.5">
+                            <p className="text-muted-foreground">당취</p>
+                            <p className="font-medium tabular-nums text-amber-400">
+                              {row.lateCancelCount}
+                            </p>
+                          </div>
+                          <div className="rounded-md bg-background/60 px-1 py-1.5">
+                            <p className="text-muted-foreground">누적</p>
+                            <p className="font-medium tabular-nums">
+                              {row.totalPoints.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
@@ -552,15 +592,24 @@ export function PointsDashboard() {
           </CardContent>
         </Card>
 
-        <div className="hidden lg:block">{detailPanel}</div>
+        <div className="hidden lg:block">{detailPanelDesktop}</div>
       </div>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto lg:hidden">
-          <DialogHeader>
-            <DialogTitle>유저 상세</DialogTitle>
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto p-4 sm:p-6 lg:hidden [&>button]:hidden">
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-8">
+            <DialogTitle className="text-base">유저 상세</DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-3 top-3 size-8"
+              onClick={() => setDetailOpen(false)}
+            >
+              <X className="size-4" />
+            </Button>
           </DialogHeader>
-          {detailPanel}
+          {detailBody}
         </DialogContent>
       </Dialog>
     </div>
