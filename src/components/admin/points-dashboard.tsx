@@ -41,6 +41,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 function currentMonthKey(): string {
@@ -84,6 +91,7 @@ export function PointsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<RankingRow | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [userLogs, setUserLogs] = useState<PointLogDoc[]>([]);
 
   useEffect(() => {
@@ -194,8 +202,14 @@ export function PointsDashboard() {
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
   }, [userLogs, liveApplications, selected?.userId]);
 
-  const selectRow = (row: RankingRow) => {
+  const openUserDetail = (row: RankingRow) => {
     setSelected(row);
+    const isDesktop =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches;
+    if (!isDesktop) {
+      setDetailOpen(true);
+    }
   };
 
   if (!isAdmin) {
@@ -547,7 +561,7 @@ export function PointsDashboard() {
                               "cursor-pointer border-b border-border/60 transition-colors hover:bg-muted/40",
                               active && "bg-accent/10",
                             )}
-                            onClick={() => selectRow(row)}
+                            onClick={() => openUserDetail(row)}
                           >
                             <td className="px-4 py-2.5 tabular-nums">
                               {rankMedal(rank) ?? rank}
@@ -589,10 +603,16 @@ export function PointsDashboard() {
                 <div className="space-y-2 p-2 sm:p-3 lg:hidden">
                   {ranking.map((row, idx) => {
                     const rank = idx + 1;
+                    const active = selected?.userId === row.userId;
                     return (
-                      <div
+                      <button
                         key={row.userId}
-                        className="w-full rounded-lg border border-border bg-muted/30 p-3"
+                        type="button"
+                        className={cn(
+                          "w-full rounded-lg border border-border bg-muted/30 p-3 text-left transition-colors active:bg-muted/50",
+                          active && detailOpen && "border-accent/50 bg-accent/10",
+                        )}
+                        onClick={() => openUserDetail(row)}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -646,7 +666,10 @@ export function PointsDashboard() {
                             </p>
                           </div>
                         </div>
-                      </div>
+                        <p className="mt-2 text-center text-[10px] text-muted-foreground">
+                          탭하여 포인트 지급·차감
+                        </p>
+                      </button>
                     );
                   })}
                 </div>
@@ -658,6 +681,20 @@ export function PointsDashboard() {
         <div className="hidden lg:block">{detailPanelDesktop}</div>
       </div>
 
+      <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
+        <SheetContent
+          side="bottom"
+          className="max-h-[92vh] overflow-y-auto rounded-t-xl p-4 pb-10 lg:hidden"
+        >
+          <SheetHeader className="text-left">
+            <SheetTitle>유저 상세 · 포인트 조정</SheetTitle>
+            <SheetDescription>
+              지급·차감 내역은 아래 포인트 내역에 저장됩니다.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4">{detailBody}</div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
