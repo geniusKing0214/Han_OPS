@@ -7,16 +7,16 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading, canAccessApp, logout } = useAuth();
+  const { user, profile, loading, authReady, canAccessApp, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (authReady && !loading && !user) {
       router.replace("/login");
     }
-  }, [loading, router, user]);
+  }, [authReady, loading, router, user]);
 
-  if (loading) {
+  if (!authReady || loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
         인증 상태 확인 중...

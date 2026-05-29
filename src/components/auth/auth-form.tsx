@@ -15,16 +15,26 @@ function toErrorMessage(err: unknown) {
 
 /** Google 계정으로만 로그인합니다. 신규 사용자는 첫 로그인 후 관리자 승인 대기 상태가 됩니다. */
 export function AuthForm() {
-  const { user, signInWithGoogle } = useAuth();
+  const { user, authReady, loading, signInWithGoogle } = useAuth();
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user) {
+    if (authReady && !loading && user) {
       router.replace("/dashboard");
     }
-  }, [router, user]);
+  }, [authReady, loading, router, user]);
+
+  if (!authReady || (loading && !user)) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          로그인 상태 확인 중...
+        </CardContent>
+      </Card>
+    );
+  }
 
   const onGoogle = async () => {
     setSubmitting(true);

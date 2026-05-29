@@ -1,12 +1,19 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
+import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 import {
   getEnvFirebaseConfig,
   getMissingFirebaseVars,
+  resolveAuthDomain,
 } from "@/lib/firebase-config";
 
-const firebaseConfig = getEnvFirebaseConfig();
+function buildFirebaseConfig() {
+  const cfg = getEnvFirebaseConfig();
+  if (typeof window !== "undefined") {
+    return { ...cfg, authDomain: resolveAuthDomain() };
+  }
+  return cfg;
+}
 
 export const firebaseConfigError =
   getMissingFirebaseVars().length > 0
@@ -15,11 +22,13 @@ export const firebaseConfigError =
 
 export const isFirebaseConfigured = getMissingFirebaseVars().length === 0;
 
-const app = isFirebaseConfigured
-  ? getApps().length
-    ? getApp()
-    : initializeApp(firebaseConfig)
-  : null;
+function initFirebaseApp(): FirebaseApp | null {
+  if (!isFirebaseConfigured) return null;
+  if (getApps().length > 0) return getApp();
+  return initializeApp(buildFirebaseConfig());
+}
+
+export const app = initFirebaseApp();
 
 export const db = app
   ? getFirestore(app)

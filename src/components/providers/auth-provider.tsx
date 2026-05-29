@@ -11,10 +11,7 @@ import {
 } from "react";
 
 import { firebaseConfigError, isFirebaseConfigured } from "@/lib/firebase";
-import {
-  consumeAuthRedirectResult,
-  getClientAuth,
-} from "@/lib/firebase-auth";
+import { getClientAuth, getClientAuthReady } from "@/lib/firebase-auth";
 import { signInWithGoogleForBrowser } from "@/lib/google-sign-in";
 import {
   createMemberProfile,
@@ -33,10 +30,12 @@ export type AuthProfile = {
 type AuthContextValue = {
   user: User | null;
   profile: AuthProfile | null;
+  /** Auth persistence 복원·프로필 로드 중 */
   loading: boolean;
+  /** Firebase Auth 초기화 완료 (복원 전 로그아웃 처리 방지) */
+  authReady: boolean;
   isAdmin: boolean;
   canAccessApp: boolean;
-  /** Google OAuth 로그인 (신규는 첫 로그인 시 자동 가입) */
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -51,83 +50,106 @@ function normalizeAccountStatus(status: unknown): UserApprovalStatus {
   if (status === "pending" || status === "approved" || status === "rejected") {
     return status;
   }
-  // Existing users without this field are treated as approved.
   return "approved";
+}
+
+function subscribeProfileForUser(
+  nextUser: User,
+  onReady: (profile: AuthProfile | null) => void,
+  onError: () => void,
+): () => void {
+  return subscribeUserProfile(
+    nextUser.uid,
+    async (data) => {
+      if (!data) {
+        try {
+          await createMemberProfile(
+            nextUser.uid,
+            nextUser.email ?? "",
+            nextUser.displayName,
+          );
+        } catch {
+          onError();
+        }
+        return;
+      }
+
+      onReady({
+        email:
+          typeof data.email === "string" ? data.email : nextUser.email ?? "",
+        role: normalizeRole(data.role),
+        accountStatus: normalizeAccountStatus(data.accountStatus),
+        displayName:
+          typeof data.displayName === "string" ? data.displayName : undefined,
+        phone: typeof data.phone === "string" ? data.phone : undefined,
+      });
+    },
+    onError,
+  );
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
       setUser(null);
       setProfile(null);
+      setAuthReady(true);
       setLoading(false);
       return;
     }
 
-    const auth = getClientAuth();
     let unsubProfile: (() => void) | undefined;
     let unsubAuth: (() => void) | undefined;
     let cancelled = false;
 
-    const startAuthListener = () => {
-      if (cancelled) return;
-      unsubAuth = onAuthStateChanged(auth, (nextUser) => {
-        unsubProfile?.();
-        unsubProfile = undefined;
-        setProfile(null);
+    const bindUser = (nextUser: User | null) => {
+      unsubProfile?.();
+      unsubProfile = undefined;
+      setProfile(null);
 
-        if (!nextUser) {
-          setUser(null);
+      if (!nextUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      setUser(nextUser);
+      setLoading(true);
+
+      unsubProfile = subscribeProfileForUser(
+        nextUser,
+        (nextProfile) => {
+          setProfile(nextProfile);
           setLoading(false);
-          return;
-        }
-
-        setUser(nextUser);
-        setLoading(true);
-
-        unsubProfile = subscribeUserProfile(
-          nextUser.uid,
-          async (data) => {
-            if (!data) {
-              try {
-                await createMemberProfile(
-                  nextUser.uid,
-                  nextUser.email ?? "",
-                  nextUser.displayName,
-                );
-              } catch {
-                setLoading(false);
-              }
-              return;
-            }
-
-            setProfile({
-              email:
-                typeof data.email === "string"
-                  ? data.email
-                  : nextUser.email ?? "",
-              role: normalizeRole(data.role),
-              accountStatus: normalizeAccountStatus(data.accountStatus),
-              displayName:
-                typeof data.displayName === "string"
-                  ? data.displayName
-                  : undefined,
-              phone: typeof data.phone === "string" ? data.phone : undefined,
-            });
-            setLoading(false);
-          },
-          () => setLoading(false),
-        );
-      });
+        },
+        () => setLoading(false),
+      );
     };
 
-    void consumeAuthRedirectResult().finally(() => {
-      startAuthListener();
-    });
+    void (async () => {
+      try {
+        const auth = await getClientAuthReady();
+        if (cancelled) return;
+
+        setAuthReady(true);
+        bindUser(auth.currentUser);
+
+        unsubAuth = onAuthStateChanged(auth, (nextUser) => {
+          bindUser(nextUser);
+        });
+      } catch {
+        if (cancelled) return;
+        setAuthReady(true);
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -159,12 +181,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       profile,
       loading,
+      authReady,
       isAdmin,
       canAccessApp,
       signInWithGoogle,
       logout,
     }),
-    [user, profile, loading, isAdmin, canAccessApp, signInWithGoogle, logout],
+    [user, profile, loading, authReady, isAdmin, canAccessApp, signInWithGoogle, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
