@@ -1,13 +1,14 @@
 import { doc, getDoc } from "firebase/firestore";
 
-import { auth, db } from "@/lib/firebase";
+import { getClientAuth } from "@/lib/firebase-auth";
+import { db } from "@/lib/firebase";
 
 /**
  * 클라이언트에서 관리자 전용 Firestore 작업 전 호출합니다.
  * Firestore rules(`isAdmin()`)와 함께 이중으로 적용됩니다.
  */
 export async function assertAdmin(): Promise<string> {
-  const uid = auth.currentUser?.uid;
+  const uid = getClientAuth().currentUser?.uid;
   if (!uid) {
     throw new Error("로그인이 필요합니다.");
   }

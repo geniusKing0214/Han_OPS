@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  User,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-} from "firebase/auth";
+import { User, onAuthStateChanged, signOut } from "firebase/auth";
 import {
   createContext,
   useCallback,
@@ -15,8 +10,12 @@ import {
   useState,
 } from "react";
 
-import { auth, firebaseConfigError, isFirebaseConfigured } from "@/lib/firebase";
-import { googleAuthProvider } from "@/lib/google-auth";
+import { firebaseConfigError, isFirebaseConfigured } from "@/lib/firebase";
+import {
+  consumeAuthRedirectResult,
+  getClientAuth,
+} from "@/lib/firebase-auth";
+import { signInWithGoogleForBrowser } from "@/lib/google-sign-in";
 import {
   createMemberProfile,
   subscribeUserProfile,
@@ -62,82 +61,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured || !auth) {
+    if (!isFirebaseConfigured) {
       setUser(null);
       setProfile(null);
       setLoading(false);
       return;
     }
 
+    const auth = getClientAuth();
     let unsubProfile: (() => void) | undefined;
+    let unsubAuth: (() => void) | undefined;
+    let cancelled = false;
 
-    const unsubAuth = onAuthStateChanged(auth, (nextUser) => {
-      unsubProfile?.();
-      unsubProfile = undefined;
-      setProfile(null);
+    const startAuthListener = () => {
+      if (cancelled) return;
+      unsubAuth = onAuthStateChanged(auth, (nextUser) => {
+        unsubProfile?.();
+        unsubProfile = undefined;
+        setProfile(null);
 
-      if (!nextUser) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      setUser(nextUser);
-      setLoading(true);
-
-      unsubProfile = subscribeUserProfile(
-        nextUser.uid,
-        async (data) => {
-          if (!data) {
-            try {
-              await createMemberProfile(
-                nextUser.uid,
-                nextUser.email ?? "",
-                nextUser.displayName,
-              );
-            } catch {
-              setLoading(false);
-            }
-            return;
-          }
-
-          setProfile({
-            email:
-              typeof data.email === "string"
-                ? data.email
-                : nextUser.email ?? "",
-            role: normalizeRole(data.role),
-            accountStatus: normalizeAccountStatus(data.accountStatus),
-            displayName:
-              typeof data.displayName === "string"
-                ? data.displayName
-                : undefined,
-            phone: typeof data.phone === "string" ? data.phone : undefined,
-          });
+        if (!nextUser) {
+          setUser(null);
           setLoading(false);
-        },
-        () => setLoading(false),
-      );
+          return;
+        }
+
+        setUser(nextUser);
+        setLoading(true);
+
+        unsubProfile = subscribeUserProfile(
+          nextUser.uid,
+          async (data) => {
+            if (!data) {
+              try {
+                await createMemberProfile(
+                  nextUser.uid,
+                  nextUser.email ?? "",
+                  nextUser.displayName,
+                );
+              } catch {
+                setLoading(false);
+              }
+              return;
+            }
+
+            setProfile({
+              email:
+                typeof data.email === "string"
+                  ? data.email
+                  : nextUser.email ?? "",
+              role: normalizeRole(data.role),
+              accountStatus: normalizeAccountStatus(data.accountStatus),
+              displayName:
+                typeof data.displayName === "string"
+                  ? data.displayName
+                  : undefined,
+              phone: typeof data.phone === "string" ? data.phone : undefined,
+            });
+            setLoading(false);
+          },
+          () => setLoading(false),
+        );
+      });
+    };
+
+    void consumeAuthRedirectResult().finally(() => {
+      startAuthListener();
     });
 
     return () => {
+      cancelled = true;
       unsubProfile?.();
-      unsubAuth();
+      unsubAuth?.();
     };
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    if (!isFirebaseConfigured || !auth) {
+    if (!isFirebaseConfigured) {
       throw new Error(firebaseConfigError);
     }
-    await signInWithPopup(auth, googleAuthProvider);
+    const auth = getClientAuth();
+    await signInWithGoogleForBrowser(auth);
   }, []);
 
   const logout = useCallback(async () => {
-    if (!isFirebaseConfigured || !auth) {
+    if (!isFirebaseConfigured) {
       throw new Error(firebaseConfigError);
     }
-    await signOut(auth);
+    await signOut(getClientAuth());
   }, []);
 
   const isAdmin = profile?.role === "admin";

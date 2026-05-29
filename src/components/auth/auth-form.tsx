@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { canUseAuthRedirect } from "@/lib/browser-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -30,7 +31,10 @@ export function AuthForm() {
     setError("");
     try {
       await signInWithGoogle();
-      router.replace("/dashboard");
+      // redirect 로그인(Safari·Firebase Hosting)은 페이지가 이동하므로 라우팅 생략
+      if (!canUseAuthRedirect()) {
+        router.replace("/dashboard");
+      }
     } catch (err) {
       setError(toErrorMessage(err));
     } finally {

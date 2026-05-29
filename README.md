@@ -70,6 +70,20 @@ GitHub 레포 → **Settings** → **Secrets and variables** → **Actions** →
 - **Authentication → Settings → Authorized domains** 에  
   `본인githubid.github.io` 를 추가합니다. (서브 경로가 있어도 **도메인만** 등록합니다.)
 
+#### Safari / iOS 로그인 (missing initial state 오류 방지)
+
+GitHub Pages(`*.github.io`)에서 Safari로 로그인할 때 Firebase redirect 오류가 날 수 있습니다.  
+GitHub Actions **Variables** 또는 로컬 `.env.local` 에 아래를 추가하세요.
+
+| 변수 | 설명 |
+|------|------|
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Firebase Console → Authentication → Google → **Web client ID** |
+
+Google Cloud Console → OAuth 클라이언트 → **승인된 JavaScript 원본**에  
+`https://본인githubid.github.io` 를 추가합니다.
+
+앱을 `*.firebaseapp.com` 에만 호스팅하는 경우에는 위 변수 없이 redirect 로그인이 동작합니다.
+
 ### 4) 주의
 
 - **정적(static) 배포**: 서버 API·서버 전용 기능 없이 동작합니다.

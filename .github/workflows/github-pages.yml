@@ -51,6 +51,8 @@ jobs:
           V_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
           V_SENDER: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
           V_APP: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          K_GCID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          V_GCID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
         run: |
           pick() { [ -n "$1" ] && echo "$1" || echo "$2"; }
           {
@@ -60,6 +62,10 @@ jobs:
             echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$(pick "$K_BUCKET" "$V_BUCKET")"
             echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$(pick "$K_SENDER" "$V_SENDER")"
             echo "NEXT_PUBLIC_FIREBASE_APP_ID=$(pick "$K_APP" "$V_APP")"
+            gcid="$(pick "$K_GCID" "$V_GCID")"
+            if [ -n "$gcid" ]; then
+              echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$gcid"
+            fi
           } >> "$GITHUB_ENV"
 
       - name: Validate Firebase env vars
