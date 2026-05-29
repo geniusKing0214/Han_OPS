@@ -14,6 +14,7 @@ import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { useNotices } from "@/hooks/use-notices";
 import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
+import { countAvailableApplicationEvents } from "@/lib/schedule-availability";
 import { statusLabels } from "@/types/application";
 import { mockAdminAlerts } from "@/data/mock-notices";
 
@@ -79,11 +80,15 @@ export default function DashboardPage() {
         )
         .map((a) => a.eventId as string),
     );
-    const availableEvents = events.filter((ev) => !appliedEventIds.has(ev.id)).length;
+    const openSlots = countAvailableApplicationEvents(
+      events,
+      appliedEventIds,
+      today,
+    );
     return {
       todayShiftCount: todayCount,
       pendingApprovals: pending,
-      openSlots: availableEvents,
+      openSlots,
       monthWorked,
     };
   }, [events, myApplications, thisMonth, today]);
@@ -141,7 +146,9 @@ export default function DashboardPage() {
             <p className="text-2xl font-semibold tabular-nums">
               {stats.openSlots}
             </p>
-            <p className="text-xs text-muted-foreground">슬롯 잔여 존재</p>
+            <p className="text-xs text-muted-foreground">
+              오늘 이후 · 정원 여유 있는 일정
+            </p>
           </CardContent>
         </Card>
         <Card>
