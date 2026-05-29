@@ -172,8 +172,18 @@ export function buildRankingRows(
   }
 
   return rows.sort((a, b) => {
+    // 승인 횟수 우선 → 월간 포인트 → 근무완료 → 신청 횟수
+    if (b.approvedCount !== a.approvedCount) {
+      return b.approvedCount - a.approvedCount;
+    }
     if (b.monthlyPoints !== a.monthlyPoints) {
       return b.monthlyPoints - a.monthlyPoints;
+    }
+    if (b.completedCount !== a.completedCount) {
+      return b.completedCount - a.completedCount;
+    }
+    if (b.applicationCount !== a.applicationCount) {
+      return b.applicationCount - a.applicationCount;
     }
     return a.name.localeCompare(b.name, "ko");
   });

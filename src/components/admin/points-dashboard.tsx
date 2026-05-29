@@ -325,7 +325,8 @@ export function PointsDashboard() {
             포인트/랭킹 관리
           </h2>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            유저별 신청·근무 현황과 포인트를 확인하고 관리할 수 있습니다.
+            유저별 신청·근무 현황과 포인트를 확인합니다. 순위는 승인 횟수 →
+            월간 포인트 순으로 반영됩니다.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
@@ -560,9 +561,11 @@ export function PointsDashboard() {
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-sm font-semibold text-accent tabular-nums">
+                              승인 {row.approvedCount}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">
                               {row.monthlyPoints}P
                             </p>
-                            <p className="text-[10px] text-muted-foreground">월간</p>
                           </div>
                         </div>
                         <div className="mt-3 grid grid-cols-3 gap-1.5 text-center text-[11px] sm:grid-cols-6 sm:text-xs">
