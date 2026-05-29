@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarX2,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   Download,
   Search,
@@ -92,6 +93,7 @@ export function PointsDashboard() {
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<RankingRow | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [userLogs, setUserLogs] = useState<PointLogDoc[]>([]);
 
   useEffect(() => {
@@ -210,6 +212,10 @@ export function PointsDashboard() {
     if (!isDesktop) {
       setDetailOpen(true);
     }
+  };
+
+  const toggleMobileExpand = (userId: string) => {
+    setExpandedUserId((prev) => (prev === userId ? null : userId));
   };
 
   if (!isAdmin) {
@@ -603,18 +609,27 @@ export function PointsDashboard() {
                 <div className="space-y-2 p-2 sm:p-3 lg:hidden">
                   {ranking.map((row, idx) => {
                     const rank = idx + 1;
-                    const active = selected?.userId === row.userId;
+                    const expanded = expandedUserId === row.userId;
                     return (
-                      <button
+                      <div
                         key={row.userId}
-                        type="button"
                         className={cn(
-                          "w-full rounded-lg border border-border bg-muted/30 p-3 text-left transition-colors active:bg-muted/50",
-                          active && detailOpen && "border-accent/50 bg-accent/10",
+                          "overflow-hidden rounded-lg border border-border bg-muted/30",
+                          expanded && "border-accent/40",
                         )}
-                        onClick={() => openUserDetail(row)}
                       >
-                        <div className="flex items-start justify-between gap-2">
+                        <button
+                          type="button"
+                          className="flex w-full items-start gap-2 p-3 text-left transition-colors active:bg-muted/50"
+                          onClick={() => toggleMobileExpand(row.userId)}
+                          aria-expanded={expanded}
+                        >
+                          <ChevronDown
+                            className={cn(
+                              "mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform",
+                              expanded && "rotate-180 text-accent",
+                            )}
+                          />
                           <div className="min-w-0 flex-1">
                             <span className="text-sm font-medium leading-snug">
                               {rankMedal(rank) ?? `${rank}위`} {row.name}
@@ -631,45 +646,58 @@ export function PointsDashboard() {
                               {row.monthlyPoints}P
                             </p>
                           </div>
-                        </div>
-                        <div className="mt-3 grid grid-cols-3 gap-1.5 text-center text-[11px] sm:grid-cols-6 sm:text-xs">
-                          <div className="rounded-md bg-background/60 px-1 py-1.5">
-                            <p className="text-muted-foreground">신청</p>
-                            <p className="font-medium tabular-nums">{row.applicationCount}</p>
+                        </button>
+                        {expanded ? (
+                          <div className="space-y-3 border-t border-border px-3 pb-3 pt-2">
+                            <div className="grid grid-cols-3 gap-1.5 text-center text-[11px] sm:grid-cols-6 sm:text-xs">
+                              <div className="rounded-md bg-background/60 px-1 py-1.5">
+                                <p className="text-muted-foreground">신청</p>
+                                <p className="font-medium tabular-nums">
+                                  {row.applicationCount}
+                                </p>
+                              </div>
+                              <div className="rounded-md bg-background/60 px-1 py-1.5">
+                                <p className="text-muted-foreground">승인</p>
+                                <p className="font-medium tabular-nums">
+                                  {row.approvedCount}
+                                </p>
+                              </div>
+                              <div className="rounded-md bg-background/60 px-1 py-1.5">
+                                <p className="text-muted-foreground">완료</p>
+                                <p className="font-medium tabular-nums text-emerald-400">
+                                  {row.completedCount}
+                                </p>
+                              </div>
+                              <div className="rounded-md bg-background/60 px-1 py-1.5">
+                                <p className="text-muted-foreground">결근</p>
+                                <p className="font-medium tabular-nums text-red-400">
+                                  {row.noShowCount}
+                                </p>
+                              </div>
+                              <div className="rounded-md bg-background/60 px-1 py-1.5">
+                                <p className="text-muted-foreground">당취</p>
+                                <p className="font-medium tabular-nums text-amber-400">
+                                  {row.lateCancelCount}
+                                </p>
+                              </div>
+                              <div className="rounded-md bg-background/60 px-1 py-1.5">
+                                <p className="text-muted-foreground">누적</p>
+                                <p className="font-medium tabular-nums">
+                                  {row.totalPoints.toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="accent"
+                              className="w-full"
+                              onClick={() => openUserDetail(row)}
+                            >
+                              포인트 지급·차감
+                            </Button>
                           </div>
-                          <div className="rounded-md bg-background/60 px-1 py-1.5">
-                            <p className="text-muted-foreground">승인</p>
-                            <p className="font-medium tabular-nums">{row.approvedCount}</p>
-                          </div>
-                          <div className="rounded-md bg-background/60 px-1 py-1.5">
-                            <p className="text-muted-foreground">완료</p>
-                            <p className="font-medium tabular-nums text-emerald-400">
-                              {row.completedCount}
-                            </p>
-                          </div>
-                          <div className="rounded-md bg-background/60 px-1 py-1.5">
-                            <p className="text-muted-foreground">결근</p>
-                            <p className="font-medium tabular-nums text-red-400">
-                              {row.noShowCount}
-                            </p>
-                          </div>
-                          <div className="rounded-md bg-background/60 px-1 py-1.5">
-                            <p className="text-muted-foreground">당취</p>
-                            <p className="font-medium tabular-nums text-amber-400">
-                              {row.lateCancelCount}
-                            </p>
-                          </div>
-                          <div className="rounded-md bg-background/60 px-1 py-1.5">
-                            <p className="text-muted-foreground">누적</p>
-                            <p className="font-medium tabular-nums">
-                              {row.totalPoints.toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="mt-2 text-center text-[10px] text-muted-foreground">
-                          탭하여 포인트 지급·차감
-                        </p>
-                      </button>
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
