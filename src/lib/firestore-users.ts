@@ -13,7 +13,9 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { DEFAULT_TEAM_ID, normalizeTeamId } from "@/types/team";
 import type { UserApprovalStatus, UserProfileDoc, UserRole } from "@/types/user";
+import type { TeamId } from "@/types/team";
 
 export const USERS_COLLECTION = "users";
 
@@ -30,6 +32,7 @@ export async function createMemberProfile(
     email,
     role: "member",
     accountStatus: "pending",
+    team_id: DEFAULT_TEAM_ID,
     displayName: typeof displayName === "string" ? displayName.trim() : "",
     total_points: 0,
     createdAt: serverTimestamp(),
@@ -75,9 +78,19 @@ export async function setUserRole(uid: string, role: UserRole) {
 export async function setUserApprovalStatus(
   uid: string,
   accountStatus: UserApprovalStatus,
+  teamId?: TeamId,
 ) {
   const ref = doc(db, USERS_COLLECTION, uid);
-  await updateDoc(ref, { accountStatus });
+  const patch: Record<string, unknown> = { accountStatus };
+  if (accountStatus === "approved") {
+    patch.team_id = normalizeTeamId(teamId);
+  }
+  await updateDoc(ref, patch);
+}
+
+export async function setUserTeamId(uid: string, teamId: TeamId) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  await updateDoc(ref, { team_id: normalizeTeamId(teamId) });
 }
 
 export async function listPendingUsersForAdmin(): Promise<ListedUserRow[]> {

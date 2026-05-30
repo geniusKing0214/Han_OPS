@@ -1,4 +1,6 @@
 import type { EventItem } from "@/types/schedule";
+import { eventVisibleToTeam } from "@/lib/team-utils";
+import type { TeamId } from "@/types/team";
 
 /** 슬롯에 신청 가능한 잔여 정원이 있는지 */
 export function isSlotOpen(slot: { applied_count: number; capacity: number }): boolean {
@@ -13,9 +15,11 @@ export function countAvailableApplicationEvents(
   events: EventItem[],
   appliedEventIds: ReadonlySet<string>,
   fromDateYmd: string,
+  teamId?: TeamId,
 ): number {
   let count = 0;
   for (const ev of events) {
+    if (teamId && !eventVisibleToTeam(ev, teamId)) continue;
     if (appliedEventIds.has(ev.id)) continue;
     const hasOpenSlot = ev.sessions.some(
       (session) =>
@@ -32,9 +36,11 @@ export function countAvailableApplicationSlots(
   events: EventItem[],
   appliedEventIds: ReadonlySet<string>,
   fromDateYmd: string,
+  teamId?: TeamId,
 ): number {
   let count = 0;
   for (const ev of events) {
+    if (teamId && !eventVisibleToTeam(ev, teamId)) continue;
     if (appliedEventIds.has(ev.id)) continue;
     for (const session of ev.sessions) {
       if (session.date < fromDateYmd) continue;

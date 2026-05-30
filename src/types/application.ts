@@ -1,4 +1,5 @@
 import type { WorkStatus } from "@/types/points";
+import type { TeamId } from "@/types/team";
 
 export type ApplicationStatus =
   | "pending"
@@ -15,6 +16,8 @@ export type ApplicationItem = {
   eventId?: string;
   sessionId?: string;
   slotId?: string;
+  /** 신청자 소속 팀 (없으면 team_1) */
+  team_id?: TeamId;
   eventTitle: string;
   venue: string;
   slotTime: string;

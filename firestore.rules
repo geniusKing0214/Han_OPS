@@ -30,7 +30,8 @@ service cloud.firestore {
           "role",
           "accountStatus",
           "displayName",
-          "createdAt"
+          "createdAt",
+          "team_id"
         ]);
 
       // 관리자: 모든 필드 수정 가능 / 일반: role/accountStatus 변경 불가
@@ -107,7 +108,9 @@ service cloud.firestore {
         && request.resource.data.eventId is string
         && request.resource.data.sessionId is string
         && request.resource.data.slotId is string
-        && request.resource.data.note is string;
+        && request.resource.data.note is string
+        && request.resource.data.team_id is string
+        && request.resource.data.team_id in ['team_1', 'team_2'];
 
       allow update: if isAdmin();
       allow delete: if isAdmin() || (

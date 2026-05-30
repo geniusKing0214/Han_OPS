@@ -6,8 +6,11 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { EventItem } from "@/types/schedule";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
+import { TeamFilter } from "@/components/team/team-filter";
 import { deleteEvent, saveEvent } from "@/lib/firestore-events";
 import { useEvents } from "@/hooks/use-events";
+import { filterEventsByTeamFilter } from "@/lib/team-utils";
+import type { TeamFilterValue } from "@/types/team";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +20,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { formatTeamIdsLabel } from "@/types/team";
 import {
   Sheet,
   SheetContent,
@@ -44,6 +49,7 @@ function formatMonthLabel(monthKey: string): string {
 export function ScheduleManager() {
   const { events, loading, error } = useEvents();
   const [monthKey, setMonthKey] = useState(currentMonthKey);
+  const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -55,12 +61,17 @@ export function ScheduleManager() {
     session: EventItem["sessions"][0];
   } | null>(null);
 
+  const teamFilteredEvents = useMemo(
+    () => filterEventsByTeamFilter(events, teamFilter),
+    [events, teamFilter],
+  );
+
   const grouped = useMemo(() => {
     const map = new Map<
       string,
       { event: EventItem; session: EventItem["sessions"][0] }[]
     >();
-    for (const event of events) {
+    for (const event of teamFilteredEvents) {
       for (const session of event.sessions) {
         if (!session.date.startsWith(monthKey)) continue;
         const list = map.get(session.date) ?? [];
@@ -69,7 +80,7 @@ export function ScheduleManager() {
       }
     }
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [events, monthKey]);
+  }, [teamFilteredEvents, monthKey]);
 
   const monthStats = useMemo(() => {
     const sessionCount = grouped.reduce((sum, [, rows]) => sum + rows.length, 0);
@@ -139,7 +150,9 @@ export function ScheduleManager() {
       ) : null}
 
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-2 p-3 sm:gap-3 sm:p-4">
+        <CardContent className="space-y-3 p-3 sm:p-4">
+          <TeamFilter value={teamFilter} onChange={setTeamFilter} />
+          <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -182,6 +195,7 @@ export function ScheduleManager() {
           >
             이번 달
           </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -269,8 +283,11 @@ export function ScheduleManager() {
                         />
                       ) : null}
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">{event.title}</p>
-                        <p className="text-sm text-muted-foreground">{event.venue}</p>
+                            <p className="font-medium">{event.title}</p>
+                            <p className="text-sm text-muted-foreground">{event.venue}</p>
+                            <Badge variant="outline" className="mt-1.5 text-[10px]">
+                              {formatTeamIdsLabel(event.team_ids ?? ["team_1"])}
+                            </Badge>
                         <p className="mt-2 text-xs text-muted-foreground">
                           슬롯 {session.slots.length}개 · 탭하여 편집
                         </p>

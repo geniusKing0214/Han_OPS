@@ -18,11 +18,13 @@ import {
   subscribeUserProfile,
 } from "@/lib/firestore-users";
 import type { UserApprovalStatus, UserRole } from "@/types/user";
+import { normalizeTeamId, type TeamId } from "@/types/team";
 
 export type AuthProfile = {
   email: string;
   role: UserRole;
   accountStatus: UserApprovalStatus;
+  teamId: TeamId;
   displayName?: string;
   phone?: string;
 };
@@ -79,6 +81,7 @@ function subscribeProfileForUser(
           typeof data.email === "string" ? data.email : nextUser.email ?? "",
         role: normalizeRole(data.role),
         accountStatus: normalizeAccountStatus(data.accountStatus),
+        teamId: normalizeTeamId(data.team_id),
         displayName:
           typeof data.displayName === "string" ? data.displayName : undefined,
         phone: typeof data.phone === "string" ? data.phone : undefined,

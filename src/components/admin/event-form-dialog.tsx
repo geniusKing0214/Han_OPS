@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 
 import type { EventItem, Session, Slot } from "@/types/schedule";
+import {
+  TEAM_EXPOSURE_OPTIONS,
+  teamExposureToTeamIds,
+  type TeamExposure,
+} from "@/types/team";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,6 +55,7 @@ export function CreateScheduleDialog({
   const [venue, setVenue] = useState("");
   const [notice, setNotice] = useState("");
   const [color, setColor] = useState("#C8A96B");
+  const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [sessions, setSessions] = useState<SessionDraft[]>([emptySession()]);
   const [error, setError] = useState("");
 
@@ -59,6 +65,7 @@ export function CreateScheduleDialog({
     setVenue("");
     setNotice("");
     setColor("#C8A96B");
+    setTeamExposure("team_1");
     setSessions([emptySession()]);
     setError("");
   }, [open]);
@@ -162,6 +169,7 @@ export function CreateScheduleDialog({
     const payload: Omit<EventItem, "id"> = {
       title: title.trim(),
       venue: venue.trim(),
+      team_ids: teamExposureToTeamIds(teamExposure),
       sessions: builtSessions,
     };
     if (notice.trim()) payload.notice = notice.trim();
@@ -187,6 +195,22 @@ export function CreateScheduleDialog({
 
         <div className="space-y-4 py-2">
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                노출 팀 *
+              </label>
+              <select
+                className="flex h-9 w-full rounded-md border border-border bg-muted px-3 text-sm"
+                value={teamExposure}
+                onChange={(e) => setTeamExposure(e.target.value as TeamExposure)}
+              >
+                {TEAM_EXPOSURE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">
                 이벤트명 *

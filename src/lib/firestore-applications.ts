@@ -16,6 +16,7 @@ import {
 import { assertAdmin } from "@/lib/admin-access";
 import { todayYmd } from "@/lib/application-cancel";
 import { db } from "@/lib/firebase";
+import { userCanApplyToEvent } from "@/lib/team-utils";
 import {
   notifyAdminsOnApplicationSubmitted,
   notifyMemberOnApplicationApproved,
@@ -25,6 +26,9 @@ import type { ApplicationItem, ApplicationStatus } from "@/types/application";
 import type { WorkStatus } from "@/types/points";
 import type { EventItem } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
+import { USERS_COLLECTION } from "@/lib/firestore-users";
+import { normalizeTeamId } from "@/types/team";
+import type { UserProfileDoc } from "@/types/user";
 
 export const APPLICATIONS_COLLECTION = "applications";
 
@@ -81,6 +85,7 @@ function docToApplicationItem(
     eventId: typeof data.eventId === "string" ? data.eventId : undefined,
     sessionId: typeof data.sessionId === "string" ? data.sessionId : undefined,
     slotId: typeof data.slotId === "string" ? data.slotId : undefined,
+    team_id: normalizeTeamId(data.team_id),
     eventTitle: typeof data.eventTitle === "string" ? data.eventTitle : "",
     venue: typeof data.venue === "string" ? data.venue : "",
     date: typeof data.date === "string" ? data.date : "",
@@ -118,6 +123,33 @@ export type CreateApplicationInput = {
 };
 
 export async function createApplication(input: CreateApplicationInput) {
+  const userSnap = await getDoc(doc(db, USERS_COLLECTION, input.userId));
+  if (!userSnap.exists()) {
+    throw new Error("사용자 정보를 찾을 수 없습니다.");
+  }
+  const userData = userSnap.data() as UserProfileDoc;
+  const userTeamId = normalizeTeamId(userData.team_id);
+
+  const eventSnap = await getDoc(doc(db, EVENTS_COLLECTION, input.eventId));
+  if (!eventSnap.exists()) {
+    throw new Error("일정을 찾을 수 없습니다.");
+  }
+  const eventData = eventSnap.data() as Record<string, unknown>;
+  const eventForCheck: EventItem = {
+    id: input.eventId,
+    title: typeof eventData.title === "string" ? eventData.title : "",
+    venue: typeof eventData.venue === "string" ? eventData.venue : "",
+    team_ids: Array.isArray(eventData.team_ids)
+      ? (eventData.team_ids as EventItem["team_ids"])
+      : undefined,
+    sessions: Array.isArray(eventData.sessions)
+      ? (eventData.sessions as EventItem["sessions"])
+      : [],
+  };
+  if (!userCanApplyToEvent(userTeamId, eventForCheck)) {
+    throw new Error("소속 팀 일정만 신청할 수 있습니다.");
+  }
+
   const dupQuery = query(
     collection(db, APPLICATIONS_COLLECTION),
     where("userId", "==", input.userId),
@@ -140,6 +172,7 @@ export async function createApplication(input: CreateApplicationInput) {
     eventId: input.eventId,
     sessionId: input.sessionId,
     slotId: input.slotId,
+    team_id: userTeamId,
     eventTitle: input.eventTitle,
     venue: input.venue,
     date: input.date,

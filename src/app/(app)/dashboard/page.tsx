@@ -10,12 +10,15 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
 import { ImportantNoticeDialog } from "@/components/dashboard/important-notice-dialog";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { useNotices } from "@/hooks/use-notices";
 import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
 import { countAvailableApplicationEvents } from "@/lib/schedule-availability";
+import { normalizeTeamId } from "@/lib/team-utils";
 import { statusLabels } from "@/types/application";
+import { TEAM_LABELS } from "@/types/team";
 import { mockAdminAlerts } from "@/data/mock-notices";
 
 const RECENT_NOTICES_LIMIT = 3;
@@ -42,6 +45,7 @@ function formatNoticeDate(iso: string): string {
 }
 
 export default function DashboardPage() {
+  const { isAdmin, profile } = useAuth();
   const { items: rawApplications, loading: appsLoading } = useMyApplications();
   const { events } = useEvents();
   const { rows: notices, loading: noticesLoading } = useNotices();
@@ -80,18 +84,23 @@ export default function DashboardPage() {
         )
         .map((a) => a.eventId as string),
     );
+    const openSlotsTeamId = isAdmin ? undefined : normalizeTeamId(profile?.teamId);
     const openSlots = countAvailableApplicationEvents(
       events,
       appliedEventIds,
       today,
+      openSlotsTeamId,
     );
     return {
       todayShiftCount: todayCount,
       pendingApprovals: pending,
       openSlots,
+      openSlotsTeamLabel: isAdmin
+        ? "전체 팀"
+        : TEAM_LABELS[normalizeTeamId(profile?.teamId)],
       monthWorked,
     };
-  }, [events, myApplications, thisMonth, today]);
+  }, [events, isAdmin, myApplications, profile?.teamId, thisMonth, today]);
 
   const myBlocks = useMemo(
     () =>
@@ -147,7 +156,7 @@ export default function DashboardPage() {
               {stats.openSlots}
             </p>
             <p className="text-xs text-muted-foreground">
-              오늘 이후 · 정원 여유 있는 일정
+              {stats.openSlotsTeamLabel} · 오늘 이후 · 정원 여유 있는 일정
             </p>
           </CardContent>
         </Card>

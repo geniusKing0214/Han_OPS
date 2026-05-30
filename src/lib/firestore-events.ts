@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { normalizeTeamIds } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
 
 export const EVENTS_COLLECTION = "events";
@@ -37,6 +38,7 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     id,
     title,
     venue,
+    team_ids: normalizeTeamIds(data.team_ids),
     ...(notice !== undefined ? { notice } : {}),
     ...(color !== undefined ? { color } : {}),
     sessions: sessions as EventItem["sessions"],
@@ -70,6 +72,7 @@ export async function createEvent(input: {
   await setDoc(doc(db, EVENTS_COLLECTION, id), {
     title: input.title.trim(),
     venue: input.venue.trim(),
+    team_ids: normalizeTeamIds(["team_1"]),
     sessions: [],
     updatedAt: serverTimestamp(),
   });
@@ -82,6 +85,7 @@ export async function saveEvent(event: EventItem): Promise<void> {
     {
       title: event.title.trim(),
       venue: event.venue.trim(),
+      team_ids: normalizeTeamIds(event.team_ids),
       sessions: event.sessions,
       notice: event.notice?.trim() ?? "",
       color: event.color?.trim() ?? "",
