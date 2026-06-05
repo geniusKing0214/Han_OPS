@@ -22,6 +22,7 @@ import {
   subscribeForegroundMessages,
 } from "@/lib/firebase-messaging";
 import { saveFcmToken } from "@/lib/firestore-users";
+import { getNotificationPermission } from "@/lib/notification-api";
 import type { NotificationItem } from "@/types/notification";
 
 const PUSH_DISMISSED_KEY = "han-ops-push-banner-dismissed";
@@ -66,7 +67,7 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setPermission(Notification.permission);
+    setPermission(getNotificationPermission());
     setConfigured(isWebPushConfigured());
     setBannerDismissed(localStorage.getItem(PUSH_DISMISSED_KEY) === "1");
     void isWebPushSupported().then(setSupported);
@@ -85,9 +86,7 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     try {
       const token = await obtainFcmToken();
       if (!token) {
-        setPermission(
-          typeof Notification !== "undefined" ? Notification.permission : "denied",
-        );
+        setPermission(getNotificationPermission());
         return false;
       }
       await saveFcmToken(user.uid, token);
@@ -105,18 +104,22 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user || !canAccessApp || !configured || !supported) return;
-    if (Notification.permission !== "granted") return;
+    if (getNotificationPermission() !== "granted") return;
 
     void (async () => {
-      const token = await obtainFcmToken();
-      if (!token) return;
-      await saveFcmToken(user.uid, token);
-      setEnabled(true);
+      try {
+        const token = await obtainFcmToken();
+        if (!token) return;
+        await saveFcmToken(user.uid, token);
+        setEnabled(true);
+      } catch {
+        // 푸시 토큰 저장 실패해도 앱은 계속 동작
+      }
     })();
   }, [user, canAccessApp, configured, supported]);
 
   useEffect(() => {
-    if (!configured || !supported || Notification.permission !== "granted") return;
+    if (!configured || !supported || getNotificationPermission() !== "granted") return;
 
     const unsub = subscribeForegroundMessages((payload) => {
       const type = payload.data?.type ?? "";
@@ -137,7 +140,7 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
   }, [configured, supported, isAdmin]);
 
   useEffect(() => {
-    if (!canAccessApp || Notification.permission !== "granted") return;
+    if (!canAccessApp || getNotificationPermission() !== "granted") return;
 
     if (!initializedSeen.current) {
       for (const item of items) {

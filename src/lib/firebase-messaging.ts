@@ -10,6 +10,10 @@ import {
 
 import { withBasePath } from "@/lib/base-path";
 import {
+  getNotificationPermission,
+  hasNotificationApi,
+} from "@/lib/notification-api";
+import {
   getEnvFirebaseConfig,
   getMissingFirebaseVars,
   resolveAuthDomain,
@@ -40,7 +44,7 @@ export function isWebPushConfigured(): boolean {
 
 export async function isWebPushSupported(): Promise<boolean> {
   if (typeof window === "undefined") return false;
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) return false;
+  if (!hasNotificationApi() || !("serviceWorker" in navigator)) return false;
   try {
     return await isSupported();
   } catch {
@@ -64,16 +68,18 @@ async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration
 
 /** PWA 백그라운드 푸시용 Service Worker 선등록 */
 export async function registerMessagingServiceWorker(): Promise<void> {
-  if (!(await isWebPushSupported())) return;
-  await getServiceWorkerRegistration();
+  try {
+    if (!(await isWebPushSupported())) return;
+    await getServiceWorkerRegistration();
+  } catch {
+    // iOS Safari 등에서 SW 등록 실패해도 앱은 계속 동작
+  }
 }
 
 export async function requestWebPushPermission(): Promise<NotificationPermission> {
-  if (typeof window === "undefined" || !("Notification" in window)) {
-    return "denied";
-  }
-  if (Notification.permission === "granted") return "granted";
-  if (Notification.permission === "denied") return "denied";
+  if (!hasNotificationApi()) return "denied";
+  const current = getNotificationPermission();
+  if (current === "granted" || current === "denied") return current;
   return Notification.requestPermission();
 }
 
@@ -86,47 +92,59 @@ export async function obtainFcmToken(): Promise<string | null> {
   const registration = await getServiceWorkerRegistration();
   if (!registration) return null;
 
-  if (!messagingInstance) {
-    messagingInstance = getMessaging(getMessagingApp());
+  try {
+    if (!messagingInstance) {
+      messagingInstance = getMessaging(getMessagingApp());
+    }
+
+    const token = await getToken(messagingInstance, {
+      vapidKey: getVapidKey(),
+      serviceWorkerRegistration: registration,
+    });
+
+    return token || null;
+  } catch {
+    return null;
   }
-
-  const token = await getToken(messagingInstance, {
-    vapidKey: getVapidKey(),
-    serviceWorkerRegistration: registration,
-  });
-
-  return token || null;
 }
 
 export function subscribeForegroundMessages(
   handler: (payload: MessagePayload) => void,
 ): () => void {
-  if (!messagingInstance) {
-    messagingInstance = getMessaging(getMessagingApp());
+  try {
+    if (!messagingInstance) {
+      messagingInstance = getMessaging(getMessagingApp());
+    }
+    return onMessage(messagingInstance, handler);
+  } catch {
+    return () => {};
   }
-  return onMessage(messagingInstance, handler);
 }
 
 export function showBrowserNotification(
   title: string,
   options?: NotificationOptions & { url?: string },
 ) {
-  if (typeof window === "undefined" || Notification.permission !== "granted") {
+  if (!hasNotificationApi() || getNotificationPermission() !== "granted") {
     return;
   }
 
   const { url, ...rest } = options ?? {};
-  const notification = new Notification(title, {
-    icon: withBasePath("/icons/icon-192.png"),
-    badge: withBasePath("/icons/icon-192.png"),
-    ...rest,
-  });
+  try {
+    const notification = new Notification(title, {
+      icon: withBasePath("/icons/icon-192.png"),
+      badge: withBasePath("/icons/icon-192.png"),
+      ...rest,
+    });
 
-  if (url) {
-    notification.onclick = () => {
-      window.focus();
-      window.location.href = url;
-      notification.close();
-    };
+    if (url) {
+      notification.onclick = () => {
+        window.focus();
+        window.location.href = url;
+        notification.close();
+      };
+    }
+  } catch {
+    // iOS 등에서 Notification 생성 실패 시 무시
   }
 }
