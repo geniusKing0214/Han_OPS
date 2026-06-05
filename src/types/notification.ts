@@ -1,7 +1,8 @@
 export type NotificationType =
   | "application_submitted"
   | "application_approved"
-  | "application_rejected";
+  | "application_rejected"
+  | "schedule_created";
 
 export type NotificationTargetRole = "admin" | "member";
 
@@ -32,6 +33,7 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   application_submitted: "신청",
   application_approved: "승인",
   application_rejected: "거절",
+  schedule_created: "스케줄",
 };
 
 export const notificationStatusBadgeVariant: Record<
@@ -41,4 +43,5 @@ export const notificationStatusBadgeVariant: Record<
   application_submitted: "warning",
   application_approved: "success",
   application_rejected: "destructive",
+  schedule_created: "accent",
 };

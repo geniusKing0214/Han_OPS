@@ -7,7 +7,8 @@ import type { EventItem } from "@/types/schedule";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
 import { TeamFilter } from "@/components/team/team-filter";
-import { deleteEvent, saveEvent } from "@/lib/firestore-events";
+import { deleteEvent, createScheduleEvent, saveEvent } from "@/lib/firestore-events";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useEvents } from "@/hooks/use-events";
 import { filterEventsByTeamFilter } from "@/lib/team-utils";
 import type { TeamFilterValue } from "@/types/team";
@@ -47,6 +48,7 @@ function formatMonthLabel(monthKey: string): string {
 }
 
 export function ScheduleManager() {
+  const { user } = useAuth();
   const { events, loading, error } = useEvents();
   const [monthKey, setMonthKey] = useState(currentMonthKey);
   const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
@@ -107,9 +109,10 @@ export function ScheduleManager() {
 
   const handleCreateSave = async (payload: Omit<EventItem, "id">) => {
     const id = crypto.randomUUID();
+    if (!user) throw new Error("로그인이 필요합니다.");
     setSaving(true);
     try {
-      await saveEvent({ ...payload, id });
+      await createScheduleEvent({ ...payload, id }, user.uid);
     } finally {
       setSaving(false);
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Users } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import {
@@ -49,6 +49,17 @@ function toYmd(date: Date): string {
   const m = `${date.getMonth() + 1}`.padStart(2, "0");
   const d = `${date.getDate()}`.padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function ymdToDate(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function shiftDateYmd(ymd: string, days: number): string {
+  const next = ymdToDate(ymd);
+  next.setDate(next.getDate() + days);
+  return toYmd(next);
 }
 
 function resolveName(a: ApplicationItem, profiles: Map<string, { displayName: string }>) {
@@ -329,12 +340,36 @@ export function ApplicationRosterPanel() {
             <label className="text-sm font-medium text-muted-foreground">
               날짜
             </label>
-            <Input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="max-w-[200px] tabular-nums"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="max-w-[200px] tabular-nums"
+              />
+              <div className="flex flex-col gap-0.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-7"
+                  aria-label="다음 날"
+                  onClick={() => setDate((prev) => shiftDateYmd(prev, 1))}
+                >
+                  <ChevronUp className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-7"
+                  aria-label="이전 날"
+                  onClick={() => setDate((prev) => shiftDateYmd(prev, -1))}
+                >
+                  <ChevronDown className="size-3.5" />
+                </Button>
+              </div>
+            </div>
           </div>
 
           {error ? (

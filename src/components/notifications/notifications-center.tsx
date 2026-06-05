@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 
 import { NotificationDetail } from "@/components/notifications/notification-detail";
 import { NotificationList } from "@/components/notifications/notification-list";
+import { WebPushSetup } from "@/components/notifications/web-push-setup";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -27,6 +28,9 @@ import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types/notification";
 
 function scheduleHrefFor(item: NotificationItem, isAdmin: boolean) {
+  if (item.type === "schedule_created") {
+    return withBasePath("/schedule");
+  }
   if (isAdmin && item.type === "application_submitted") {
     return withBasePath("/admin/applications");
   }
@@ -157,6 +161,9 @@ export function NotificationsCenter({ className }: { className?: string }) {
       {isDesktop && open ? (
         <div className="absolute right-0 top-full z-50 mt-2 flex w-[min(380px,calc(100dvw-2rem))] max-h-[min(70dvh,520px)] flex-col overflow-hidden rounded-xl border border-border bg-card p-4 shadow-xl">
           {panelHeader}
+          <div className="mb-3">
+            <WebPushSetup />
+          </div>
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <NotificationList
               items={items}
@@ -191,6 +198,9 @@ export function NotificationsCenter({ className }: { className?: string }) {
                   <SheetTitle className="sr-only">알림</SheetTitle>
                   {panelHeader}
                 </SheetHeader>
+                <div className="mt-3 shrink-0">
+                  <WebPushSetup />
+                </div>
                 <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
                   <NotificationList
                     items={items}

@@ -33,8 +33,11 @@ function sessionsForDate(events: EventItem[], ymd: string) {
 }
 
 export function ScheduleBoard({ events }: { events: EventItem[] }) {
-  const [month, setMonth] = useState(() => new Date(2026, 4, 1));
-  const [selected, setSelected] = useState(() => new Date(2026, 4, 7));
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selected, setSelected] = useState(() => new Date());
   const [openEv, setOpenEv] = useState<Record<string, boolean>>({});
 
   const [applyOpen, setApplyOpen] = useState(false);

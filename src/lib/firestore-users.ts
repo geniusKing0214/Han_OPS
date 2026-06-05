@@ -1,5 +1,7 @@
 import {
   type FirestoreError,
+  arrayRemove,
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -161,5 +163,44 @@ export async function updateOwnProfile(
   await updateDoc(ref, {
     displayName: patch.displayName.trim(),
     phone: patch.phone.trim(),
+  });
+}
+
+/** 승인된 팀원 목록 (스케줄 알림 대상) */
+export async function listApprovedMembersByTeamIds(
+  teamIds: TeamId[],
+): Promise<ListedUserRow[]> {
+  const normalized = [...new Set(teamIds.map((id) => normalizeTeamId(id)))];
+  if (normalized.length === 0) return [];
+
+  const snap = await getDocs(
+    query(
+      collection(db, USERS_COLLECTION),
+      where("accountStatus", "==", "approved"),
+      where("role", "==", "member"),
+    ),
+  );
+
+  return snap.docs
+    .map((d) => ({
+      uid: d.id,
+      ...(d.data() as UserProfileDoc),
+    }))
+    .filter((row) => normalized.includes(normalizeTeamId(row.team_id)));
+}
+
+export async function saveFcmToken(uid: string, token: string) {
+  const trimmed = token.trim();
+  if (!trimmed) return;
+  await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    fcmTokens: arrayUnion(trimmed),
+  });
+}
+
+export async function removeFcmToken(uid: string, token: string) {
+  const trimmed = token.trim();
+  if (!trimmed) return;
+  await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    fcmTokens: arrayRemove(trimmed),
   });
 }

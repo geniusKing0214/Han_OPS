@@ -15,6 +15,8 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { listApprovedMembersByTeamIds } from "@/lib/firestore-users";
+import { formatTeamIdsLabel, type TeamId } from "@/types/team";
 import type {
   NotificationItem,
   NotificationTargetRole,
@@ -88,7 +90,8 @@ function normalizeNotificationType(value: unknown): NotificationType {
   if (
     value === "application_submitted" ||
     value === "application_approved" ||
-    value === "application_rejected"
+    value === "application_rejected" ||
+    value === "schedule_created"
   ) {
     return value;
   }
@@ -240,6 +243,65 @@ export async function notifyMemberOnApplicationRejected(
     location: input.location,
     rejectionReason: reason || undefined,
   });
+}
+
+export type NotifyScheduleCreatedInput = {
+  eventId: string;
+  eventTitle: string;
+  venue: string;
+  teamIds: TeamId[];
+  sessions: { date: string; slots: { start_time: string }[] }[];
+  createdByUserId: string;
+};
+
+function summarizeScheduleSessions(
+  sessions: NotifyScheduleCreatedInput["sessions"],
+): { eventDate: string; slotTime: string } {
+  const sorted = [...sessions].sort((a, b) => a.date.localeCompare(b.date));
+  const first = sorted[0];
+  if (!first) return { eventDate: "", slotTime: "" };
+  const times = [...first.slots]
+    .map((s) => s.start_time)
+    .filter(Boolean)
+    .sort();
+  return {
+    eventDate: first.date,
+    slotTime: times.length > 1 ? `${times[0]} 외 ${times.length - 1}건` : times[0] ?? "",
+  };
+}
+
+/** 스케줄 생성 시 해당 팀 승인 멤버에게 알림 */
+export async function notifyTeamMembersOnScheduleCreated(
+  input: NotifyScheduleCreatedInput,
+) {
+  const members = await listApprovedMembersByTeamIds(input.teamIds);
+  if (members.length === 0) return;
+
+  const { eventDate, slotTime } = summarizeScheduleSessions(input.sessions);
+  const teamLabel = formatTeamIdsLabel(input.teamIds);
+  const title = "새 스케줄이 등록되었어요";
+  const datePart = eventDate ? ` · ${eventDate}` : "";
+  const timePart = slotTime ? ` ${slotTime}` : "";
+  const message = `${input.eventTitle}${datePart}${timePart} · ${input.venue} (${teamLabel})`;
+
+  await Promise.all(
+    members.map((member) =>
+      createNotificationDoc({
+        targetUserId: member.uid,
+        targetEmail: member.email,
+        targetRole: "member",
+        type: "schedule_created",
+        title,
+        message,
+        eventId: input.eventId,
+        eventTitle: input.eventTitle,
+        eventDate,
+        slotTime,
+        location: input.venue,
+        createdByUserId: input.createdByUserId,
+      }),
+    ),
+  );
 }
 
 export function subscribeMyNotifications(

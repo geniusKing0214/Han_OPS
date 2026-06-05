@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
+    "dev": "node scripts/sync-firebase-sw-config.mjs && next dev --turbopack",
+    "build": "node scripts/sync-firebase-sw-config.mjs && next build",
+    "sync:sw-config": "node scripts/sync-firebase-sw-config.mjs",
     "start": "next start",
     "lint": "next lint"
   },

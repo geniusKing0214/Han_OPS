@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Trash2, UserPlus, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Trash2,
+  UserPlus,
+  XCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -25,7 +32,9 @@ export function NotificationDetail({
       ? CheckCircle2
       : item.type === "application_rejected"
         ? XCircle
-        : UserPlus;
+        : item.type === "schedule_created"
+          ? Calendar
+          : UserPlus;
 
   const rows: { label: string; value: string }[] = [
     { label: "이벤트명", value: item.eventTitle || "—" },
@@ -88,6 +97,7 @@ export function NotificationDetail({
               item.type === "application_approved" && "text-emerald-400",
               item.type === "application_rejected" && "text-red-400",
               item.type === "application_submitted" && "text-accent",
+              item.type === "schedule_created" && "text-sky-400",
             )}
           >
             <Icon className="size-7" />

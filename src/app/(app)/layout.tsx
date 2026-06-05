@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileTopBar } from "@/components/layout/mobile-top-bar";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { WebPushProvider } from "@/components/providers/web-push-provider";
 
 export default function AppLayout({
   children,
@@ -11,6 +12,7 @@ export default function AppLayout({
 }>) {
   return (
     <AuthGuard>
+      <WebPushProvider>
       <div className="flex min-h-screen min-w-0 overflow-x-clip">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col md:pl-60">
@@ -22,6 +24,7 @@ export default function AppLayout({
           <MobileBottomNav />
         </div>
       </div>
+      </WebPushProvider>
     </AuthGuard>
   );
 }

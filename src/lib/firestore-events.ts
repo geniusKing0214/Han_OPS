@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { notifyTeamMembersOnScheduleCreated } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
 
@@ -93,6 +94,26 @@ export async function saveEvent(event: EventItem): Promise<void> {
     },
     { merge: true },
   );
+}
+
+/** 신규 스케줄 저장 + 해당 팀 멤버 알림 */
+export async function createScheduleEvent(
+  event: EventItem,
+  createdByUserId: string,
+): Promise<void> {
+  await saveEvent(event);
+  try {
+    await notifyTeamMembersOnScheduleCreated({
+      eventId: event.id,
+      eventTitle: event.title,
+      venue: event.venue,
+      teamIds: normalizeTeamIds(event.team_ids),
+      sessions: event.sessions,
+      createdByUserId,
+    });
+  } catch {
+    // 알림 실패해도 스케줄 저장은 유지
+  }
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {

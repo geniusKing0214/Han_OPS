@@ -27,6 +27,8 @@ function iconForType(type: NotificationItem["type"]): LucideIcon {
       return CheckCircle2;
     case "application_rejected":
       return XCircle;
+    case "schedule_created":
+      return Calendar;
     default:
       return Calendar;
   }
@@ -83,6 +85,7 @@ export function NotificationCard({
                   item.type === "application_approved" && "text-emerald-400",
                   item.type === "application_rejected" && "text-red-400",
                   item.type === "application_submitted" && "text-accent",
+                  item.type === "schedule_created" && "text-sky-400",
                 )}
               />
             </div>

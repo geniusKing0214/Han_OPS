@@ -72,9 +72,13 @@ service cloud.firestore {
         ||
         (
           isAdmin()
-          && request.resource.data.type in ['application_approved', 'application_rejected']
+          && request.resource.data.type in ['application_approved', 'application_rejected', 'schedule_created']
           && request.resource.data.targetRole == 'member'
           && request.resource.data.targetUserId is string
+          && (
+            request.resource.data.type != 'schedule_created'
+            || request.resource.data.createdByUserId == request.auth.uid
+          )
         )
       );
 
