@@ -1,9 +1,9 @@
 import * as admin from "firebase-admin";
+import { logger } from "firebase-functions/v2";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 
 admin.initializeApp();
 
-/** FCM 웹 푸시 대상 알림 (스케줄 생성 → 팀원, 신청 → 관리자) */
 const PUSH_NOTIFICATION_TYPES = new Set([
   "schedule_created",
   "application_submitted",
@@ -16,6 +16,12 @@ type NotificationDoc = {
   type?: string;
 };
 
+function appOrigin(): string {
+  return (
+    process.env.APP_ORIGIN?.trim() || "https://geniusking0214.github.io"
+  ).replace(/\/$/, "");
+}
+
 function appBasePath(): string {
   const raw = process.env.APP_BASE_PATH?.trim() ?? "/Han_OPS";
   if (!raw || raw === "/") return "";
@@ -23,18 +29,29 @@ function appBasePath(): string {
 }
 
 function resolveOpenUrl(type: string | undefined): string {
+  const origin = appOrigin();
   const base = appBasePath();
-  if (type === "schedule_created") return `${base}/schedule/`;
-  if (type === "application_submitted") return `${base}/admin/applications/`;
-  return `${base}/`;
+  if (type === "schedule_created") return `${origin}${base}/schedule/`;
+  if (type === "application_submitted") {
+    return `${origin}${base}/admin/applications/`;
+  }
+  return `${origin}${base}/dashboard/`;
 }
 
 export const sendPushOnNotification = onDocumentCreated(
   "notifications/{notificationId}",
   async (event) => {
     const data = event.data?.data() as NotificationDoc | undefined;
-    if (!data?.targetUserId || !data.type) return;
-    if (!PUSH_NOTIFICATION_TYPES.has(data.type)) return;
+    const notificationId = event.params.notificationId;
+
+    if (!data?.targetUserId || !data.type) {
+      logger.warn("skip: missing targetUserId or type", { notificationId });
+      return;
+    }
+    if (!PUSH_NOTIFICATION_TYPES.has(data.type)) {
+      logger.info("skip: not a push type", { type: data.type, notificationId });
+      return;
+    }
 
     const userSnap = await admin
       .firestore()
@@ -42,34 +59,58 @@ export const sendPushOnNotification = onDocumentCreated(
       .get();
     const tokens = (userSnap.data()?.fcmTokens ?? []) as string[];
     const uniqueTokens = [...new Set(tokens.filter((t) => typeof t === "string" && t))];
-    if (uniqueTokens.length === 0) return;
+
+    if (uniqueTokens.length === 0) {
+      logger.warn("skip: no fcmTokens", {
+        notificationId,
+        targetUserId: data.targetUserId,
+        type: data.type,
+      });
+      return;
+    }
 
     const title = data.title?.trim() || "HAN OPS";
     const body = data.message?.trim() || "";
     const url = resolveOpenUrl(data.type);
-    const icon = `${appBasePath()}/icons/icon-192.png`;
+    const icon = `${appOrigin()}${appBasePath()}/icons/icon-192.png`;
+
+    logger.info("sending push", {
+      notificationId,
+      targetUserId: data.targetUserId,
+      type: data.type,
+      tokenCount: uniqueTokens.length,
+      url,
+    });
 
     const response = await admin.messaging().sendEachForMulticast({
       tokens: uniqueTokens,
       notification: { title, body },
       data: {
-        notificationId: event.params.notificationId,
+        notificationId,
         type: data.type,
         url,
+        title,
+        body,
       },
       webpush: {
         fcmOptions: { link: url },
-        notification: {
-          title,
-          body,
-          icon,
-        },
+        notification: { title, body, icon },
       },
+    });
+
+    logger.info("push result", {
+      notificationId,
+      success: response.successCount,
+      failure: response.failureCount,
     });
 
     const invalidTokens: string[] = [];
     response.responses.forEach((result, index) => {
       if (result.success) return;
+      logger.warn("push token failed", {
+        code: result.error?.code,
+        message: result.error?.message,
+      });
       const code = result.error?.code ?? "";
       if (
         code === "messaging/invalid-registration-token" ||
