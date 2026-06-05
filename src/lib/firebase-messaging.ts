@@ -1,3 +1,4 @@
+import { FirebaseError } from "firebase/app";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   getMessaging,
@@ -44,7 +45,7 @@ export function isWebPushConfigured(): boolean {
 
 export async function isWebPushSupported(): Promise<boolean> {
   if (typeof window === "undefined") return false;
-  if (!hasNotificationApi() || !("serviceWorker" in navigator)) return false;
+  if (!("serviceWorker" in navigator)) return false;
   try {
     return await isSupported();
   } catch {
@@ -52,17 +53,94 @@ export async function isWebPushSupported(): Promise<boolean> {
   }
 }
 
-async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
-  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
-
-  const swUrl = withBasePath("/firebase-messaging-sw.js");
+/** GitHub Pages 서브경로용 SW scope (/Han_OPS/) */
+function serviceWorkerScope(): string {
   const scope = withBasePath("/");
+  return scope.endsWith("/") ? scope : `${scope}/`;
+}
+
+function serviceWorkerScriptUrl(): string {
+  return withBasePath("/firebase-messaging-sw.js");
+}
+
+function formatPushError(error: unknown): string {
+  if (error instanceof FirebaseError) {
+    if (error.code === "messaging/permission-blocked") {
+      return "알림 권한이 차단되어 있습니다. 브라우저/기기 설정에서 허용해 주세요.";
+    }
+    if (
+      error.code === "messaging/invalid-vapid-key" ||
+      error.code === "messaging/vapid-key-required"
+    ) {
+      return "VAPID 키가 올바르지 않습니다. Firebase Console Web Push 키와 GitHub Secret을 확인하세요.";
+    }
+    if (error.code === "messaging/failed-service-worker-registration") {
+      return "Service Worker 등록에 실패했습니다. 페이지를 새로고침한 뒤 다시 시도하세요.";
+    }
+    return error.message || error.code;
+  }
+  if (error instanceof Error) return error.message;
+  return "푸시 토큰을 받지 못했습니다.";
+}
+
+function registrationScriptUrl(reg: ServiceWorkerRegistration): string {
+  return (
+    reg.active?.scriptURL ??
+    reg.installing?.scriptURL ??
+    reg.waiting?.scriptURL ??
+    ""
+  );
+}
+
+function normalizeScopePath(scopeUrl: string): string {
+  try {
+    const path = new URL(scopeUrl).pathname.replace(/\/$/, "");
+    return path || "/";
+  } catch {
+    return scopeUrl.replace(/\/$/, "");
+  }
+}
+
+async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    throw new Error("이 브라우저는 Service Worker를 지원하지 않습니다.");
+  }
+
+  const swUrl = serviceWorkerScriptUrl();
+  const scope = serviceWorkerScope();
+  const expectedScript = new URL(swUrl, window.location.origin).href;
+  const expectedScope = normalizeScopePath(scope);
+
+  const all = await navigator.serviceWorker.getRegistrations();
+  for (const reg of all) {
+    const script = registrationScriptUrl(reg);
+    if (!script.includes("firebase-messaging-sw.js")) continue;
+
+    const sameScript = script === expectedScript;
+    const sameScope = normalizeScopePath(reg.scope) === expectedScope;
+    if (!sameScript || !sameScope) {
+      await reg.unregister();
+    }
+  }
 
   let registration = await navigator.serviceWorker.getRegistration(scope);
-  if (!registration) {
+  const scriptOk = (reg: ServiceWorkerRegistration | undefined) =>
+    Boolean(reg && registrationScriptUrl(reg).includes("firebase-messaging-sw.js"));
+
+  if (!scriptOk(registration)) {
     registration = await navigator.serviceWorker.register(swUrl, { scope });
   }
+
+  if (!registration) {
+    throw new Error("Service Worker를 등록하지 못했습니다.");
+  }
+
   await navigator.serviceWorker.ready;
+
+  if (!registration.active) {
+    throw new Error("Service Worker가 활성화되지 않았습니다. 잠시 후 다시 시도하세요.");
+  }
+
   return registration;
 }
 
@@ -72,27 +150,69 @@ export async function registerMessagingServiceWorker(): Promise<void> {
     if (!(await isWebPushSupported())) return;
     await getServiceWorkerRegistration();
   } catch {
-    // iOS Safari 등에서 SW 등록 실패해도 앱은 계속 동작
+    // 선등록 실패는 enable 단계에서 다시 시도
   }
 }
 
 export async function requestWebPushPermission(): Promise<NotificationPermission> {
-  if (!hasNotificationApi()) return "denied";
+  if (!hasNotificationApi()) {
+    throw new Error(
+      "이 환경에서는 웹 푸시를 지원하지 않습니다. iPhone은 홈 화면에 추가한 뒤 앱으로 실행하세요.",
+    );
+  }
   const current = getNotificationPermission();
-  if (current === "granted" || current === "denied") return current;
+  if (current === "granted") return "granted";
+  if (current === "denied") return "denied";
   return Notification.requestPermission();
 }
 
-export async function obtainFcmToken(): Promise<string | null> {
-  if (!(await isWebPushSupported()) || !isWebPushConfigured()) return null;
+export type ObtainFcmTokenResult =
+  | { ok: true; token: string; permission: NotificationPermission }
+  | { ok: false; error: string; permission: NotificationPermission };
 
-  const permission = await requestWebPushPermission();
-  if (permission !== "granted") return null;
+export async function obtainFcmToken(): Promise<ObtainFcmTokenResult> {
+  if (!(await isWebPushSupported())) {
+    return {
+      ok: false,
+      error:
+        "이 브라우저/환경에서는 FCM 푸시를 지원하지 않습니다. iPhone은 PWA(홈 화면 추가)로 실행하세요.",
+      permission: getNotificationPermission(),
+    };
+  }
 
-  const registration = await getServiceWorkerRegistration();
-  if (!registration) return null;
+  if (!isWebPushConfigured()) {
+    return {
+      ok: false,
+      error: "VAPID 키(NEXT_PUBLIC_FIREBASE_VAPID_KEY)가 설정되지 않았습니다.",
+      permission: getNotificationPermission(),
+    };
+  }
+
+  let permission: NotificationPermission;
+  try {
+    permission = await requestWebPushPermission();
+  } catch (err) {
+    return {
+      ok: false,
+      error: formatPushError(err),
+      permission: getNotificationPermission(),
+    };
+  }
+
+  if (permission !== "granted") {
+    return {
+      ok: false,
+      error:
+        permission === "denied"
+          ? "알림 권한이 거부되었습니다."
+          : "알림 권한이 필요합니다.",
+      permission,
+    };
+  }
 
   try {
+    const registration = await getServiceWorkerRegistration();
+
     if (!messagingInstance) {
       messagingInstance = getMessaging(getMessagingApp());
     }
@@ -102,9 +222,21 @@ export async function obtainFcmToken(): Promise<string | null> {
       serviceWorkerRegistration: registration,
     });
 
-    return token || null;
-  } catch {
-    return null;
+    if (!token) {
+      return {
+        ok: false,
+        error: "FCM 토큰을 받지 못했습니다. VAPID 키와 Service Worker를 확인하세요.",
+        permission,
+      };
+    }
+
+    return { ok: true, token, permission };
+  } catch (err) {
+    return {
+      ok: false,
+      error: formatPushError(err),
+      permission: getNotificationPermission(),
+    };
   }
 }
 

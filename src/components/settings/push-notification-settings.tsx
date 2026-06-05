@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { BellRing, CheckCircle2, XCircle } from "lucide-react";
 
-import { useAuth } from "@/components/providers/auth-provider";
 import { useWebPush } from "@/components/providers/web-push-provider";
 import { withBasePath } from "@/lib/base-path";
 import {
@@ -18,7 +17,6 @@ import {
   needsPwaInstallForBackgroundPush,
 } from "@/lib/pwa-utils";
 import { isPushRelayConfigured } from "@/lib/push-relay";
-import { saveFcmToken } from "@/lib/firestore-users";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -64,8 +62,7 @@ function StatusRow({
 }
 
 export function PushNotificationSettings() {
-  const { user } = useAuth();
-  const { enabling, enabled, enablePush } = useWebPush();
+  const { enabling, enabled, enablePush, pushError } = useWebPush();
   const [checking, setChecking] = useState(true);
   const [swOk, setSwOk] = useState(false);
   const [tokenPreview, setTokenPreview] = useState("");
@@ -82,9 +79,9 @@ export function PushNotificationSettings() {
         return;
       }
       await registerMessagingServiceWorker();
-      const scope = withBasePath("/");
+      const scope = withBasePath("/").replace(/\/?$/, "/");
       const reg = await navigator.serviceWorker.getRegistration(scope);
-      setSwOk(Boolean(reg?.active));
+      setSwOk(Boolean(reg?.active?.scriptURL?.includes("firebase-messaging-sw.js")));
     } catch (err) {
       setSwOk(false);
       setLastError(err instanceof Error ? err.message : "진단 실패");
@@ -101,30 +98,15 @@ export function PushNotificationSettings() {
     setLastError("");
     const ok = await enablePush();
     if (ok) {
-      try {
-        const token = await obtainFcmToken();
-        if (token) {
-          setTokenPreview(`${token.slice(0, 12)}…`);
-        }
-      } catch {
-        // ignore
+      const result = await obtainFcmToken();
+      if (result.ok) {
+        setTokenPreview(`${result.token.slice(0, 12)}…`);
       }
       return;
     }
-    if (user) {
-      try {
-        const token = await obtainFcmToken();
-        if (token) {
-          await saveFcmToken(user.uid, token);
-          setTokenPreview(`${token.slice(0, 12)}…`);
-          return;
-        }
-      } catch (err) {
-        setLastError(
-          err instanceof Error ? err.message : "토큰 저장에 실패했습니다.",
-        );
-        return;
-      }
+    if (pushError) {
+      setLastError(pushError);
+      return;
     }
     setLastError(
       "알림 권한이 거부되었거나, VAPID 키·Service Worker 설정을 확인하세요.",

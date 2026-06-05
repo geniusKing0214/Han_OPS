@@ -27,7 +27,6 @@ import type { NotificationItem } from "@/types/notification";
 
 const PUSH_DISMISSED_KEY = "han-ops-push-banner-dismissed";
 
-/** 웹 밖(OS) 푸시 대상: 스케줄 생성(팀원) · 신청 접수(관리자) */
 function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
   if (item.type === "schedule_created") return true;
   if (item.type === "application_submitted") return isAdmin;
@@ -46,9 +45,11 @@ type WebPushContextValue = {
   permission: NotificationPermission;
   enabling: boolean;
   enabled: boolean;
+  pushError: string;
   shouldShowBanner: boolean;
   enablePush: () => Promise<boolean>;
   dismissBanner: () => void;
+  clearPushError: () => void;
 };
 
 const WebPushContext = createContext<WebPushContextValue | undefined>(undefined);
@@ -61,6 +62,7 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
   const [configured, setConfigured] = useState(false);
   const [enabling, setEnabling] = useState(false);
   const [enabled, setEnabled] = useState(false);
+  const [pushError, setPushError] = useState("");
   const [bannerDismissed, setBannerDismissed] = useState(true);
   const seenNotificationIds = useRef<Set<string>>(new Set());
   const initializedSeen = useRef(false);
@@ -80,23 +82,41 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     });
   }, [canAccessApp]);
 
+  const clearPushError = useCallback(() => setPushError(""), []);
+
   const enablePush = useCallback(async () => {
-    if (!user) return false;
+    if (!user) {
+      setPushError("로그인이 필요합니다.");
+      return false;
+    }
+
     setEnabling(true);
+    setPushError("");
+
     try {
-      const token = await obtainFcmToken();
-      if (!token) {
-        setPermission(getNotificationPermission());
+      const result = await obtainFcmToken();
+      setPermission(result.permission);
+
+      if (!result.ok) {
+        setPushError(result.error);
         return false;
       }
-      await saveFcmToken(user.uid, token);
-      setPermission("granted");
+
+      try {
+        await saveFcmToken(user.uid, result.token);
+      } catch (err) {
+        setPushError(
+          err instanceof Error
+            ? `토큰 저장 실패: ${err.message}`
+            : "Firestore에 토큰을 저장하지 못했습니다.",
+        );
+        return false;
+      }
+
       setEnabled(true);
       localStorage.setItem(PUSH_DISMISSED_KEY, "1");
       setBannerDismissed(true);
       return true;
-    } catch {
-      return false;
     } finally {
       setEnabling(false);
     }
@@ -107,13 +127,14 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     if (getNotificationPermission() !== "granted") return;
 
     void (async () => {
+      const result = await obtainFcmToken();
+      setPermission(result.permission);
+      if (!result.ok) return;
       try {
-        const token = await obtainFcmToken();
-        if (!token) return;
-        await saveFcmToken(user.uid, token);
+        await saveFcmToken(user.uid, result.token);
         setEnabled(true);
       } catch {
-        // 푸시 토큰 저장 실패해도 앱은 계속 동작
+        // 자동 등록 실패 — 사용자가 수동 버튼으로 재시도
       }
     })();
   }, [user, canAccessApp, configured, supported]);
@@ -172,8 +193,8 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     supported &&
     configured &&
     !bannerDismissed &&
-    permission !== "granted" &&
-    !enabled;
+    !enabled &&
+    permission !== "granted";
 
   const value: WebPushContextValue = {
     supported,
@@ -181,9 +202,11 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     permission,
     enabling,
     enabled,
+    pushError,
     shouldShowBanner,
     enablePush,
     dismissBanner,
+    clearPushError,
   };
 
   return (
