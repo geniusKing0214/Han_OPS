@@ -55,6 +55,10 @@ jobs:
           V_GCID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           K_VAPID: ${{ secrets.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
           V_VAPID: ${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+          K_RELAY: ${{ secrets.NEXT_PUBLIC_PUSH_RELAY_URL }}
+          V_RELAY: ${{ vars.NEXT_PUBLIC_PUSH_RELAY_URL }}
+          K_PUSH_SECRET: ${{ secrets.NEXT_PUBLIC_PUSH_API_SECRET }}
+          V_PUSH_SECRET: ${{ vars.NEXT_PUBLIC_PUSH_API_SECRET }}
         run: |
           pick() { [ -n "$1" ] && echo "$1" || echo "$2"; }
           {
@@ -71,6 +75,14 @@ jobs:
             vapid="$(pick "$K_VAPID" "$V_VAPID")"
             if [ -n "$vapid" ]; then
               echo "NEXT_PUBLIC_FIREBASE_VAPID_KEY=$vapid"
+            fi
+            relay="$(pick "$K_RELAY" "$V_RELAY")"
+            if [ -n "$relay" ]; then
+              echo "NEXT_PUBLIC_PUSH_RELAY_URL=$relay"
+            fi
+            push_secret="$(pick "$K_PUSH_SECRET" "$V_PUSH_SECRET")"
+            if [ -n "$push_secret" ]; then
+              echo "NEXT_PUBLIC_PUSH_API_SECRET=$push_secret"
             fi
           } >> "$GITHUB_ENV"
 

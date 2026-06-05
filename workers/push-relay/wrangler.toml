@@ -1,0 +1,12 @@
+name = "han-ops-push-relay"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+APP_ORIGIN = "https://geniusking0214.github.io"
+APP_BASE_PATH = "/Han_OPS"
+FIREBASE_PROJECT_ID = "han-ops"
+
+# Secrets (wrangler secret put):
+#   FIREBASE_SERVICE_ACCOUNT  — Firebase Console → 서비스 계정 JSON 전체
+#   PUSH_API_SECRET           — 클라이언트 NEXT_PUBLIC_PUSH_API_SECRET 와 동일

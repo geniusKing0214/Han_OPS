@@ -6,6 +6,7 @@
     "dev": "node scripts/sync-pwa-assets.mjs && next dev --turbopack",
     "build": "node scripts/sync-pwa-assets.mjs && next build",
     "sync:pwa": "node scripts/sync-pwa-assets.mjs",
+    "deploy:push-relay": "npm --prefix workers/push-relay install && npm --prefix workers/push-relay run deploy",
     "start": "next start",
     "lint": "next lint"
   },

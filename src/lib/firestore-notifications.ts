@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { dispatchPushRelay } from "@/lib/push-relay";
 import { listApprovedMembersByTeamIds } from "@/lib/firestore-users";
 import { formatTeamIdsLabel, type TeamId } from "@/types/team";
 import type {
@@ -143,6 +144,20 @@ async function createNotificationDoc(payload: NotificationPayload) {
     isRead: false,
     createdAt: serverTimestamp(),
   });
+
+  if (
+    payload.type === "schedule_created" ||
+    payload.type === "application_submitted"
+  ) {
+    void dispatchPushRelay({
+      targetUserId: payload.targetUserId,
+      title: payload.title,
+      message: payload.message,
+      type: payload.type,
+    }).catch(() => {
+      // Worker 미설정·일시 오류 시 in-app 알림은 유지
+    });
+  }
 }
 
 export type NotifyApplicationSubmittedInput = {

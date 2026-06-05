@@ -17,6 +17,7 @@ import {
   isStandalonePwa,
   needsPwaInstallForBackgroundPush,
 } from "@/lib/pwa-utils";
+import { isPushRelayConfigured } from "@/lib/push-relay";
 import { saveFcmToken } from "@/lib/firestore-users";
 import { Button } from "@/components/ui/button";
 import {
@@ -132,6 +133,7 @@ export function PushNotificationSettings() {
 
   const permission = getNotificationPermission();
   const configured = isWebPushConfigured();
+  const relayConfigured = isPushRelayConfigured();
   const needsPwa = needsPwaInstallForBackgroundPush();
   const standalone = isStandalonePwa();
 
@@ -190,9 +192,13 @@ export function PushNotificationSettings() {
           }
         />
         <StatusRow
-          label="5. Firebase Cloud Function"
-          state="warn"
-          detail="백그라운드 OS 알림은 서버 Function(sendPushOnNotification) 배포 + Blaze 요금제 필요. 미배포 시 앱 안 벨 알림만 동작합니다."
+          label="5. 푸시 릴레이 (Cloudflare Worker · 무료)"
+          state={relayConfigured ? "ok" : "fail"}
+          detail={
+            relayConfigured
+              ? "백그라운드 OS 푸시 릴레이 URL이 설정되어 있습니다."
+              : "NEXT_PUBLIC_PUSH_RELAY_URL + NEXT_PUBLIC_PUSH_API_SECRET 설정 및 Worker 배포 필요 (Blaze 불필요)"
+          }
         />
         <StatusRow
           label="6. FCM 토큰 (Firestore)"
