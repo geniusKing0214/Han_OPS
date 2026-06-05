@@ -17,12 +17,27 @@ import {
   isWebPushConfigured,
   isWebPushSupported,
   obtainFcmToken,
+  registerMessagingServiceWorker,
   showBrowserNotification,
   subscribeForegroundMessages,
 } from "@/lib/firebase-messaging";
 import { saveFcmToken } from "@/lib/firestore-users";
+import type { NotificationItem } from "@/types/notification";
 
 const PUSH_DISMISSED_KEY = "han-ops-push-banner-dismissed";
+
+/** 웹 밖(OS) 푸시 대상: 스케줄 생성(팀원) · 신청 접수(관리자) */
+function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
+  if (item.type === "schedule_created") return true;
+  if (item.type === "application_submitted") return isAdmin;
+  return false;
+}
+
+function openUrlForNotification(item: NotificationItem): string {
+  if (item.type === "schedule_created") return withBasePath("/schedule");
+  if (item.type === "application_submitted") return withBasePath("/admin/applications");
+  return withBasePath("/dashboard");
+}
 
 type WebPushContextValue = {
   supported: boolean;
@@ -38,7 +53,7 @@ type WebPushContextValue = {
 const WebPushContext = createContext<WebPushContextValue | undefined>(undefined);
 
 export function WebPushProvider({ children }: { children: ReactNode }) {
-  const { user, canAccessApp } = useAuth();
+  const { user, canAccessApp, isAdmin } = useAuth();
   const { items } = useNotifications();
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [supported, setSupported] = useState(false);
@@ -56,6 +71,13 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     setBannerDismissed(localStorage.getItem(PUSH_DISMISSED_KEY) === "1");
     void isWebPushSupported().then(setSupported);
   }, []);
+
+  useEffect(() => {
+    if (!canAccessApp) return;
+    void isWebPushSupported().then((ok) => {
+      if (ok) void registerMessagingServiceWorker();
+    });
+  }, [canAccessApp]);
 
   const enablePush = useCallback(async () => {
     if (!user) return false;
@@ -97,16 +119,22 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     if (!configured || !supported || Notification.permission !== "granted") return;
 
     const unsub = subscribeForegroundMessages((payload) => {
+      const type = payload.data?.type ?? "";
+      if (type !== "schedule_created" && type !== "application_submitted") return;
+      if (type === "application_submitted" && !isAdmin) return;
+
       const title = payload.notification?.title ?? "HAN OPS";
       const body = payload.notification?.body ?? "";
       const url = payload.data?.url
-        ? withBasePath(String(payload.data.url))
-        : withBasePath("/schedule");
+        ? String(payload.data.url)
+        : type === "application_submitted"
+          ? withBasePath("/admin/applications")
+          : withBasePath("/schedule");
       showBrowserNotification(title, { body, url });
     });
 
     return unsub;
-  }, [configured, supported]);
+  }, [configured, supported, isAdmin]);
 
   useEffect(() => {
     if (!canAccessApp || Notification.permission !== "granted") return;
@@ -121,18 +149,15 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
 
     for (const item of items) {
       if (item.isRead || seenNotificationIds.current.has(item.id)) continue;
+      if (!shouldPushNotify(item, isAdmin)) continue;
       seenNotificationIds.current.add(item.id);
-      const url =
-        item.type === "schedule_created"
-          ? withBasePath("/schedule")
-          : withBasePath("/applications");
       showBrowserNotification(item.title, {
         body: item.message,
-        url,
+        url: openUrlForNotification(item),
         tag: item.id,
       });
     }
-  }, [items, canAccessApp]);
+  }, [items, canAccessApp, isAdmin]);
 
   const dismissBanner = useCallback(() => {
     localStorage.setItem(PUSH_DISMISSED_KEY, "1");

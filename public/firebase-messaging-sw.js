@@ -8,30 +8,54 @@ importScripts("./firebase-messaging-config.js");
 firebase.initializeApp(self.FIREBASE_MESSAGING_CONFIG);
 
 const messaging = firebase.messaging();
+const APP_BASE = typeof self.APP_BASE_PATH === "string" ? self.APP_BASE_PATH : "";
+
+const PUSH_TYPES = new Set(["schedule_created", "application_submitted"]);
+
+function resolveAbsoluteUrl(pathOrUrl) {
+  if (!pathOrUrl) {
+    return new URL(`${APP_BASE}/schedule/`, self.location.origin).href;
+  }
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  const path = pathOrUrl.startsWith("/") ? pathOrUrl : `${APP_BASE}/${pathOrUrl}`;
+  return new URL(path, self.location.origin).href;
+}
+
+function iconUrl(size) {
+  return new URL(`${APP_BASE}/icons/icon-${size}.png`, self.location.origin).href;
+}
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || "HAN OPS";
-  const body = payload.notification?.body || "";
-  const url = payload.data?.url || "/schedule";
+  const type = payload.data?.type || "";
+  if (!PUSH_TYPES.has(type)) return;
+
+  const title = payload.notification?.title || payload.data?.title || "HAN OPS";
+  const body = payload.notification?.body || payload.data?.body || "";
+  const url = resolveAbsoluteUrl(payload.data?.url);
 
   self.registration.showNotification(title, {
     body,
-    icon: "./icons/icon-192.svg",
-    badge: "./icons/icon-192.svg",
-    data: { url },
-    tag: payload.data?.notificationId || undefined,
+    icon: iconUrl(192),
+    badge: iconUrl(192),
+    data: { url, type },
+    tag: payload.data?.notificationId || type,
+    renotify: true,
   });
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/schedule";
+  const url = event.notification.data?.url || resolveAbsoluteUrl(`${APP_BASE}/dashboard/`);
+
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const client of list) {
         if ("focus" in client) {
-          client.navigate(url);
-          return client.focus();
+          if ("navigate" in client) {
+            return client.navigate(url).then(() => client.focus());
+          }
+          client.focus();
+          return undefined;
         }
       }
       if (clients.openWindow) {

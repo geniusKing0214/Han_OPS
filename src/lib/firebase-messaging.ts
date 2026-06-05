@@ -52,12 +52,20 @@ async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
 
   const swUrl = withBasePath("/firebase-messaging-sw.js");
-  const existing = await navigator.serviceWorker.getRegistration(swUrl);
-  if (existing) return existing;
+  const scope = withBasePath("/");
 
-  return navigator.serviceWorker.register(swUrl, {
-    scope: withBasePath("/"),
-  });
+  let registration = await navigator.serviceWorker.getRegistration(scope);
+  if (!registration) {
+    registration = await navigator.serviceWorker.register(swUrl, { scope });
+  }
+  await navigator.serviceWorker.ready;
+  return registration;
+}
+
+/** PWA 백그라운드 푸시용 Service Worker 선등록 */
+export async function registerMessagingServiceWorker(): Promise<void> {
+  if (!(await isWebPushSupported())) return;
+  await getServiceWorkerRegistration();
 }
 
 export async function requestWebPushPermission(): Promise<NotificationPermission> {
@@ -109,8 +117,8 @@ export function showBrowserNotification(
 
   const { url, ...rest } = options ?? {};
   const notification = new Notification(title, {
-    icon: withBasePath("/icons/icon-192.svg"),
-    badge: withBasePath("/icons/icon-192.svg"),
+    icon: withBasePath("/icons/icon-192.png"),
+    badge: withBasePath("/icons/icon-192.png"),
     ...rest,
   });
 

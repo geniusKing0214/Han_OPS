@@ -19,8 +19,6 @@ import { db } from "@/lib/firebase";
 import { userCanApplyToEvent } from "@/lib/team-utils";
 import {
   notifyAdminsOnApplicationSubmitted,
-  notifyMemberOnApplicationApproved,
-  notifyMemberOnApplicationRejected,
 } from "@/lib/firestore-notifications";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
 import type { WorkStatus } from "@/types/points";
@@ -464,41 +462,6 @@ export async function decideApplication(
     });
     tx.update(appRef, { status: nextStatus });
   });
-
-  const appSnap = await getDoc(appRef);
-  if (!appSnap.exists()) return;
-  const appData = appSnap.data() as Record<string, unknown>;
-  const userId = typeof appData.userId === "string" ? appData.userId : "";
-  if (!userId) return;
-
-  const notifyInput = {
-    targetUserId: userId,
-    targetEmail:
-      typeof appData.applicantEmail === "string"
-        ? appData.applicantEmail
-        : undefined,
-    applicationId,
-    eventId: typeof appData.eventId === "string" ? appData.eventId : undefined,
-    eventTitle:
-      typeof appData.eventTitle === "string" ? appData.eventTitle : "",
-    eventDate: typeof appData.date === "string" ? appData.date : "",
-    slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
-    location: typeof appData.venue === "string" ? appData.venue : "",
-    rejectionReason:
-      typeof appData.rejectionReason === "string"
-        ? appData.rejectionReason
-        : options?.rejectionReason,
-  };
-
-  try {
-    if (status === "approved") {
-      await notifyMemberOnApplicationApproved(notifyInput);
-    } else {
-      await notifyMemberOnApplicationRejected(notifyInput);
-    }
-  } catch {
-    // 승인/거절은 완료 — 알림만 실패할 수 있음
-  }
 }
 
 /** 본인 신청 취소: pending/rejected는 삭제, approved는 슬롯 정원 복구 후 삭제 */

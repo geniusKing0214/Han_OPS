@@ -53,6 +53,8 @@ jobs:
           V_APP: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
           K_GCID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           V_GCID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          K_VAPID: ${{ secrets.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
+          V_VAPID: ${{ vars.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
         run: |
           pick() { [ -n "$1" ] && echo "$1" || echo "$2"; }
           {
@@ -65,6 +67,10 @@ jobs:
             gcid="$(pick "$K_GCID" "$V_GCID")"
             if [ -n "$gcid" ]; then
               echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$gcid"
+            fi
+            vapid="$(pick "$K_VAPID" "$V_VAPID")"
+            if [ -n "$vapid" ]; then
+              echo "NEXT_PUBLIC_FIREBASE_VAPID_KEY=$vapid"
             fi
           } >> "$GITHUB_ENV"
 

@@ -3,6 +3,12 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 
 admin.initializeApp();
 
+/** FCM 웹 푸시 대상 알림 (스케줄 생성 → 팀원, 신청 → 관리자) */
+const PUSH_NOTIFICATION_TYPES = new Set([
+  "schedule_created",
+  "application_submitted",
+]);
+
 type NotificationDoc = {
   targetUserId?: string;
   title?: string;
@@ -10,17 +16,25 @@ type NotificationDoc = {
   type?: string;
 };
 
+function appBasePath(): string {
+  const raw = process.env.APP_BASE_PATH?.trim() ?? "/Han_OPS";
+  if (!raw || raw === "/") return "";
+  return raw.startsWith("/") ? raw.replace(/\/$/, "") : `/${raw.replace(/\/$/, "")}`;
+}
+
 function resolveOpenUrl(type: string | undefined): string {
-  if (type === "schedule_created") return "/schedule";
-  if (type === "application_submitted") return "/admin/applications";
-  return "/applications";
+  const base = appBasePath();
+  if (type === "schedule_created") return `${base}/schedule/`;
+  if (type === "application_submitted") return `${base}/admin/applications/`;
+  return `${base}/`;
 }
 
 export const sendPushOnNotification = onDocumentCreated(
   "notifications/{notificationId}",
   async (event) => {
     const data = event.data?.data() as NotificationDoc | undefined;
-    if (!data?.targetUserId) return;
+    if (!data?.targetUserId || !data.type) return;
+    if (!PUSH_NOTIFICATION_TYPES.has(data.type)) return;
 
     const userSnap = await admin
       .firestore()
@@ -33,13 +47,14 @@ export const sendPushOnNotification = onDocumentCreated(
     const title = data.title?.trim() || "HAN OPS";
     const body = data.message?.trim() || "";
     const url = resolveOpenUrl(data.type);
+    const icon = `${appBasePath()}/icons/icon-192.png`;
 
     const response = await admin.messaging().sendEachForMulticast({
       tokens: uniqueTokens,
       notification: { title, body },
       data: {
         notificationId: event.params.notificationId,
-        type: data.type ?? "",
+        type: data.type,
         url,
       },
       webpush: {
@@ -47,7 +62,7 @@ export const sendPushOnNotification = onDocumentCreated(
         notification: {
           title,
           body,
-          icon: "/icons/icon-192.svg",
+          icon,
         },
       },
     });

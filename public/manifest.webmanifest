@@ -1,0 +1,39 @@
+{
+  "name": "HAN OPS",
+  "short_name": "HAN OPS",
+  "description": "딜러팀 스케줄 운영 플랫폼",
+  "start_url": "/Han_OPS/dashboard/",
+  "scope": "/Han_OPS/",
+  "id": "/Han_OPS/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "ko",
+  "dir": "ltr",
+  "categories": [
+    "productivity",
+    "business"
+  ],
+  "icons": [
+    {
+      "src": "/Han_OPS/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Han_OPS/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/Han_OPS/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "gcm_sender_id": "399104240087"
+}
