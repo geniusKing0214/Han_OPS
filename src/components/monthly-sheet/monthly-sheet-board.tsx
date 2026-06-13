@@ -29,12 +29,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 
 function addMonths(d: Date, n: number) {
@@ -64,7 +58,6 @@ export function MonthlySheetBoard({ mode }: Props) {
   );
   const [includePending, setIncludePending] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [memoDraft, setMemoDraft] = useState("");
   const [memoSaving, setMemoSaving] = useState(false);
 
@@ -111,7 +104,6 @@ export function MonthlySheetBoard({ mode }: Props) {
 
   const handleSelectDate = (d: Date) => {
     setSelected(d);
-    if (isMobile) setMobileDetailOpen(true);
   };
 
   const handleExport = () => {
@@ -235,12 +227,41 @@ export function MonthlySheetBoard({ mode }: Props) {
 
           {!loading ? (
             <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-              <MonthlySheetCalendarGrid
-                month={month}
-                selected={selected}
-                onSelect={handleSelectDate}
-                days={days}
-              />
+              <div className="space-y-4">
+                <MonthlySheetCalendarGrid
+                  month={month}
+                  selected={selected}
+                  onSelect={handleSelectDate}
+                  days={days}
+                />
+
+                {isMobile ? (
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold">
+                        {formatDateLabel(selected)} 상세
+                      </h3>
+                      {canEdit && effectiveTeamFilter !== "all" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => setEditorOpen(true)}
+                        >
+                          <Pencil className="size-3.5" />
+                          수정
+                        </Button>
+                      ) : null}
+                    </div>
+                    <MonthlySheetDayDetail
+                      bundle={selectedBundle}
+                      dateLabel={formatDateLabel(selected)}
+                      showTeamBadge={effectiveTeamFilter === "all"}
+                    />
+                  </div>
+                ) : null}
+              </div>
 
               {!isMobile ? (
                 <div className="space-y-3">
@@ -302,35 +323,6 @@ export function MonthlySheetBoard({ mode }: Props) {
           ) : null}
         </CardContent>
       </Card>
-
-      <Sheet open={mobileDetailOpen} onOpenChange={setMobileDetailOpen}>
-        <SheetContent side="bottom" className="max-h-[85dvh] rounded-t-xl">
-          <SheetHeader>
-            <SheetTitle>{formatDateLabel(selected)}</SheetTitle>
-          </SheetHeader>
-          <div className="mt-4 overflow-y-auto pb-6">
-            <MonthlySheetDayDetail
-              bundle={selectedBundle}
-              dateLabel={formatDateLabel(selected)}
-              showTeamBadge={effectiveTeamFilter === "all"}
-            />
-            {canEdit && effectiveTeamFilter !== "all" ? (
-              <Button
-                type="button"
-                variant="accent"
-                className="mt-4 w-full gap-1.5"
-                onClick={() => {
-                  setMobileDetailOpen(false);
-                  setEditorOpen(true);
-                }}
-              >
-                <Pencil className="size-4" />
-                이 날짜 수정
-              </Button>
-            ) : null}
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {canEdit && effectiveTeamFilter !== "all" ? (
         <MonthlySheetDayEditor

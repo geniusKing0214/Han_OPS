@@ -49,106 +49,123 @@ export function MonthlySheetCalendarGrid({
 
   const today = new Date();
 
-  return (
-    <div className={cn("rounded-lg border border-border bg-card", className)}>
-      <div
+  const renderCell = (cell: Date | null, i: number) => {
+    if (!cell) {
+      return (
+        <div
+          key={`empty-${i}`}
+          className="min-h-[108px] border-b border-r border-border bg-muted/10 last:border-r-0 md:min-h-[128px]"
+        />
+      );
+    }
+
+    const ymd = toYmd(cell);
+    const bundle = days.get(ymd);
+    const isToday = sameYmd(cell, today);
+    const isSelected = sameYmd(cell, selected);
+    const hasRows = (bundle?.rows.length ?? 0) > 0;
+    const dayColor = bundle?.dayOverride?.color;
+    const previewLines = (bundle?.cellPreviewLines ?? []).slice(0, 5);
+
+    return (
+      <button
+        key={ymd}
+        type="button"
+        onClick={() => onSelect(cell)}
         className={cn(
-          "grid grid-cols-7 border-b border-border bg-muted/30 text-center text-xs font-medium text-muted-foreground",
+          "group relative flex min-h-[108px] flex-col border-b border-r border-border p-1 text-left transition-colors last:border-r-0 md:min-h-[128px] md:p-2",
+          "hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+          isSelected && "bg-accent/10 ring-1 ring-inset ring-accent/40",
+          !hasRows && "text-muted-foreground",
         )}
       >
-        {weekdays.map((w, idx) => (
-          <div
-            key={w}
+        {dayColor ? (
+          <span
+            className="absolute inset-x-0 top-0 h-0.5 md:h-1"
+            style={{ backgroundColor: dayColor }}
+            aria-hidden
+          />
+        ) : null}
+
+        <div className="flex items-start justify-between gap-0.5">
+          <span
             className={cn(
-              "border-r border-border px-1 py-2 last:border-r-0",
-              idx === 0 && "text-red-400",
-              idx === 6 && "text-blue-400",
+              "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums md:size-6 md:text-sm",
+              isToday && "bg-accent text-accent-foreground",
+              isSelected && !isToday && "text-accent",
             )}
           >
-            {w}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7">
-        {cells.map((cell, i) => {
-          if (!cell) {
-            return (
-              <div
-                key={`empty-${i}`}
-                className="min-h-[72px] border-b border-r border-border bg-muted/10 last:border-r-0 md:min-h-[120px]"
-              />
-            );
-          }
-
-          const ymd = toYmd(cell);
-          const bundle = days.get(ymd);
-          const isToday = sameYmd(cell, today);
-          const isSelected = sameYmd(cell, selected);
-          const hasRows = (bundle?.rows.length ?? 0) > 0;
-          const dayColor = bundle?.dayOverride?.color;
-
-          return (
-            <button
-              key={ymd}
-              type="button"
-              onClick={() => onSelect(cell)}
-              className={cn(
-                "group relative min-h-[72px] border-b border-r border-border p-1.5 text-left transition-colors last:border-r-0 md:min-h-[120px] md:p-2",
-                "hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
-                isSelected && "bg-accent/10 ring-1 ring-inset ring-accent/40",
-                !hasRows && "text-muted-foreground",
-              )}
-            >
-              {dayColor ? (
+            {cell.getDate()}
+          </span>
+          {bundle?.markerColors?.length ? (
+            <span className="flex shrink-0 gap-0.5">
+              {bundle.markerColors.slice(0, 2).map((c, idx) => (
                 <span
-                  className="absolute inset-x-0 top-0 h-0.5"
-                  style={{ backgroundColor: dayColor }}
-                  aria-hidden
+                  key={`${ymd}-c-${idx}`}
+                  className="size-1.5 rounded-full ring-1 ring-background/80 md:size-2"
+                  style={{ backgroundColor: c }}
                 />
-              ) : null}
-              <div className="flex items-start justify-between gap-1">
-                <span
-                  className={cn(
-                    "inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums md:text-sm",
-                    isToday && "bg-accent text-accent-foreground",
-                    isSelected && !isToday && "text-accent",
-                  )}
-                >
-                  {cell.getDate()}
-                </span>
-                {bundle?.markerColors?.length ? (
-                  <span className="hidden gap-0.5 md:flex">
-                    {bundle.markerColors.slice(0, 3).map((c, idx) => (
-                      <span
-                        key={`${ymd}-c-${idx}`}
-                        className="size-2 rounded-full ring-1 ring-background/80"
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </span>
-                ) : null}
-              </div>
+              ))}
+            </span>
+          ) : null}
+        </div>
 
-              <div className="mt-1 hidden space-y-0.5 md:block">
-                {(bundle?.cellPreviewLines ?? []).slice(0, 4).map((line, idx) => (
-                  <p
-                    key={`${ymd}-line-${idx}`}
-                    className="truncate text-[10px] leading-tight text-foreground/90"
-                  >
-                    {line}
-                  </p>
-                ))}
-              </div>
+        <div className="mt-0.5 min-h-0 flex-1 space-y-px overflow-hidden md:mt-1 md:space-y-0.5">
+          {previewLines.length > 0 ? (
+            previewLines.map((line, idx) => (
+              <p
+                key={`${ymd}-line-${idx}`}
+                className={cn(
+                  "leading-[1.15] text-foreground/90",
+                  "line-clamp-2 text-[8px] md:line-clamp-none md:truncate md:text-[10px]",
+                  line.startsWith("+") && "text-accent",
+                )}
+                title={line}
+              >
+                {line}
+              </p>
+            ))
+          ) : hasRows ? (
+            <p className="text-[8px] text-muted-foreground md:text-[10px]">
+              {bundle?.rows.length}건
+            </p>
+          ) : null}
+        </div>
+      </button>
+    );
+  };
 
-              {hasRows ? (
-                <span className="mt-1 inline-flex rounded bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent md:hidden">
-                  {bundle?.rows.length}건
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
+  return (
+    <div className={cn("rounded-lg border border-border bg-card", className)}>
+      {/* 모바일: 가로 스크롤로 칸 너비 확보 → PC처럼 텍스트 가독성 */}
+      <div className="overflow-x-auto md:overflow-visible">
+        <div className="min-w-[620px] md:min-w-0">
+          <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[10px] font-medium text-muted-foreground md:text-xs">
+            {weekdays.map((w, idx) => (
+              <div
+                key={w}
+                className={cn(
+                  "border-r border-border px-1 py-2 last:border-r-0",
+                  idx === 0 && "text-red-400",
+                  idx === 6 && "text-blue-400",
+                )}
+              >
+                {w}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7">
+            {cells.map((cell, i) => renderCell(cell, i))}
+          </div>
+        </div>
       </div>
+
+      <p className="border-t border-border px-3 py-2 text-[10px] text-muted-foreground md:text-xs">
+        <span className="md:hidden">← 좌우로 스크롤하면 일정 내용을 한눈에 볼 수 있습니다.</span>
+        <span className="hidden md:inline">
+          · 표시: 이벤트명 · 장소 · 승인자 · 시간/인원 · 색상 점
+        </span>
+      </p>
     </div>
   );
 }
