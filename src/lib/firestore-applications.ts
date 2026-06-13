@@ -25,7 +25,7 @@ import type { WorkStatus } from "@/types/points";
 import type { EventItem } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
 import { USERS_COLLECTION } from "@/lib/firestore-users";
-import { normalizeTeamId } from "@/types/team";
+import { normalizeTeamId, type TeamId } from "@/types/team";
 import type { UserProfileDoc } from "@/types/user";
 
 export const APPLICATIONS_COLLECTION = "applications";
@@ -273,6 +273,36 @@ export function subscribeApplicationsInMonthForAdmin(
     cancelled = true;
     innerUnsub?.();
   };
+}
+
+/** 팀원: 본인 팀의 승인·완료 신청 월간 구독 (취합표 조회용) */
+export function subscribeApplicationsInMonthForTeam(
+  teamId: TeamId,
+  monthKey: string,
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  const start = `${monthKey}-01`;
+  const end = lastDayOfMonth(monthKey);
+  const q = query(
+    collection(db, APPLICATIONS_COLLECTION),
+    where("team_id", "==", teamId),
+    where("date", ">=", start),
+    where("date", "<=", end),
+    where("status", "in", ["approved", "completed"]),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs
+        .map((d) =>
+          docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+        )
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      onData(items);
+    },
+    (err) => onError?.(err),
+  );
 }
 
 /** 관리자: 특정 날짜(YYYY-MM-DD) 신청 전체 구독 */

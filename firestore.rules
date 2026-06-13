@@ -90,8 +90,21 @@ service cloud.firestore {
     }
 
     match /applications/{appId} {
+      function callerTeamId() {
+        return callerDoc().data.get('team_id', 'team_1');
+      }
+
+      function canReadTeamApprovedApplication() {
+        return isSignedIn()
+          && !isAdmin()
+          && resource.data.team_id == callerTeamId()
+          && (resource.data.status == 'approved' || resource.data.status == 'completed');
+      }
+
       allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isAdmin()
+        resource.data.userId == request.auth.uid
+        || isAdmin()
+        || canReadTeamApprovedApplication()
       );
 
       allow create: if isSignedIn()
@@ -121,6 +134,18 @@ service cloud.firestore {
 
     match /point_logs/{logId} {
       allow read, create, update, delete: if isAdmin();
+    }
+
+    match /monthlySheets/{sheetId} {
+      function callerTeamId() {
+        return callerDoc().data.get('team_id', 'team_1');
+      }
+
+      allow read: if isSignedIn() && (
+        isAdmin() || resource.data.teamId == callerTeamId()
+      );
+
+      allow create, update, delete: if isAdmin();
     }
 
     match /{document=**} {
