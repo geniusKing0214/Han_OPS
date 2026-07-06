@@ -14,6 +14,7 @@ import {
   where,
 } from "firebase/firestore";
 
+import { assertAdmin } from "@/lib/admin-access";
 import { db } from "@/lib/firebase";
 import { DEFAULT_TEAM_ID, normalizeTeamId } from "@/types/team";
 import type { UserApprovalStatus, UserProfileDoc, UserRole } from "@/types/user";
@@ -36,7 +37,6 @@ export async function createMemberProfile(
     accountStatus: "pending",
     team_id: DEFAULT_TEAM_ID,
     displayName: typeof displayName === "string" ? displayName.trim() : "",
-    total_points: 0,
     createdAt: serverTimestamp(),
   });
 }
@@ -96,6 +96,7 @@ export async function setUserTeamId(uid: string, teamId: TeamId) {
 }
 
 export async function listPendingUsersForAdmin(): Promise<ListedUserRow[]> {
+  await assertAdmin();
   const snap = await getDocs(
     query(collection(db, USERS_COLLECTION), where("accountStatus", "==", "pending")),
   );
@@ -104,6 +105,50 @@ export async function listPendingUsersForAdmin(): Promise<ListedUserRow[]> {
     ...(d.data() as UserProfileDoc),
   }));
   return rows.sort((a, b) => a.email.localeCompare(b.email, "ko"));
+}
+
+/** 관리자: 가입 승인 대기 사용자 실시간 구독 */
+export function subscribePendingUsersForAdmin(
+  onData: (rows: ListedUserRow[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, USERS_COLLECTION),
+        where("accountStatus", "==", "pending"),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const rows = snap.docs
+            .map((d) => ({
+              uid: d.id,
+              ...(d.data() as UserProfileDoc),
+            }))
+            .sort((a, b) => a.email.localeCompare(b.email, "ko"));
+          onData(rows);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "관리자 권한이 필요합니다.",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
 }
 
 /** 관리자 화면용: 여러 uid의 프로필(이메일·닉네임)을 한 번에 조회 */

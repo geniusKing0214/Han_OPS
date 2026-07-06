@@ -31,8 +31,11 @@ service cloud.firestore {
           "accountStatus",
           "displayName",
           "createdAt",
-          "team_id"
-        ]);
+          "team_id",
+          "total_points"
+        ])
+        && (!("total_points" in request.resource.data)
+          || request.resource.data.total_points == 0);
 
       // 관리자: 모든 필드 수정 가능 / 일반: role/accountStatus 변경 불가
       allow update: if isAdmin() || (

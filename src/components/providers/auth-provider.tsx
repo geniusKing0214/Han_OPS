@@ -58,24 +58,34 @@ function normalizeAccountStatus(status: unknown): UserApprovalStatus {
 function subscribeProfileForUser(
   nextUser: User,
   onReady: (profile: AuthProfile | null) => void,
-  onError: () => void,
+  onError: (message?: string) => void,
 ): () => void {
+  let creating = false;
+
   return subscribeUserProfile(
     nextUser.uid,
     async (data) => {
       if (!data) {
+        if (creating) return;
+        creating = true;
         try {
           await createMemberProfile(
             nextUser.uid,
             nextUser.email ?? "",
             nextUser.displayName,
           );
-        } catch {
-          onError();
+        } catch (err) {
+          creating = false;
+          onError(
+            err instanceof Error
+              ? err.message
+              : "프로필 등록에 실패했습니다. 잠시 후 다시 로그인해 주세요.",
+          );
         }
         return;
       }
 
+      creating = false;
       onReady({
         email:
           typeof data.email === "string" ? data.email : nextUser.email ?? "",
@@ -87,7 +97,7 @@ function subscribeProfileForUser(
         phone: typeof data.phone === "string" ? data.phone : undefined,
       });
     },
-    onError,
+    (err) => onError(err.message),
   );
 }
 

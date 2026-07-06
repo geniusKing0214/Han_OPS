@@ -28,6 +28,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  if (!profile) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm text-muted-foreground">
+          프로필을 등록하는 중입니다. 잠시 후 다시 시도해 주세요.
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void logout()}>
+          로그아웃
+        </Button>
+      </div>
+    );
+  }
+
   if (!canAccessApp) {
     const pending = profile?.accountStatus === "pending";
     return (

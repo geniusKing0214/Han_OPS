@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import {
   listPendingUsersForAdmin,
   setUserApprovalStatus,
+  subscribePendingUsersForAdmin,
   type ListedUserRow,
 } from "@/lib/firestore-users";
 import {
@@ -53,8 +54,29 @@ export function SignupApprovalsPanel() {
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    setLoading(true);
+    setError("");
+    const unsub = subscribePendingUsersForAdmin(
+      (list) => {
+        setRows(list);
+        setTeamByUid((prev) => {
+          const next = { ...prev };
+          for (const row of list) {
+            if (!next[row.uid]) {
+              next[row.uid] = normalizeTeamId(row.team_id);
+            }
+          }
+          return next;
+        });
+        setLoading(false);
+      },
+      (err) => {
+        setError(err.message || "가입 요청을 불러오지 못했습니다.");
+        setLoading(false);
+      },
+    );
+    return unsub;
+  }, []);
 
   const decide = async (uid: string, next: "approved" | "rejected") => {
     setBusyUid(uid);
