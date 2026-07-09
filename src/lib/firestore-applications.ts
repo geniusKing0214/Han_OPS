@@ -19,6 +19,7 @@ import { db } from "@/lib/firebase";
 import { userCanApplyToEvent } from "@/lib/team-utils";
 import {
   notifyAdminsOnApplicationSubmitted,
+  notifyAdminsOnApplicationCancelled,
 } from "@/lib/firestore-notifications";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
 import type { WorkStatus } from "@/types/points";
@@ -497,38 +498,70 @@ export async function decideApplication(
 /** 본인 신청 취소: pending/rejected는 삭제, approved는 슬롯 정원 복구 후 삭제 */
 export async function cancelMyApplication(applicationId: string, uid: string) {
   const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("신청을 찾을 수 없습니다.");
+  }
+
+  const appData = appSnap.data() as Record<string, unknown>;
+  const userId = typeof appData.userId === "string" ? appData.userId : "";
+  if (userId !== uid) {
+    throw new Error("본인 신청만 취소할 수 있습니다.");
+  }
+
+  const status = normalizeStatus(appData.status);
+  if (status === "completed") {
+    throw new Error("완료된 신청은 취소할 수 없습니다.");
+  }
+
+  const notifyPayload = {
+    applicationId,
+    createdByUserId: uid,
+    applicantName:
+      typeof appData.applicantDisplayName === "string"
+        ? appData.applicantDisplayName
+        : "",
+    applicantEmail:
+      typeof appData.applicantEmail === "string" ? appData.applicantEmail : "",
+    eventId: typeof appData.eventId === "string" ? appData.eventId : "",
+    eventTitle: typeof appData.eventTitle === "string" ? appData.eventTitle : "",
+    eventDate: typeof appData.date === "string" ? appData.date : "",
+    slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
+    location: typeof appData.venue === "string" ? appData.venue : "",
+    wasApproved: status === "approved",
+  };
 
   await runTransaction(db, async (tx) => {
-    const appSnap = await tx.get(appRef);
-    if (!appSnap.exists()) {
+    const freshSnap = await tx.get(appRef);
+    if (!freshSnap.exists()) {
       throw new Error("신청을 찾을 수 없습니다.");
     }
-    const appData = appSnap.data() as Record<string, unknown>;
-    const userId = typeof appData.userId === "string" ? appData.userId : "";
-    if (userId !== uid) {
+    const freshData = freshSnap.data() as Record<string, unknown>;
+    const freshUserId = typeof freshData.userId === "string" ? freshData.userId : "";
+    if (freshUserId !== uid) {
       throw new Error("본인 신청만 취소할 수 있습니다.");
     }
 
-    const status = normalizeStatus(appData.status);
-    if (status === "completed") {
+    const freshStatus = normalizeStatus(freshData.status);
+    if (freshStatus === "completed") {
       throw new Error("완료된 신청은 취소할 수 없습니다.");
     }
 
-    if (status === "pending" || status === "rejected") {
+    if (freshStatus === "pending" || freshStatus === "rejected") {
       tx.delete(appRef);
       return;
     }
 
-    if (status === "approved") {
-      const date = typeof appData.date === "string" ? appData.date : "";
+    if (freshStatus === "approved") {
+      const date = typeof freshData.date === "string" ? freshData.date : "";
       if (date && date < todayYmd()) {
         throw new Error("지난 일정은 취소할 수 없습니다.");
       }
 
-      const eventId = typeof appData.eventId === "string" ? appData.eventId : "";
+      const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
       const sessionId =
-        typeof appData.sessionId === "string" ? appData.sessionId : "";
-      const slotId = typeof appData.slotId === "string" ? appData.slotId : "";
+        typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+      const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
       if (!eventId || !sessionId || !slotId) {
         throw new Error("신청 데이터에 event/session/slot 정보가 없습니다.");
       }
@@ -566,4 +599,10 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
       tx.delete(appRef);
     }
   });
+
+  try {
+    await notifyAdminsOnApplicationCancelled(notifyPayload);
+  } catch {
+    // 취소는 성공 — 알림만 실패할 수 있음
+  }
 }

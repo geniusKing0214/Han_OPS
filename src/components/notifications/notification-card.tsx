@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Trash2,
   UserPlus,
+  UserMinus,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +24,8 @@ function iconForType(type: NotificationItem["type"]): LucideIcon {
   switch (type) {
     case "application_submitted":
       return UserPlus;
+    case "application_cancelled":
+      return UserMinus;
     case "application_approved":
       return CheckCircle2;
     case "application_rejected":
@@ -85,6 +88,7 @@ export function NotificationCard({
                   item.type === "application_approved" && "text-emerald-400",
                   item.type === "application_rejected" && "text-red-400",
                   item.type === "application_submitted" && "text-accent",
+                  item.type === "application_cancelled" && "text-red-400",
                   item.type === "schedule_created" && "text-sky-400",
                 )}
               />

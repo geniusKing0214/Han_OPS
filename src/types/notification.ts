@@ -1,5 +1,6 @@
 export type NotificationType =
   | "application_submitted"
+  | "application_cancelled"
   | "application_approved"
   | "application_rejected"
   | "schedule_created";
@@ -31,6 +32,7 @@ export type NotificationItem = {
 
 export const notificationTypeLabels: Record<NotificationType, string> = {
   application_submitted: "신청",
+  application_cancelled: "취소",
   application_approved: "승인",
   application_rejected: "거절",
   schedule_created: "스케줄",
@@ -38,9 +40,10 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
 
 export const notificationStatusBadgeVariant: Record<
   NotificationType,
-  "warning" | "success" | "destructive" | "accent"
+  "warning" | "success" | "destructive" | "accent" | "default"
 > = {
   application_submitted: "warning",
+  application_cancelled: "destructive",
   application_approved: "success",
   application_rejected: "destructive",
   schedule_created: "accent",

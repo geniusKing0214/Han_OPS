@@ -10,13 +10,17 @@ export function isPushRelayConfigured(): boolean {
   return getPushRelayUrl().length > 0 && getPushApiSecret().length > 0;
 }
 
-const RELAY_PUSH_TYPES = new Set(["schedule_created", "application_submitted"]);
+const RELAY_PUSH_TYPES = new Set([
+  "schedule_created",
+  "application_submitted",
+  "application_cancelled",
+]);
 
 export type PushRelayInput = {
   targetUserId: string;
   title: string;
   message: string;
-  type: "schedule_created" | "application_submitted";
+  type: "schedule_created" | "application_submitted" | "application_cancelled";
 };
 
 /** Blaze 없이 Cloudflare Worker 경유 FCM 백그라운드 푸시 */

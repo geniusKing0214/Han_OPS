@@ -30,12 +30,14 @@ const PUSH_DISMISSED_KEY = "han-ops-push-banner-dismissed";
 function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
   if (item.type === "schedule_created") return true;
   if (item.type === "application_submitted") return isAdmin;
+  if (item.type === "application_cancelled") return isAdmin;
   return false;
 }
 
 function openUrlForNotification(item: NotificationItem): string {
   if (item.type === "schedule_created") return withBasePath("/schedule");
   if (item.type === "application_submitted") return withBasePath("/admin/applications");
+  if (item.type === "application_cancelled") return withBasePath("/admin/roster");
   return withBasePath("/dashboard");
 }
 
@@ -144,8 +146,8 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
 
     const unsub = subscribeForegroundMessages((payload) => {
       const type = payload.data?.type ?? "";
-      if (type !== "schedule_created" && type !== "application_submitted") return;
-      if (type === "application_submitted" && !isAdmin) return;
+      if (type !== "schedule_created" && type !== "application_submitted" && type !== "application_cancelled") return;
+      if ((type === "application_submitted" || type === "application_cancelled") && !isAdmin) return;
 
       const title = payload.notification?.title ?? "HAN OPS";
       const body = payload.notification?.body ?? "";
@@ -153,6 +155,8 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
         ? String(payload.data.url)
         : type === "application_submitted"
           ? withBasePath("/admin/applications")
+          : type === "application_cancelled"
+            ? withBasePath("/admin/roster")
           : withBasePath("/schedule");
       showBrowserNotification(title, { body, url });
     });

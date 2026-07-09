@@ -34,6 +34,9 @@ function scheduleHrefFor(item: NotificationItem, isAdmin: boolean) {
   if (isAdmin && item.type === "application_submitted") {
     return withBasePath("/admin/applications");
   }
+  if (isAdmin && item.type === "application_cancelled") {
+    return withBasePath("/admin/roster");
+  }
   return withBasePath("/applications");
 }
 

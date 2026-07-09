@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Trash2,
   UserPlus,
+  UserMinus,
   XCircle,
 } from "lucide-react";
 
@@ -32,6 +33,8 @@ export function NotificationDetail({
       ? CheckCircle2
       : item.type === "application_rejected"
         ? XCircle
+        : item.type === "application_cancelled"
+          ? UserMinus
         : item.type === "schedule_created"
           ? Calendar
           : UserPlus;
@@ -52,7 +55,7 @@ export function NotificationDetail({
     },
   ];
 
-  if (item.type === "application_submitted") {
+  if (item.type === "application_submitted" || item.type === "application_cancelled") {
     rows.splice(4, 0, {
       label: "신청자",
       value:
@@ -97,6 +100,7 @@ export function NotificationDetail({
               item.type === "application_approved" && "text-emerald-400",
               item.type === "application_rejected" && "text-red-400",
               item.type === "application_submitted" && "text-accent",
+              item.type === "application_cancelled" && "text-red-400",
               item.type === "schedule_created" && "text-sky-400",
             )}
           >

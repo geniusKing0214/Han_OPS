@@ -90,6 +90,7 @@ function docToNotificationItem(
 function normalizeNotificationType(value: unknown): NotificationType {
   if (
     value === "application_submitted" ||
+    value === "application_cancelled" ||
     value === "application_approved" ||
     value === "application_rejected" ||
     value === "schedule_created"
@@ -147,7 +148,8 @@ async function createNotificationDoc(payload: NotificationPayload) {
 
   if (
     payload.type === "schedule_created" ||
-    payload.type === "application_submitted"
+    payload.type === "application_submitted" ||
+    payload.type === "application_cancelled"
   ) {
     void dispatchPushRelay({
       targetUserId: payload.targetUserId,
@@ -188,6 +190,43 @@ export async function notifyAdminsOnApplicationSubmitted(
         targetUserId: adminUid,
         targetRole: "admin",
         type: "application_submitted",
+        title,
+        message,
+        eventId: input.eventId,
+        applicationId: input.applicationId,
+        eventTitle: input.eventTitle,
+        eventDate: input.eventDate,
+        slotTime: input.slotTime,
+        location: input.location,
+        applicantName: input.applicantName,
+        applicantEmail: input.applicantEmail,
+        createdByUserId: input.createdByUserId,
+      }),
+    ),
+  );
+}
+
+export type NotifyApplicationCancelledInput = NotifyApplicationSubmittedInput & {
+  wasApproved?: boolean;
+};
+
+export async function notifyAdminsOnApplicationCancelled(
+  input: NotifyApplicationCancelledInput,
+) {
+  const adminUids = await getAdminUidsFromConfig();
+  if (adminUids.length === 0) return;
+
+  const displayName = input.applicantName.trim() || input.applicantEmail;
+  const title = "신청이 취소되었어요";
+  const statusHint = input.wasApproved ? "승인된 " : "";
+  const message = `${displayName}님이 ${statusHint}${input.eventTitle} 일정 신청을 취소했습니다.`;
+
+  await Promise.all(
+    adminUids.map((adminUid) =>
+      createNotificationDoc({
+        targetUserId: adminUid,
+        targetRole: "admin",
+        type: "application_cancelled",
         title,
         message,
         eventId: input.eventId,
