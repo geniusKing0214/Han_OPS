@@ -211,6 +211,21 @@ export async function updateOwnProfile(
   });
 }
 
+/** 승인된 전체 이용자 (공지 알림 대상) */
+export async function listAllApprovedUsers(): Promise<ListedUserRow[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, USERS_COLLECTION),
+      where("accountStatus", "==", "approved"),
+    ),
+  );
+
+  return snap.docs.map((d) => ({
+    uid: d.id,
+    ...(d.data() as UserProfileDoc),
+  }));
+}
+
 /** 승인된 팀원 목록 (스케줄 알림 대상) */
 export async function listApprovedMembersByTeamIds(
   teamIds: TeamId[],

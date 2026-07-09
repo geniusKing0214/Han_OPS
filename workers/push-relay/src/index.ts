@@ -24,7 +24,8 @@ type PushBody = {
 const PUSH_TYPES = new Set([
   "schedule_created",
   "application_submitted",
-  "application_cancelled",
+  "application_approved",
+  "notice_posted",
 ]);
 
 const corsOrigin = "https://geniusking0214.github.io";
@@ -54,8 +55,11 @@ function resolveOpenUrl(env: Env, type: string | undefined): string {
   if (type === "application_submitted") {
     return `${origin}${base}/admin/applications/`;
   }
-  if (type === "application_cancelled") {
-    return `${origin}${base}/admin/roster/`;
+  if (type === "application_approved") {
+    return `${origin}${base}/applications/`;
+  }
+  if (type === "notice_posted") {
+    return `${origin}${base}/notices/`;
   }
   return `${origin}${base}/dashboard/`;
 }

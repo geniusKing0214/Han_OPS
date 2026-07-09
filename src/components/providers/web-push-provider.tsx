@@ -28,16 +28,18 @@ import type { NotificationItem } from "@/types/notification";
 const PUSH_DISMISSED_KEY = "han-ops-push-banner-dismissed";
 
 function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
-  if (item.type === "schedule_created") return true;
+  if (item.type === "schedule_created") return !isAdmin;
   if (item.type === "application_submitted") return isAdmin;
-  if (item.type === "application_cancelled") return isAdmin;
+  if (item.type === "application_approved") return !isAdmin;
+  if (item.type === "notice_posted") return true;
   return false;
 }
 
 function openUrlForNotification(item: NotificationItem): string {
   if (item.type === "schedule_created") return withBasePath("/schedule");
   if (item.type === "application_submitted") return withBasePath("/admin/applications");
-  if (item.type === "application_cancelled") return withBasePath("/admin/roster");
+  if (item.type === "application_approved") return withBasePath("/applications");
+  if (item.type === "notice_posted") return withBasePath("/notices");
   return withBasePath("/dashboard");
 }
 
@@ -146,8 +148,18 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
 
     const unsub = subscribeForegroundMessages((payload) => {
       const type = payload.data?.type ?? "";
-      if (type !== "schedule_created" && type !== "application_submitted" && type !== "application_cancelled") return;
-      if ((type === "application_submitted" || type === "application_cancelled") && !isAdmin) return;
+      if (
+        type !== "schedule_created" &&
+        type !== "application_submitted" &&
+        type !== "application_approved" &&
+        type !== "notice_posted"
+      ) {
+        return;
+      }
+      if (type === "application_submitted" && !isAdmin) return;
+      if ((type === "schedule_created" || type === "application_approved") && isAdmin) {
+        return;
+      }
 
       const title = payload.notification?.title ?? "HAN OPS";
       const body = payload.notification?.body ?? "";
@@ -155,9 +167,11 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
         ? String(payload.data.url)
         : type === "application_submitted"
           ? withBasePath("/admin/applications")
-          : type === "application_cancelled"
-            ? withBasePath("/admin/roster")
-          : withBasePath("/schedule");
+          : type === "application_approved"
+            ? withBasePath("/applications")
+            : type === "notice_posted"
+              ? withBasePath("/notices")
+              : withBasePath("/schedule");
       showBrowserNotification(title, { body, url });
     });
 

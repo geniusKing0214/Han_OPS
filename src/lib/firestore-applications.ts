@@ -13,13 +13,15 @@ import {
   where,
 } from "firebase/firestore";
 
+import { getAuth } from "firebase/auth";
+
 import { assertAdmin } from "@/lib/admin-access";
 import { todayYmd } from "@/lib/application-cancel";
 import { db } from "@/lib/firebase";
 import { userCanApplyToEvent } from "@/lib/team-utils";
 import {
   notifyAdminsOnApplicationSubmitted,
-  notifyAdminsOnApplicationCancelled,
+  notifyMemberOnApplicationApproved,
 } from "@/lib/firestore-notifications";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
 import type { WorkStatus } from "@/types/points";
@@ -463,14 +465,19 @@ export async function decideApplication(
 ) {
   await assertAdmin();
   const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("신청 문서를 찾을 수 없습니다.");
+  }
+  const appData = appSnap.data() as Record<string, unknown>;
 
   await runTransaction(db, async (tx) => {
-    const appSnap = await tx.get(appRef);
-    if (!appSnap.exists()) {
+    const freshSnap = await tx.get(appRef);
+    if (!freshSnap.exists()) {
       throw new Error("신청 문서를 찾을 수 없습니다.");
     }
-    const appData = appSnap.data() as Record<string, unknown>;
-    const currentStatus = normalizeStatus(appData.status);
+    const freshData = freshSnap.data() as Record<string, unknown>;
+    const currentStatus = normalizeStatus(freshData.status);
     if (currentStatus !== "pending") {
       throw new Error("이미 처리된 신청입니다.");
     }
@@ -485,10 +492,10 @@ export async function decideApplication(
       return;
     }
 
-    const eventId = typeof appData.eventId === "string" ? appData.eventId : "";
+    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
     const sessionId =
-      typeof appData.sessionId === "string" ? appData.sessionId : "";
-    const slotId = typeof appData.slotId === "string" ? appData.slotId : "";
+      typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
     if (!eventId || !sessionId || !slotId) {
       throw new Error("신청 데이터에 event/session/slot 정보가 없습니다.");
     }
@@ -525,13 +532,37 @@ export async function decideApplication(
       throw new Error("이벤트의 세션/슬롯을 찾을 수 없습니다.");
     }
 
-    // 트랜잭션 규칙: 모든 read(tx.get) 후에 write(tx.update) 실행
     tx.update(eventRef, {
       sessions: nextSessions,
       updatedAt: serverTimestamp(),
     });
     tx.update(appRef, { status: nextStatus });
   });
+
+  if (status === "approved") {
+    const userId = typeof appData.userId === "string" ? appData.userId : "";
+    if (userId) {
+      try {
+        await notifyMemberOnApplicationApproved({
+          targetUserId: userId,
+          targetEmail:
+            typeof appData.applicantEmail === "string"
+              ? appData.applicantEmail
+              : undefined,
+          applicationId,
+          eventId: typeof appData.eventId === "string" ? appData.eventId : undefined,
+          eventTitle:
+            typeof appData.eventTitle === "string" ? appData.eventTitle : "",
+          eventDate: typeof appData.date === "string" ? appData.date : "",
+          slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
+          location: typeof appData.venue === "string" ? appData.venue : "",
+          createdByUserId: getAuth().currentUser?.uid ?? undefined,
+        });
+      } catch {
+        // 승인은 성공 — 알림만 실패할 수 있음
+      }
+    }
+  }
 }
 
 /** 본인 신청 취소: pending/rejected는 삭제, approved는 슬롯 정원 복구 후 삭제 */
@@ -552,23 +583,6 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
   if (status === "completed") {
     throw new Error("완료된 신청은 취소할 수 없습니다.");
   }
-
-  const notifyPayload = {
-    applicationId,
-    createdByUserId: uid,
-    applicantName:
-      typeof appData.applicantDisplayName === "string"
-        ? appData.applicantDisplayName
-        : "",
-    applicantEmail:
-      typeof appData.applicantEmail === "string" ? appData.applicantEmail : "",
-    eventId: typeof appData.eventId === "string" ? appData.eventId : "",
-    eventTitle: typeof appData.eventTitle === "string" ? appData.eventTitle : "",
-    eventDate: typeof appData.date === "string" ? appData.date : "",
-    slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
-    location: typeof appData.venue === "string" ? appData.venue : "",
-    wasApproved: status === "approved",
-  };
 
   await runTransaction(db, async (tx) => {
     const freshSnap = await tx.get(appRef);
@@ -638,10 +652,4 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
       tx.delete(appRef);
     }
   });
-
-  try {
-    await notifyAdminsOnApplicationCancelled(notifyPayload);
-  } catch {
-    // 취소는 성공 — 알림만 실패할 수 있음
-  }
 }

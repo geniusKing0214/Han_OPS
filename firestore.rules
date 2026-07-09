@@ -74,16 +74,24 @@ service cloud.firestore {
         )
         ||
         (
-          request.resource.data.type == 'application_cancelled'
-          && request.resource.data.createdByUserId == request.auth.uid
-          && request.resource.data.targetRole == 'admin'
+          isAdmin()
+          && request.resource.data.type == 'schedule_created'
+          && request.resource.data.targetRole == 'member'
           && request.resource.data.targetUserId is string
+          && request.resource.data.createdByUserId == request.auth.uid
         )
         ||
         (
           isAdmin()
-          && request.resource.data.type == 'schedule_created'
+          && request.resource.data.type == 'application_approved'
           && request.resource.data.targetRole == 'member'
+          && request.resource.data.targetUserId is string
+          && request.resource.data.createdByUserId == request.auth.uid
+        )
+        ||
+        (
+          isAdmin()
+          && request.resource.data.type == 'notice_posted'
           && request.resource.data.targetUserId is string
           && request.resource.data.createdByUserId == request.auth.uid
         )

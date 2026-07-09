@@ -16,7 +16,7 @@ import {
 
 import { db } from "@/lib/firebase";
 import { dispatchPushRelay } from "@/lib/push-relay";
-import { listApprovedMembersByTeamIds } from "@/lib/firestore-users";
+import { listApprovedMembersByTeamIds, listAllApprovedUsers } from "@/lib/firestore-users";
 import { formatTeamIdsLabel, type TeamId } from "@/types/team";
 import type {
   NotificationItem,
@@ -60,6 +60,7 @@ function docToNotificationItem(
     eventId: typeof data.eventId === "string" ? data.eventId : undefined,
     applicationId:
       typeof data.applicationId === "string" ? data.applicationId : undefined,
+    noticeId: typeof data.noticeId === "string" ? data.noticeId : undefined,
     eventTitle: typeof data.eventTitle === "string" ? data.eventTitle : "",
     eventDate: typeof data.eventDate === "string" ? data.eventDate : "",
     slotTime: typeof data.slotTime === "string" ? data.slotTime : "",
@@ -93,7 +94,8 @@ function normalizeNotificationType(value: unknown): NotificationType {
     value === "application_cancelled" ||
     value === "application_approved" ||
     value === "application_rejected" ||
-    value === "schedule_created"
+    value === "schedule_created" ||
+    value === "notice_posted"
   ) {
     return value;
   }
@@ -129,6 +131,7 @@ type NotificationPayload = {
   message: string;
   eventId?: string;
   applicationId?: string;
+  noticeId?: string;
   eventTitle: string;
   eventDate: string;
   slotTime: string;
@@ -149,7 +152,8 @@ async function createNotificationDoc(payload: NotificationPayload) {
   if (
     payload.type === "schedule_created" ||
     payload.type === "application_submitted" ||
-    payload.type === "application_cancelled"
+    payload.type === "application_approved" ||
+    payload.type === "notice_posted"
   ) {
     void dispatchPushRelay({
       targetUserId: payload.targetUserId,
@@ -253,24 +257,41 @@ export type NotifyApplicationDecisionInput = {
   slotTime: string;
   location: string;
   rejectionReason?: string;
+  createdByUserId?: string;
 };
+
+function formatEventDateLabel(dateYmd: string): string {
+  const parts = dateYmd.trim().split("-");
+  if (parts.length < 3) return dateYmd.trim();
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!month || !day) return dateYmd.trim();
+  return `${month}월 ${day}일`;
+}
 
 export async function notifyMemberOnApplicationApproved(
   input: NotifyApplicationDecisionInput,
 ) {
+  const dateLabel = formatEventDateLabel(input.eventDate);
+  const eventTitle = input.eventTitle.trim() || "일정";
+  const message = dateLabel
+    ? `${dateLabel} ${eventTitle} 신청이 승인되었습니다.`
+    : `${eventTitle} 신청이 승인되었습니다.`;
+
   await createNotificationDoc({
     targetUserId: input.targetUserId,
     targetEmail: input.targetEmail,
     targetRole: "member",
     type: "application_approved",
-    title: "승인 완료",
-    message: "신청한 일정이 승인되었습니다.",
+    title: "승인이 완료되었어요",
+    message,
     applicationId: input.applicationId,
     eventId: input.eventId,
     eventTitle: input.eventTitle,
     eventDate: input.eventDate,
     slotTime: input.slotTime,
     location: input.location,
+    createdByUserId: input.createdByUserId,
   });
 }
 
@@ -333,10 +354,12 @@ export async function notifyTeamMembersOnScheduleCreated(
 
   const { eventDate, slotTime } = summarizeScheduleSessions(input.sessions);
   const teamLabel = formatTeamIdsLabel(input.teamIds);
-  const title = "새 스케줄이 등록되었어요";
-  const datePart = eventDate ? ` · ${eventDate}` : "";
-  const timePart = slotTime ? ` ${slotTime}` : "";
-  const message = `${input.eventTitle}${datePart}${timePart} · ${input.venue} (${teamLabel})`;
+  const dateLabel = formatEventDateLabel(eventDate);
+  const title = dateLabel
+    ? `${dateLabel} 새 이벤트가 등록되었어요`
+    : "새 이벤트가 등록되었어요";
+  const timePart = slotTime ? ` · ${slotTime}` : "";
+  const message = `${input.eventTitle} · ${input.venue}${timePart} (${teamLabel})`;
 
   await Promise.all(
     members.map((member) =>
@@ -352,6 +375,43 @@ export async function notifyTeamMembersOnScheduleCreated(
         eventDate,
         slotTime,
         location: input.venue,
+        createdByUserId: input.createdByUserId,
+      }),
+    ),
+  );
+}
+
+export type NotifyNoticePostedInput = {
+  noticeId: string;
+  title: string;
+  createdByUserId: string;
+};
+
+/** 공지 등록 시 승인된 전체 이용자에게 알림 */
+export async function notifyAllUsersOnNoticePosted(
+  input: NotifyNoticePostedInput,
+) {
+  const users = await listAllApprovedUsers();
+  if (users.length === 0) return;
+
+  const noticeTitle = input.title.trim() || "공지사항";
+  const title = "새 공지가 등록되었어요";
+  const message = noticeTitle;
+
+  await Promise.all(
+    users.map((user) =>
+      createNotificationDoc({
+        targetUserId: user.uid,
+        targetEmail: user.email,
+        targetRole: user.role === "admin" ? "admin" : "member",
+        type: "notice_posted",
+        title,
+        message,
+        noticeId: input.noticeId,
+        eventTitle: noticeTitle,
+        eventDate: "",
+        slotTime: "",
+        location: "",
         createdByUserId: input.createdByUserId,
       }),
     ),

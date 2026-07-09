@@ -9,6 +9,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 
+import { notifyAllUsersOnNoticePosted } from "@/lib/firestore-notifications";
 import { db } from "@/lib/firebase";
 import type { NoticeDoc } from "@/types/notice";
 
@@ -79,6 +80,8 @@ export async function saveNotice(input: {
       ? existingSnap.data()!.created_at
       : serverTimestamp();
 
+  const isNew = !existingSnap.exists();
+
   await setDoc(ref, {
     title: input.title.trim(),
     content: input.content.trim(),
@@ -88,6 +91,18 @@ export async function saveNotice(input: {
     created_at: createdAt,
     updated_at: serverTimestamp(),
   });
+
+  if (isNew) {
+    try {
+      await notifyAllUsersOnNoticePosted({
+        noticeId: id,
+        title: input.title.trim(),
+        createdByUserId: input.author_uid,
+      });
+    } catch {
+      // 공지 저장은 성공 — 알림만 실패할 수 있음
+    }
+  }
 
   return id;
 }

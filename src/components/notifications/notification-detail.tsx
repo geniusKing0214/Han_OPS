@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
+  Megaphone,
   Trash2,
   UserPlus,
   UserMinus,
@@ -35,25 +36,41 @@ export function NotificationDetail({
         ? XCircle
         : item.type === "application_cancelled"
           ? UserMinus
+          : item.type === "notice_posted"
+            ? Megaphone
         : item.type === "schedule_created"
           ? Calendar
           : UserPlus;
 
-  const rows: { label: string; value: string }[] = [
-    { label: "이벤트명", value: item.eventTitle || "—" },
-    { label: "날짜", value: item.eventDate || "—" },
-    { label: "시간대", value: item.slotTime || "—" },
-    { label: "매장", value: item.location || "—" },
-    {
-      label: "신청 시간",
-      value: item.createdAt
-        ? new Date(item.createdAt).toLocaleString("ko-KR", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })
-        : "—",
-    },
-  ];
+  const rows: { label: string; value: string }[] =
+    item.type === "notice_posted"
+      ? [
+          { label: "공지 제목", value: item.eventTitle || "—" },
+          {
+            label: "등록 시간",
+            value: item.createdAt
+              ? new Date(item.createdAt).toLocaleString("ko-KR", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : "—",
+          },
+        ]
+      : [
+          { label: "이벤트명", value: item.eventTitle || "—" },
+          { label: "날짜", value: item.eventDate || "—" },
+          { label: "시간대", value: item.slotTime || "—" },
+          { label: "매장", value: item.location || "—" },
+          {
+            label: "신청 시간",
+            value: item.createdAt
+              ? new Date(item.createdAt).toLocaleString("ko-KR", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : "—",
+          },
+        ];
 
   if (item.type === "application_submitted" || item.type === "application_cancelled") {
     rows.splice(4, 0, {

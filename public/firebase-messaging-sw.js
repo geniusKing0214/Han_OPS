@@ -10,7 +10,12 @@ firebase.initializeApp(self.FIREBASE_MESSAGING_CONFIG);
 const messaging = firebase.messaging();
 const APP_BASE = typeof self.APP_BASE_PATH === "string" ? self.APP_BASE_PATH : "";
 
-const PUSH_TYPES = new Set(["schedule_created", "application_submitted", "application_cancelled"]);
+const PUSH_TYPES = new Set([
+  "schedule_created",
+  "application_submitted",
+  "application_approved",
+  "notice_posted",
+]);
 
 function resolveAbsoluteUrl(pathOrUrl) {
   if (!pathOrUrl) {

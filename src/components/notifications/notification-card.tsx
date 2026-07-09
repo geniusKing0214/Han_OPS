@@ -3,6 +3,7 @@
 import {
   Calendar,
   CheckCircle2,
+  Megaphone,
   Trash2,
   UserPlus,
   UserMinus,
@@ -32,6 +33,8 @@ function iconForType(type: NotificationItem["type"]): LucideIcon {
       return XCircle;
     case "schedule_created":
       return Calendar;
+    case "notice_posted":
+      return Megaphone;
     default:
       return Calendar;
   }
@@ -90,6 +93,7 @@ export function NotificationCard({
                   item.type === "application_submitted" && "text-accent",
                   item.type === "application_cancelled" && "text-red-400",
                   item.type === "schedule_created" && "text-sky-400",
+                  item.type === "notice_posted" && "text-amber-400",
                 )}
               />
             </div>

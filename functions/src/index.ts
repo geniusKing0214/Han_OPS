@@ -7,6 +7,8 @@ admin.initializeApp();
 const PUSH_NOTIFICATION_TYPES = new Set([
   "schedule_created",
   "application_submitted",
+  "application_approved",
+  "notice_posted",
 ]);
 
 type NotificationDoc = {
@@ -34,6 +36,12 @@ function resolveOpenUrl(type: string | undefined): string {
   if (type === "schedule_created") return `${origin}${base}/schedule/`;
   if (type === "application_submitted") {
     return `${origin}${base}/admin/applications/`;
+  }
+  if (type === "application_approved") {
+    return `${origin}${base}/applications/`;
+  }
+  if (type === "notice_posted") {
+    return `${origin}${base}/notices/`;
   }
   return `${origin}${base}/dashboard/`;
 }
