@@ -13,23 +13,43 @@ import {
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
+import {
+  currentMonthKey,
+  filterApplicationsInMonth,
+  formatApplicationMonthLabel,
+} from "@/lib/application-grouping";
 import { statusLabels } from "@/types/application";
+
+const RECENT_LIMIT = 3;
 
 export function DashboardRecentApplications() {
   const { items: rawItems, loading: appsLoading } = useMyApplications();
   const { events, loading: eventsLoading } = useEvents();
+  const thisMonth = currentMonthKey();
+  const thisMonthLabel = formatApplicationMonthLabel(thisMonth);
+
   const items = useMemo(
     () => filterApplicationsMatchingLiveSchedule(rawItems, events),
     [rawItems, events],
   );
+
+  const recentApps = useMemo(
+    () =>
+      filterApplicationsInMonth(items, thisMonth)
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+        .slice(0, RECENT_LIMIT),
+    [items, thisMonth],
+  );
+
   const loading = appsLoading || eventsLoading;
-  const recentApps = items.slice(0, 2);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>최근 신청 현황</CardTitle>
-        <CardDescription>최근 제출 순 · Applications와 동일 데이터</CardDescription>
+        <CardDescription>
+          {thisMonthLabel} · 최근 제출 순 · Applications와 동일 데이터
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {loading ? (
@@ -38,7 +58,7 @@ export function DashboardRecentApplications() {
           </p>
         ) : recentApps.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            신청 내역이 없습니다.
+            {thisMonthLabel} 신청 내역이 없습니다.
           </p>
         ) : (
           recentApps.map((a) => (

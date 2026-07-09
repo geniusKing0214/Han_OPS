@@ -11,6 +11,20 @@ export function formatApplicationMonthLabel(monthKey: string): string {
   return `${y}년 ${Number(m)}월`;
 }
 
+export function currentMonthKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = `${now.getMonth() + 1}`.padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+export function filterApplicationsInMonth(
+  items: ApplicationItem[],
+  monthKey: string,
+): ApplicationItem[] {
+  return items.filter((item) => monthKeyFromDateYmd(item.date) === monthKey);
+}
+
 function sortApplicationsByEventDate(items: ApplicationItem[]): ApplicationItem[] {
   return [...items].sort((a, b) => {
     const dateCmp = b.date.localeCompare(a.date);

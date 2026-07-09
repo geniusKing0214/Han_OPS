@@ -15,6 +15,11 @@ import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { useNotices } from "@/hooks/use-notices";
 import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
+import {
+  currentMonthKey,
+  filterApplicationsInMonth,
+  formatApplicationMonthLabel,
+} from "@/lib/application-grouping";
 import { countAvailableApplicationEvents } from "@/lib/schedule-availability";
 import { normalizeTeamId } from "@/lib/team-utils";
 import { statusLabels } from "@/types/application";
@@ -28,12 +33,6 @@ function toYmd(date: Date): string {
   const m = `${date.getMonth() + 1}`.padStart(2, "0");
   const d = `${date.getDate()}`.padStart(2, "0");
   return `${y}-${m}-${d}`;
-}
-
-function monthPrefix(date: Date): string {
-  const y = date.getFullYear();
-  const m = `${date.getMonth() + 1}`.padStart(2, "0");
-  return `${y}-${m}`;
 }
 
 function formatNoticeDate(iso: string): string {
@@ -55,7 +54,8 @@ export default function DashboardPage() {
     [rawApplications, events],
   );
   const today = toYmd(new Date());
-  const thisMonth = monthPrefix(new Date());
+  const thisMonth = currentMonthKey();
+  const thisMonthLabel = formatApplicationMonthLabel(thisMonth);
 
   const stats = useMemo(() => {
     const approvedApps = myApplications.filter((a) => a.status === "approved");
@@ -104,11 +104,15 @@ export default function DashboardPage() {
 
   const myBlocks = useMemo(
     () =>
-      [...myApplications]
-        .filter((a) => a.status !== "rejected")
-        .sort((a, b) => `${a.date} ${a.slotTime}`.localeCompare(`${b.date} ${b.slotTime}`))
+      filterApplicationsInMonth(
+        myApplications.filter((a) => a.status !== "rejected"),
+        thisMonth,
+      )
+        .sort((a, b) =>
+          `${b.date} ${b.slotTime}`.localeCompare(`${a.date} ${a.slotTime}`),
+        )
         .slice(0, 3),
-    [myApplications],
+    [myApplications, thisMonth],
   );
 
   return (
@@ -179,7 +183,9 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>내 신청 블록</CardTitle>
-              <CardDescription>최근 3건만 표시 · 전체는 Applications에서 확인</CardDescription>
+              <CardDescription>
+                {thisMonthLabel} 최근 3건 · 전체는 Applications에서 확인
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {appsLoading ? (
@@ -188,7 +194,7 @@ export default function DashboardPage() {
                 </p>
               ) : myBlocks.length === 0 ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  신청한 블록이 없습니다.
+                  {thisMonthLabel} 신청한 블록이 없습니다.
                 </p>
               ) : (
                 myBlocks.map((s) => (
