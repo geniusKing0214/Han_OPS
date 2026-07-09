@@ -67,14 +67,50 @@ function resolveEmail(
   return "—";
 }
 
-export type MonthStats = {
+export type RankingScope = "month" | "total";
+
+export type RankingStats = {
   totalApplications: number;
   approvedCount: number;
   completedCount: number;
   noShowCount: number;
   lateCancelCount: number;
-  monthlyPointsTotal: number;
+  pointsTotal: number;
 };
+
+/** @deprecated use RankingStats */
+export type MonthStats = RankingStats & { monthlyPointsTotal: number };
+
+function sortRankingRows(rows: RankingRow[], scope: RankingScope): RankingRow[] {
+  return [...rows].sort((a, b) => {
+    if (scope === "total") {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      if (b.approvedCount !== a.approvedCount) {
+        return b.approvedCount - a.approvedCount;
+      }
+      if (b.completedCount !== a.completedCount) {
+        return b.completedCount - a.completedCount;
+      }
+      if (b.applicationCount !== a.applicationCount) {
+        return b.applicationCount - a.applicationCount;
+      }
+      return a.name.localeCompare(b.name, "ko");
+    }
+    if (b.approvedCount !== a.approvedCount) {
+      return b.approvedCount - a.approvedCount;
+    }
+    if (b.monthlyPoints !== a.monthlyPoints) {
+      return b.monthlyPoints - a.monthlyPoints;
+    }
+    if (b.completedCount !== a.completedCount) {
+      return b.completedCount - a.completedCount;
+    }
+    if (b.applicationCount !== a.applicationCount) {
+      return b.applicationCount - a.applicationCount;
+    }
+    return a.name.localeCompare(b.name, "ko");
+  });
+}
 
 export function buildRankingRows(
   users: ListedUserRow[],
@@ -85,6 +121,7 @@ export function buildRankingRows(
     eventId?: string;
     search?: string;
   },
+  scope: RankingScope = "month",
 ): RankingRow[] {
   const venueFilter = filters.venue?.trim();
   const eventFilter = filters.eventId?.trim();
@@ -171,29 +208,16 @@ export function buildRankingRows(
     });
   }
 
-  return rows.sort((a, b) => {
-    // 승인 횟수 우선 → 월간 포인트 → 근무완료 → 신청 횟수
-    if (b.approvedCount !== a.approvedCount) {
-      return b.approvedCount - a.approvedCount;
-    }
-    if (b.monthlyPoints !== a.monthlyPoints) {
-      return b.monthlyPoints - a.monthlyPoints;
-    }
-    if (b.completedCount !== a.completedCount) {
-      return b.completedCount - a.completedCount;
-    }
-    if (b.applicationCount !== a.applicationCount) {
-      return b.applicationCount - a.applicationCount;
-    }
-    return a.name.localeCompare(b.name, "ko");
-  });
+  return sortRankingRows(rows, scope);
 }
 
-export function computeMonthStats(
+export function computeRankingStats(
   applications: ApplicationItem[],
   pointLogs: PointLogDoc[],
+  users: ListedUserRow[],
   filters: { venue?: string; eventId?: string },
-): MonthStats {
+  scope: RankingScope = "month",
+): RankingStats {
   const venueFilter = filters.venue?.trim();
   const eventFilter = filters.eventId?.trim();
   const filteredApps = applications.filter((a) => {
@@ -214,10 +238,22 @@ export function computeMonthStats(
     if (a.workStatus === "late_cancel") lateCancelCount += 1;
   }
 
-  const appIds = new Set(filteredApps.map((a) => a.id));
-  const monthlyPointsTotal = pointLogs
-    .filter((l) => appIds.has(l.application_id) || !eventFilter)
-    .reduce((sum, l) => sum + l.points, 0);
+  const pointsTotal =
+    scope === "total"
+      ? users.reduce(
+          (sum, u) =>
+            sum +
+            (typeof u.total_points === "number" ? u.total_points : 0),
+          0,
+        )
+      : eventFilter
+        ? pointLogs
+            .filter((l) => {
+              const app = filteredApps.find((a) => a.id === l.application_id);
+              return Boolean(app);
+            })
+            .reduce((s, l) => s + l.points, 0)
+        : pointLogs.reduce((s, l) => s + l.points, 0);
 
   return {
     totalApplications: filteredApps.length,
@@ -225,53 +261,96 @@ export function computeMonthStats(
     completedCount,
     noShowCount,
     lateCancelCount,
-    monthlyPointsTotal: eventFilter
-      ? pointLogs
-          .filter((l) => {
-            const app = filteredApps.find((a) => a.id === l.application_id);
-            return Boolean(app);
-          })
-          .reduce((s, l) => s + l.points, 0)
-      : pointLogs.reduce((s, l) => s + l.points, 0),
+    pointsTotal,
   };
 }
 
-export function exportRankingCsv(rows: RankingRow[], monthLabel: string): void {
-  const header = [
-    "순위",
-    "이름",
-    "이메일",
-    "신청 횟수",
-    "승인 횟수",
-    "근무완료 횟수",
-    "결근 횟수",
-    "당일취소 횟수",
-    "월간 포인트",
-    "누적 포인트",
-  ];
-  const lines = rows.map((r, i) =>
-    [
-      i + 1,
-      r.name,
-      r.email,
-      r.applicationCount,
-      r.approvedCount,
-      r.completedCount,
-      r.noShowCount,
-      r.lateCancelCount,
-      r.monthlyPoints,
-      r.totalPoints,
-    ]
-      .map((c) => `"${String(c).replace(/"/g, '""')}"`)
-      .join(","),
+/** @deprecated use computeRankingStats */
+export function computeMonthStats(
+  applications: ApplicationItem[],
+  pointLogs: PointLogDoc[],
+  filters: { venue?: string; eventId?: string },
+): MonthStats {
+  const stats = computeRankingStats(
+    applications,
+    pointLogs,
+    [],
+    filters,
+    "month",
   );
+  return { ...stats, monthlyPointsTotal: stats.pointsTotal };
+}
+
+export function exportRankingCsv(
+  rows: RankingRow[],
+  label: string,
+  scope: RankingScope = "month",
+): void {
+  const header =
+    scope === "total"
+      ? [
+          "순위",
+          "이름",
+          "이메일",
+          "누적 신청 횟수",
+          "누적 승인 횟수",
+          "누적 근무완료 횟수",
+          "누적 결근 횟수",
+          "누적 당일취소 횟수",
+          "누적 포인트",
+        ]
+      : [
+          "순위",
+          "이름",
+          "이메일",
+          "신청 횟수",
+          "승인 횟수",
+          "근무완료 횟수",
+          "결근 횟수",
+          "당일취소 횟수",
+          "월간 포인트",
+          "누적 포인트",
+        ];
+  const lines = rows.map((r, i) => {
+    const cols =
+      scope === "total"
+        ? [
+            i + 1,
+            r.name,
+            r.email,
+            r.applicationCount,
+            r.approvedCount,
+            r.completedCount,
+            r.noShowCount,
+            r.lateCancelCount,
+            r.totalPoints,
+          ]
+        : [
+            i + 1,
+            r.name,
+            r.email,
+            r.applicationCount,
+            r.approvedCount,
+            r.completedCount,
+            r.noShowCount,
+            r.lateCancelCount,
+            r.monthlyPoints,
+            r.totalPoints,
+          ];
+    return cols
+      .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+      .join(",");
+  });
   const bom = "\uFEFF";
   const csv = bom + [header.join(","), ...lines].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `han-ops-ranking-${monthLabel}.csv`;
+  a.download =
+    scope === "total"
+      ? `han-ops-ranking-total.csv`
+      : `han-ops-ranking-${label}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -17,11 +17,15 @@ import { AdminPointAdjustForm } from "@/components/admin/admin-point-adjust-form
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   buildRankingRows,
-  computeMonthStats,
+  computeRankingStats,
   exportRankingCsv,
   type RankingRow,
+  type RankingScope,
 } from "@/lib/admin-ranking";
-import { subscribeApplicationsInMonthForAdmin } from "@/lib/firestore-applications";
+import {
+  subscribeAllApplicationsForAdmin,
+  subscribeApplicationsInMonthForAdmin,
+} from "@/lib/firestore-applications";
 import { subscribePointLogsByMonth, subscribePointLogsByUser } from "@/lib/firestore-points";
 import { subscribeAllUsersForAdmin, type ListedUserRow } from "@/lib/firestore-users";
 import {
@@ -42,6 +46,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetContent,
@@ -82,6 +87,7 @@ function rankMedal(rank: number): string | null {
 export function PointsDashboard() {
   const { isAdmin, user, profile } = useAuth();
   const { events } = useEvents();
+  const [rankingScope, setRankingScope] = useState<RankingScope>("month");
   const [monthKey, setMonthKey] = useState(currentMonthKey);
   const [venue, setVenue] = useState("");
   const [eventId, setEventId] = useState("");
@@ -100,36 +106,63 @@ export function PointsDashboard() {
     if (!isAdmin) return;
     setLoading(true);
     setError("");
-    const unsubs = [
-      subscribeApplicationsInMonthForAdmin(
-        monthKey,
-        (items) => {
-          setApplications(items);
-          setLoading(false);
-        },
-        (e) => {
-          setError(e.message);
-          setLoading(false);
-        },
-      ),
-      subscribePointLogsByMonth(monthKey, setPointLogs),
+    const unsubs: (() => void)[] = [
       subscribeAllUsersForAdmin(setUsers, (e) => setError(e.message)),
     ];
+
+    if (rankingScope === "month") {
+      unsubs.push(
+        subscribeApplicationsInMonthForAdmin(
+          monthKey,
+          (items) => {
+            setApplications(items);
+            setLoading(false);
+          },
+          (e) => {
+            setError(e.message);
+            setLoading(false);
+          },
+        ),
+        subscribePointLogsByMonth(monthKey, setPointLogs),
+      );
+    } else {
+      unsubs.push(
+        subscribeAllApplicationsForAdmin(
+          (items) => {
+            setApplications(items);
+            setLoading(false);
+          },
+          (e) => {
+            setError(e.message);
+            setLoading(false);
+          },
+        ),
+      );
+      setPointLogs([]);
+    }
+
     return () => unsubs.forEach((u) => u());
-  }, [isAdmin, monthKey]);
+  }, [isAdmin, monthKey, rankingScope]);
 
   useEffect(() => {
     if (!selected?.userId || !isAdmin) {
       setUserLogs([]);
       return;
     }
-    return subscribePointLogsByUser(selected.userId, monthKey, setUserLogs);
-  }, [selected?.userId, monthKey, isAdmin]);
+    return subscribePointLogsByUser(
+      selected.userId,
+      rankingScope === "month" ? monthKey : null,
+      setUserLogs,
+    );
+  }, [selected?.userId, monthKey, rankingScope, isAdmin]);
 
-  const monthEvents = useMemo(
-    () => eventsInMonth(events, monthKey),
-    [events, monthKey],
+  const filterEvents = useMemo(
+    () =>
+      rankingScope === "month" ? eventsInMonth(events, monthKey) : events,
+    [events, monthKey, rankingScope],
   );
+
+  const monthEvents = filterEvents;
 
   const venues = useMemo(
     () => uniqueVenuesFromEvents(monthEvents),
@@ -169,17 +202,30 @@ export function PointsDashboard() {
   );
 
   const ranking = useMemo(
-    () => buildRankingRows(users, liveApplications, livePointLogs, filters),
-    [users, liveApplications, livePointLogs, filters],
+    () =>
+      buildRankingRows(
+        users,
+        liveApplications,
+        livePointLogs,
+        filters,
+        rankingScope,
+      ),
+    [users, liveApplications, livePointLogs, filters, rankingScope],
   );
 
   const stats = useMemo(
     () =>
-      computeMonthStats(liveApplications, livePointLogs, {
-        venue: venue || undefined,
-        eventId: eventId || undefined,
-      }),
-    [liveApplications, livePointLogs, venue, eventId],
+      computeRankingStats(
+        liveApplications,
+        livePointLogs,
+        users,
+        {
+          venue: venue || undefined,
+          eventId: eventId || undefined,
+        },
+        rankingScope,
+      ),
+    [liveApplications, livePointLogs, users, venue, eventId, rankingScope],
   );
 
   useEffect(() => {
@@ -226,40 +272,42 @@ export function PointsDashboard() {
     );
   }
 
+  const isTotal = rankingScope === "total";
+
   const statCards = [
     {
-      label: "총 신청",
+      label: isTotal ? "누적 신청" : "총 신청",
       value: stats.totalApplications,
       icon: ClipboardList,
       tone: "text-violet-400",
     },
     {
-      label: "승인",
+      label: isTotal ? "누적 승인" : "승인",
       value: stats.approvedCount,
       icon: CheckCircle2,
       tone: "text-blue-400",
     },
     {
-      label: "근무완료",
+      label: isTotal ? "누적 근무완료" : "근무완료",
       value: stats.completedCount,
       icon: CheckCircle2,
       tone: "text-emerald-400",
     },
     {
-      label: "결근",
+      label: isTotal ? "누적 결근" : "결근",
       value: stats.noShowCount,
       icon: CalendarX2,
       tone: "text-red-400",
     },
     {
-      label: "당일취소",
+      label: isTotal ? "누적 당일취소" : "당일취소",
       value: stats.lateCancelCount,
       icon: CalendarX2,
       tone: "text-amber-400",
     },
     {
-      label: "이번 달 포인트",
-      value: `${stats.monthlyPointsTotal.toLocaleString()}P`,
+      label: isTotal ? "누적 포인트 합계" : "이번 달 포인트",
+      value: `${stats.pointsTotal.toLocaleString()}P`,
       icon: Star,
       tone: "text-accent",
     },
@@ -295,21 +343,23 @@ export function PointsDashboard() {
         </div>
         <div className="grid grid-cols-2 gap-2 text-center text-xs">
           <div className="rounded-md bg-muted/40 py-2">
-            <p className="text-muted-foreground">신청</p>
+            <p className="text-muted-foreground">{isTotal ? "누적 신청" : "신청"}</p>
             <p className="font-medium tabular-nums">{selected.applicationCount}</p>
           </div>
           <div className="rounded-md bg-muted/40 py-2">
-            <p className="text-muted-foreground">승인</p>
+            <p className="text-muted-foreground">{isTotal ? "누적 승인" : "승인"}</p>
             <p className="font-medium tabular-nums">{selected.approvedCount}</p>
           </div>
           <div className="rounded-md bg-muted/40 py-2">
-            <p className="text-muted-foreground">근무완료</p>
+            <p className="text-muted-foreground">
+              {isTotal ? "누적 근무완료" : "근무완료"}
+            </p>
             <p className="font-medium tabular-nums text-emerald-400">
               {selected.completedCount}
             </p>
           </div>
           <div className="rounded-md bg-muted/40 py-2">
-            <p className="text-muted-foreground">결근</p>
+            <p className="text-muted-foreground">{isTotal ? "누적 결근" : "결근"}</p>
             <p className="font-medium tabular-nums text-red-400">
               {selected.noShowCount}
             </p>
@@ -324,7 +374,7 @@ export function PointsDashboard() {
         ) : null}
         <div>
           <p className="mb-2 text-sm font-medium">
-            포인트 내역 ({formatMonthLabel(monthKey)})
+            포인트 내역 ({isTotal ? "전체" : formatMonthLabel(monthKey)})
           </p>
           <ScrollArea className="max-h-[min(14rem,38dvh)] pr-2 lg:h-56 lg:max-h-none">
             {selectedUserLogs.length === 0 ? (
@@ -389,8 +439,9 @@ export function PointsDashboard() {
             포인트/랭킹 관리
           </h2>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            유저별 신청·근무 현황과 포인트를 확인합니다. 순위는 승인 횟수 →
-            월간 포인트 순으로 반영됩니다.
+            {isTotal
+              ? "유저별 누적 신청·근무 횟수와 총 포인트를 확인합니다. 순위는 누적 포인트 → 승인 횟수 순입니다."
+              : "유저별 신청·근무 현황과 포인트를 확인합니다. 순위는 승인 횟수 → 월간 포인트 순으로 반영됩니다."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
@@ -435,17 +486,33 @@ export function PointsDashboard() {
         ))}
       </div>
 
+      <Tabs
+        value={rankingScope}
+        onValueChange={(v) => setRankingScope(v as RankingScope)}
+      >
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="month" className="flex-1 sm:flex-none">
+            월간 랭킹
+          </TabsTrigger>
+          <TabsTrigger value="total" className="flex-1 sm:flex-none">
+            누적 랭킹
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <Card>
         <CardContent className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:flex lg:flex-row lg:flex-wrap lg:items-end">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">월 선택</label>
-            <Input
-              type="month"
-              value={monthKey}
-              onChange={(e) => setMonthKey(e.target.value)}
-              className="w-full tabular-nums"
-            />
-          </div>
+          {rankingScope === "month" ? (
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">월 선택</label>
+              <Input
+                type="month"
+                value={monthKey}
+                onChange={(e) => setMonthKey(e.target.value)}
+                className="w-full tabular-nums"
+              />
+            </div>
+          ) : null}
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">매장</label>
             <select
@@ -505,7 +572,7 @@ export function PointsDashboard() {
               type="button"
               variant="accent"
               className="w-full min-h-9 gap-1.5"
-              onClick={() => exportRankingCsv(ranking, monthKey)}
+              onClick={() => exportRankingCsv(ranking, monthKey, rankingScope)}
               disabled={ranking.length === 0}
             >
               <Download className="size-4 shrink-0" />
@@ -526,7 +593,9 @@ export function PointsDashboard() {
           <CardHeader className="flex flex-row items-center gap-2 pb-3">
             <Trophy className="size-5 text-accent" />
             <CardTitle className="text-base">
-              랭킹 리스트 ({formatMonthLabel(monthKey)})
+              {isTotal
+                ? "누적 랭킹 리스트 (전체)"
+                : `랭킹 리스트 (${formatMonthLabel(monthKey)})`}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -547,12 +616,24 @@ export function PointsDashboard() {
                         <th className="px-4 py-2 font-medium">순위</th>
                         <th className="px-2 py-2 font-medium">이름</th>
                         <th className="px-2 py-2 font-medium">이메일</th>
-                        <th className="px-2 py-2 text-right font-medium">신청</th>
-                        <th className="px-2 py-2 text-right font-medium">승인</th>
-                        <th className="px-2 py-2 text-right font-medium">완료</th>
-                        <th className="px-2 py-2 text-right font-medium">결근</th>
-                        <th className="px-2 py-2 text-right font-medium">당취</th>
-                        <th className="px-2 py-2 text-right font-medium">월간</th>
+                        <th className="px-2 py-2 text-right font-medium">
+                          {isTotal ? "누적 신청" : "신청"}
+                        </th>
+                        <th className="px-2 py-2 text-right font-medium">
+                          {isTotal ? "누적 승인" : "승인"}
+                        </th>
+                        <th className="px-2 py-2 text-right font-medium">
+                          {isTotal ? "누적 완료" : "완료"}
+                        </th>
+                        <th className="px-2 py-2 text-right font-medium">
+                          {isTotal ? "누적 결근" : "결근"}
+                        </th>
+                        <th className="px-2 py-2 text-right font-medium">
+                          {isTotal ? "누적 당취" : "당취"}
+                        </th>
+                        {!isTotal ? (
+                          <th className="px-2 py-2 text-right font-medium">월간</th>
+                        ) : null}
                         <th className="px-4 py-2 text-right font-medium">누적</th>
                       </tr>
                     </thead>
@@ -593,10 +674,17 @@ export function PointsDashboard() {
                             <td className="px-2 py-2.5 text-right tabular-nums text-amber-400">
                               {row.lateCancelCount}
                             </td>
-                            <td className="px-2 py-2.5 text-right font-medium tabular-nums text-accent">
-                              {row.monthlyPoints}P
-                            </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">
+                            {!isTotal ? (
+                              <td className="px-2 py-2.5 text-right font-medium tabular-nums text-accent">
+                                {row.monthlyPoints}P
+                              </td>
+                            ) : null}
+                            <td
+                              className={cn(
+                                "px-4 py-2.5 text-right tabular-nums",
+                                isTotal && "font-medium text-accent",
+                              )}
+                            >
                               {row.totalPoints.toLocaleString()}P
                             </td>
                           </tr>
@@ -640,10 +728,14 @@ export function PointsDashboard() {
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-sm font-semibold text-accent tabular-nums">
-                              승인 {row.approvedCount}
+                              {isTotal
+                                ? `${row.totalPoints.toLocaleString()}P`
+                                : `승인 ${row.approvedCount}`}
                             </p>
                             <p className="text-[10px] text-muted-foreground tabular-nums">
-                              {row.monthlyPoints}P
+                              {isTotal
+                                ? `승인 ${row.approvedCount}`
+                                : `${row.monthlyPoints}P`}
                             </p>
                           </div>
                         </button>
@@ -651,13 +743,17 @@ export function PointsDashboard() {
                           <div className="space-y-3 border-t border-border px-3 pb-3 pt-2">
                             <div className="grid grid-cols-2 gap-1.5 text-center text-[11px] min-[360px]:grid-cols-3 sm:grid-cols-6 sm:text-xs">
                               <div className="rounded-md bg-background/60 px-1 py-1.5">
-                                <p className="text-muted-foreground">신청</p>
+                                <p className="text-muted-foreground">
+                                  {isTotal ? "누적 신청" : "신청"}
+                                </p>
                                 <p className="font-medium tabular-nums">
                                   {row.applicationCount}
                                 </p>
                               </div>
                               <div className="rounded-md bg-background/60 px-1 py-1.5">
-                                <p className="text-muted-foreground">승인</p>
+                                <p className="text-muted-foreground">
+                                  {isTotal ? "누적 승인" : "승인"}
+                                </p>
                                 <p className="font-medium tabular-nums">
                                   {row.approvedCount}
                                 </p>

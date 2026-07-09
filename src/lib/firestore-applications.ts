@@ -229,6 +229,45 @@ function lastDayOfMonth(monthKey: string): string {
   return `${monthKey}-${String(last).padStart(2, "0")}`;
 }
 
+/** 관리자: 전체 신청 구독 (누적 랭킹용) */
+export function subscribeAllApplicationsForAdmin(
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      innerUnsub = onSnapshot(
+        collection(db, APPLICATIONS_COLLECTION),
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "관리자 권한이 필요합니다.",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
 /** 관리자: 월간 신청 전체 구독 (date 필드 범위) */
 export function subscribeApplicationsInMonthForAdmin(
   monthKey: string,
