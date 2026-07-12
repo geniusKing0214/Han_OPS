@@ -4,6 +4,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileTopBar } from "@/components/layout/mobile-top-bar";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { PwaSetupBanner } from "@/components/pwa/pwa-setup-banner";
+import { MobilePushPrompt } from "@/components/pwa/mobile-push-prompt";
 import { WebPushProvider } from "@/components/providers/web-push-provider";
 
 export default function AppLayout({
@@ -22,6 +23,7 @@ export default function AppLayout({
             <main className="flex-1 overflow-x-clip px-4 py-6 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px)+1rem)] md:px-8 md:py-10 md:pb-10">
               <div className="mx-auto w-full min-w-0 max-w-5xl">
                 <PwaSetupBanner />
+                <MobilePushPrompt />
                 {children}
               </div>
             </main>

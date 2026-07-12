@@ -62,6 +62,9 @@ export function PwaSetupBanner() {
       await installPrompt.userChoice;
       setInstallPrompt(null);
       setStandalone(isStandalonePwa());
+      if (configured && supported) {
+        void enablePush();
+      }
     } finally {
       setInstalling(false);
     }

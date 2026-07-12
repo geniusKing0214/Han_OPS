@@ -19,6 +19,7 @@ type PushBody = {
   title?: string;
   message?: string;
   type?: string;
+  notificationId?: string;
 };
 
 const PUSH_TYPES = new Set([
@@ -137,6 +138,7 @@ async function sendFcm(
   body: string,
   url: string,
   type: string,
+  notificationId?: string,
 ): Promise<boolean> {
   const projectId = env.FIREBASE_PROJECT_ID;
   const icon = `${env.APP_ORIGIN.replace(/\/$/, "")}${env.APP_BASE_PATH.replace(/\/$/, "")}/icons/icon-192.png`;
@@ -153,8 +155,15 @@ async function sendFcm(
         message: {
           token,
           notification: { title, body },
-          data: { type, url, title, body },
+          data: {
+            type,
+            url,
+            title,
+            body,
+            ...(notificationId ? { notificationId } : {}),
+          },
           webpush: {
+            headers: { Urgency: "high" },
             fcm_options: { link: url },
             notification: { title, body, icon },
           },
@@ -193,6 +202,7 @@ export default {
     const type = body.type?.trim();
     const title = body.title?.trim() || "HAN OPS";
     const message = body.message?.trim() || "";
+    const notificationId = body.notificationId?.trim();
 
     if (!targetUserId || !type || !PUSH_TYPES.has(type)) {
       return json({ error: "invalid payload" }, 400);
@@ -223,6 +233,7 @@ export default {
           message,
           url,
           type,
+          notificationId,
         );
         if (ok) sent += 1;
       }

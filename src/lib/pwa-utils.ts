@@ -23,6 +23,10 @@ export function isAndroidDevice(): boolean {
   return /Android/i.test(navigator.userAgent);
 }
 
+export function isMobileDevice(): boolean {
+  return isIosDevice() || isAndroidDevice();
+}
+
 /** iOS는 홈 화면(PWA) 설치 후에만 백그라운드 푸시가 안정적입니다. */
 export function needsPwaInstallForBackgroundPush(): boolean {
   return isIosDevice() && !isStandalonePwa();

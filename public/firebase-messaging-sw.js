@@ -45,6 +45,8 @@ messaging.onBackgroundMessage((payload) => {
     data: { url, type },
     tag: payload.data?.notificationId || type,
     renotify: true,
+    vibrate: [180, 80, 180],
+    requireInteraction: false,
   });
 });
 

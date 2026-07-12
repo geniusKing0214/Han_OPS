@@ -143,7 +143,7 @@ type NotificationPayload = {
 };
 
 async function createNotificationDoc(payload: NotificationPayload) {
-  await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
+  const ref = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
     ...payload,
     isRead: false,
     createdAt: serverTimestamp(),
@@ -160,6 +160,7 @@ async function createNotificationDoc(payload: NotificationPayload) {
       title: payload.title,
       message: payload.message,
       type: payload.type,
+      notificationId: ref.id,
     }).catch(() => {
       // Worker 미설정·일시 오류 시 in-app 알림은 유지
     });

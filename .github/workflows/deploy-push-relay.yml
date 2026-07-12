@@ -1,0 +1,56 @@
+# Cloudflare Worker로 FCM 백그라운드 푸시 릴레이 배포
+# GitHub → Settings → Secrets and variables → Actions 에 아래 Secret 등록 후 실행:
+#   CLOUDFLARE_API_TOKEN   — Cloudflare 대시보드 → API Tokens (Workers Edit)
+#   CLOUDFLARE_ACCOUNT_ID  — Cloudflare 대시보드 우측 Account ID
+#   FIREBASE_SERVICE_ACCOUNT — Firebase Console → 서비스 계정 → JSON 키 전체 내용
+#   PUSH_API_SECRET        — 임의의 긴 비밀문자열 (NEXT_PUBLIC_PUSH_API_SECRET 과 동일)
+#
+# 배포 후 Worker URL을 GitHub Secret/Variable NEXT_PUBLIC_PUSH_RELAY_URL 에 등록하고
+# 앱(GitHub Pages)을 다시 배포하세요.
+
+name: Deploy Push Relay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/push-relay
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: workers/push-relay/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PUSH_API_SECRET: ${{ secrets.PUSH_API_SECRET }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | npx wrangler secret put FIREBASE_SERVICE_ACCOUNT
+          printf '%s' "$PUSH_API_SECRET" | npx wrangler secret put PUSH_API_SECRET
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Worker URL hint
+        run: |
+          echo "배포 완료. Cloudflare Workers 대시보드에서 han-ops-push-relay URL을 확인한 뒤"
+          echo "GitHub Secret NEXT_PUBLIC_PUSH_RELAY_URL 에 등록하고 Pages를 재배포하세요."

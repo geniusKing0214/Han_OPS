@@ -144,6 +144,32 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
   }, [user, canAccessApp, configured, supported]);
 
   useEffect(() => {
+    if (!user || !canAccessApp || !configured || !supported) return;
+
+    const refreshToken = () => {
+      if (document.visibilityState !== "visible") return;
+      if (getNotificationPermission() !== "granted") return;
+      void (async () => {
+        const result = await obtainFcmToken();
+        if (!result.ok) return;
+        try {
+          await saveFcmToken(user.uid, result.token);
+          setEnabled(true);
+        } catch {
+          // 토큰 갱신 실패는 무시
+        }
+      })();
+    };
+
+    document.addEventListener("visibilitychange", refreshToken);
+    window.addEventListener("focus", refreshToken);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshToken);
+      window.removeEventListener("focus", refreshToken);
+    };
+  }, [user, canAccessApp, configured, supported]);
+
+  useEffect(() => {
     if (!configured || !supported || getNotificationPermission() !== "granted") return;
 
     const unsub = subscribeForegroundMessages((payload) => {

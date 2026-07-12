@@ -41,8 +41,14 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         isSignedIn()
         && request.auth.uid == userId
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.accountStatus == resource.data.accountStatus
+        && (
+          (
+            request.resource.data.role == resource.data.role
+            && request.resource.data.accountStatus == resource.data.accountStatus
+          )
+          ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmTokens'])
+        )
       );
     }
 
