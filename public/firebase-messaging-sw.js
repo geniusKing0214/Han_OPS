@@ -31,6 +31,29 @@ function iconUrl(size) {
 }
 
 messaging.onBackgroundMessage((payload) => {
+  showPushNotification(payload);
+});
+
+/** iOS PWA: onBackgroundMessage 미호출 시 push 이벤트 폴백 */
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  event.waitUntil(
+    (async () => {
+      try {
+        const raw = event.data.json();
+        const payload =
+          raw && typeof raw === "object" && raw.data
+            ? { data: raw.data, notification: raw.notification }
+            : { data: raw };
+        await showPushNotification(payload);
+      } catch {
+        // FCM SDK가 이미 처리한 경우 무시
+      }
+    })(),
+  );
+});
+
+function showPushNotification(payload) {
   const type = payload.data?.type || "";
   if (!PUSH_TYPES.has(type)) return;
 
@@ -38,7 +61,7 @@ messaging.onBackgroundMessage((payload) => {
   const body = payload.notification?.body || payload.data?.body || "";
   const url = resolveAbsoluteUrl(payload.data?.url);
 
-  self.registration.showNotification(title, {
+  return self.registration.showNotification(title, {
     body,
     icon: iconUrl(192),
     badge: iconUrl(192),
@@ -48,7 +71,7 @@ messaging.onBackgroundMessage((payload) => {
     vibrate: [180, 80, 180],
     requireInteraction: false,
   });
-});
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

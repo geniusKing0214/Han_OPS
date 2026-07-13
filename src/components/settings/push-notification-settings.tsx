@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BellRing, CheckCircle2, XCircle } from "lucide-react";
+import { BellRing, CheckCircle2, Send, XCircle } from "lucide-react";
 
+import { useAuth } from "@/components/providers/auth-provider";
 import { useWebPush } from "@/components/providers/web-push-provider";
 import { withBasePath } from "@/lib/base-path";
 import {
@@ -18,7 +19,7 @@ import {
   isStandalonePwa,
   needsPwaInstallForBackgroundPush,
 } from "@/lib/pwa-utils";
-import { isPushRelayConfigured } from "@/lib/push-relay";
+import { isPushRelayConfigured, sendTestPushToSelf } from "@/lib/push-relay";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -64,6 +65,7 @@ function StatusRow({
 }
 
 export function PushNotificationSettings() {
+  const { user } = useAuth();
   const {
     enabling,
     enabled,
@@ -78,6 +80,8 @@ export function PushNotificationSettings() {
   const [checking, setChecking] = useState(true);
   const [swOk, setSwOk] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [testingPush, setTestingPush] = useState(false);
+  const [testPushResult, setTestPushResult] = useState("");
 
   const runChecks = useCallback(async () => {
     setChecking(true);
@@ -116,6 +120,41 @@ export function PushNotificationSettings() {
     await runChecks();
   };
 
+  const handleTestPush = async () => {
+    if (!user) {
+      setTestPushResult("로그인이 필요합니다.");
+      return;
+    }
+    setTestingPush(true);
+    setTestPushResult("");
+    try {
+      const result = await sendTestPushToSelf(user.uid);
+      if (result.sent && result.sent > 0) {
+        setTestPushResult(
+          `테스트 푸시 발송 성공 (${result.sent}/${result.total ?? result.sent}대). 앱을 완전히 종료한 뒤 10초 안에 알림이 오는지 확인하세요.`,
+        );
+      } else if (result.reason === "no_tokens") {
+        setTestPushResult(
+          "Firestore에 FCM 토큰이 없습니다. VAPID 키 변경 후 「푸시 등록 / 다시 등록」을 먼저 눌러주세요.",
+        );
+      } else if (result.errors?.length) {
+        setTestPushResult(
+          `FCM 발송 실패: ${result.errors[0]} — 「푸시 등록 / 다시 등록」 후 재시도하세요.`,
+        );
+      } else {
+        setTestPushResult(
+          result.error ?? "푸시 발송에 실패했습니다. 잠시 후 다시 시도하세요.",
+        );
+      }
+    } catch (err) {
+      setTestPushResult(
+        err instanceof Error ? err.message : "테스트 푸시 요청에 실패했습니다.",
+      );
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
   const permission = getNotificationPermission();
   const configured = isWebPushConfigured();
   const vapidValidation = validateVapidPublicKey(getVapidKey());
@@ -132,7 +171,7 @@ export function PushNotificationSettings() {
         <CardTitle className="text-base">푸시 알림 (백그라운드)</CardTitle>
         <CardDescription>
           앱을 닫아도 알림을 받으려면 아래 항목이 모두 필요합니다. VAPID 키를
-          바꾼 뒤에는 다시 「푸시 등록」을 눌러주세요.
+          바꾼 뒤에는 반드시 「푸시 등록」을 다시 눌러주세요.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -216,6 +255,18 @@ export function PushNotificationSettings() {
           </p>
         ) : null}
 
+        {testPushResult ? (
+          <p
+            className={`rounded-md border px-3 py-2 text-xs ${
+              testPushResult.includes("성공")
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+            }`}
+          >
+            {testPushResult}
+          </p>
+        ) : null}
+
         <div className="flex flex-wrap gap-2 pt-1">
           <Button
             type="button"
@@ -227,6 +278,17 @@ export function PushNotificationSettings() {
           >
             <BellRing className="size-3.5" />
             {enabling ? "등록 중…" : "푸시 등록 / 다시 등록"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={testingPush || !relayConfigured || !hasSavedToken || !user}
+            onClick={() => void handleTestPush()}
+          >
+            <Send className="size-3.5" />
+            {testingPush ? "발송 중…" : "테스트 푸시 보내기"}
           </Button>
           <Button
             type="button"

@@ -139,10 +139,10 @@ async function sendFcm(
   url: string,
   type: string,
   notificationId?: string,
-): Promise<boolean> {
+): Promise<{ ok: boolean; error?: string }> {
   const projectId = env.FIREBASE_PROJECT_ID;
-  const icon = `${env.APP_ORIGIN.replace(/\/$/, "")}${env.APP_BASE_PATH.replace(/\/$/, "")}/icons/icon-192.png`;
 
+  // iOS PWA 백그라운드: notification 필드 없이 data-only 가 Service Worker 수신에 유리
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
     {
@@ -154,7 +154,6 @@ async function sendFcm(
       body: JSON.stringify({
         message: {
           token,
-          notification: { title, body },
           data: {
             type,
             url,
@@ -163,16 +162,20 @@ async function sendFcm(
             ...(notificationId ? { notificationId } : {}),
           },
           webpush: {
-            headers: { Urgency: "high" },
+            headers: {
+              Urgency: "high",
+              TTL: "86400",
+            },
             fcm_options: { link: url },
-            notification: { title, body, icon },
           },
         },
       }),
     },
   );
 
-  return res.ok;
+  if (res.ok) return { ok: true };
+  const text = await res.text().catch(() => "");
+  return { ok: false, error: text || `fcm ${res.status}` };
 }
 
 export default {
@@ -224,8 +227,9 @@ export default {
 
       const url = resolveOpenUrl(env, type);
       let sent = 0;
+      const errors: string[] = [];
       for (const token of tokens) {
-        const ok = await sendFcm(
+        const result = await sendFcm(
           env,
           accessToken,
           token,
@@ -235,10 +239,19 @@ export default {
           type,
           notificationId,
         );
-        if (ok) sent += 1;
+        if (result.ok) {
+          sent += 1;
+        } else if (result.error) {
+          errors.push(result.error.slice(0, 200));
+        }
       }
 
-      return json({ ok: true, sent, total: tokens.length });
+      return json({
+        ok: true,
+        sent,
+        total: tokens.length,
+        ...(errors.length > 0 ? { errors: errors.slice(0, 3) } : {}),
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "push failed";
       return json({ error: msg }, 500);

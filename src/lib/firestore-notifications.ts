@@ -161,8 +161,8 @@ async function createNotificationDoc(payload: NotificationPayload) {
       message: payload.message,
       type: payload.type,
       notificationId: ref.id,
-    }).catch(() => {
-      // Worker 미설정·일시 오류 시 in-app 알림은 유지
+    }).catch((err) => {
+      console.warn("[push-relay]", err);
     });
   }
 }
