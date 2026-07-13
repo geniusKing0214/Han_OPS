@@ -16,6 +16,8 @@ export function WebPushSetup() {
     permission,
     enabled,
     pushError,
+    pushSuccessMessage,
+    registeredTokenPreview,
   } = useWebPush();
 
   if (!supported || !configured) return null;
@@ -33,6 +35,7 @@ export function WebPushSetup() {
     return (
       <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
         백그라운드 푸시 알림이 켜져 있습니다.
+        {registeredTokenPreview ? ` (${registeredTokenPreview})` : ""}
       </p>
     );
   }
@@ -43,6 +46,12 @@ export function WebPushSetup() {
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
           알림 권한은 허용됐지만 토큰 등록에 실패했습니다. 아래 버튼으로 다시
           시도하세요.
+        </p>
+      ) : null}
+
+      {pushSuccessMessage ? (
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+          ✅ {pushSuccessMessage}
         </p>
       ) : null}
 

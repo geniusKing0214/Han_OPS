@@ -257,6 +257,19 @@ export async function saveFcmToken(uid: string, token: string) {
   });
 }
 
+export async function getUserFcmTokens(uid: string): Promise<string[]> {
+  const snap = await getDoc(doc(db, USERS_COLLECTION, uid));
+  if (!snap.exists()) return [];
+  const raw = (snap.data() as UserProfileDoc).fcmTokens;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((t): t is string => typeof t === "string" && t.length > 0);
+}
+
+export async function verifyFcmTokenSaved(uid: string, token: string): Promise<boolean> {
+  const tokens = await getUserFcmTokens(uid);
+  return tokens.includes(token.trim());
+}
+
 export async function removeFcmToken(uid: string, token: string) {
   const trimmed = token.trim();
   if (!trimmed) return;

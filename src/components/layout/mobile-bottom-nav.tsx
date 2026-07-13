@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,6 +114,7 @@ export function MobileBottomNav({ className }: { className?: string }) {
                 </Link>
               </SheetClose>
               <Separator className="my-2" />
+              <LogoutButton fullWidth variant="outline" />
               <p className="text-xs text-muted-foreground">
                 한손 조작을 위해 주 메뉴는 하단 고정입니다.
               </p>

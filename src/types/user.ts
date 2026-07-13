@@ -19,4 +19,6 @@ export type UserProfileDoc = {
   phone?: string;
   /** 누적 포인트 */
   total_points?: number;
+  /** FCM 웹 푸시 토큰 (기기별) */
+  fcmTokens?: string[];
 };

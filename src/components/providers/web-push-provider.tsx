@@ -21,7 +21,7 @@ import {
   showBrowserNotification,
   subscribeForegroundMessages,
 } from "@/lib/firebase-messaging";
-import { saveFcmToken } from "@/lib/firestore-users";
+import { saveFcmToken, verifyFcmTokenSaved, getUserFcmTokens } from "@/lib/firestore-users";
 import { getNotificationPermission } from "@/lib/notification-api";
 import type { NotificationItem } from "@/types/notification";
 
@@ -43,6 +43,18 @@ function openUrlForNotification(item: NotificationItem): string {
   return withBasePath("/dashboard");
 }
 
+function tokenPreview(token: string): string {
+  return `${token.slice(0, 12)}…`;
+}
+
+export type EnablePushResult = {
+  ok: boolean;
+  message?: string;
+  error?: string;
+  tokenPreview?: string;
+  verified?: boolean;
+};
+
 type WebPushContextValue = {
   supported: boolean;
   configured: boolean;
@@ -50,10 +62,15 @@ type WebPushContextValue = {
   enabling: boolean;
   enabled: boolean;
   pushError: string;
+  pushSuccessMessage: string;
+  registeredTokenPreview: string;
+  savedTokenCount: number;
   shouldShowBanner: boolean;
-  enablePush: () => Promise<boolean>;
+  enablePush: () => Promise<EnablePushResult>;
+  refreshTokenStatus: () => Promise<void>;
   dismissBanner: () => void;
   clearPushError: () => void;
+  clearPushSuccess: () => void;
 };
 
 const WebPushContext = createContext<WebPushContextValue | undefined>(undefined);
@@ -67,6 +84,9 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
   const [enabling, setEnabling] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [pushSuccessMessage, setPushSuccessMessage] = useState("");
+  const [registeredTokenPreview, setRegisteredTokenPreview] = useState("");
+  const [savedTokenCount, setSavedTokenCount] = useState(0);
   const [bannerDismissed, setBannerDismissed] = useState(true);
   const seenNotificationIds = useRef<Set<string>>(new Set());
   const initializedSeen = useRef(false);
@@ -87,15 +107,39 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
   }, [canAccessApp]);
 
   const clearPushError = useCallback(() => setPushError(""), []);
+  const clearPushSuccess = useCallback(() => setPushSuccessMessage(""), []);
 
-  const enablePush = useCallback(async () => {
+  const refreshTokenStatus = useCallback(async () => {
     if (!user) {
-      setPushError("로그인이 필요합니다.");
-      return false;
+      setSavedTokenCount(0);
+      setRegisteredTokenPreview("");
+      setEnabled(false);
+      return;
+    }
+    const tokens = await getUserFcmTokens(user.uid);
+    setSavedTokenCount(tokens.length);
+    if (tokens.length > 0) {
+      setRegisteredTokenPreview(tokenPreview(tokens[tokens.length - 1]!));
+      setEnabled(true);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !canAccessApp) return;
+    void refreshTokenStatus();
+  }, [user, canAccessApp, refreshTokenStatus]);
+
+  const enablePush = useCallback(async (): Promise<EnablePushResult> => {
+    if (!user) {
+      const error = "로그인이 필요합니다.";
+      setPushError(error);
+      setPushSuccessMessage("");
+      return { ok: false, error };
     }
 
     setEnabling(true);
     setPushError("");
+    setPushSuccessMessage("");
 
     try {
       const result = await obtainFcmToken();
@@ -103,24 +147,46 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
 
       if (!result.ok) {
         setPushError(result.error);
-        return false;
+        return { ok: false, error: result.error };
       }
+
+      const preview = tokenPreview(result.token);
 
       try {
         await saveFcmToken(user.uid, result.token);
       } catch (err) {
-        setPushError(
+        const error =
           err instanceof Error
             ? `토큰 저장 실패: ${err.message}`
-            : "Firestore에 토큰을 저장하지 못했습니다.",
-        );
-        return false;
+            : "Firestore에 토큰을 저장하지 못했습니다.";
+        setPushError(error);
+        return { ok: false, error };
       }
 
-      setEnabled(true);
+      let verified = false;
+      try {
+        verified = await verifyFcmTokenSaved(user.uid, result.token);
+      } catch {
+        verified = false;
+      }
+
+      if (!verified) {
+        const error =
+          "토큰은 발급됐지만 Firestore 저장 확인에 실패했습니다. 네트워크 확인 후 다시 시도하세요.";
+        setPushError(error);
+        return { ok: false, error, tokenPreview: preview };
+      }
+
+      const tokens = await getUserFcmTokens(user.uid);
+      setSavedTokenCount(tokens.length);
+      setRegisteredTokenPreview(preview);
+      setEnabled(tokens.length > 0);
+
+      const message = `푸시 등록이 완료되었습니다. (${preview})`;
+      setPushSuccessMessage(message);
       localStorage.setItem(PUSH_DISMISSED_KEY, "1");
       setBannerDismissed(true);
-      return true;
+      return { ok: true, message, tokenPreview: preview, verified: true };
     } finally {
       setEnabling(false);
     }
@@ -247,10 +313,15 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     enabling,
     enabled,
     pushError,
+    pushSuccessMessage,
+    registeredTokenPreview,
+    savedTokenCount,
     shouldShowBanner,
     enablePush,
+    refreshTokenStatus,
     dismissBanner,
     clearPushError,
+    clearPushSuccess,
   };
 
   return (

@@ -8,15 +8,14 @@ import {
   Calendar,
   ClipboardList,
   LayoutDashboard,
-  LogOut,
   Settings,
   Shield,
   Table2,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 type SidebarLink = {
@@ -51,7 +50,7 @@ const settingsNavItem: SidebarLink = {
 
 export function AppSidebar({ className }: { className?: string }) {
   const pathname = usePathname();
-  const { user, profile, logout, isAdmin } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
 
   const nav: SidebarLink[] = [
     ...baseNav,
@@ -101,16 +100,7 @@ export function AppSidebar({ className }: { className?: string }) {
             ? `${profile.displayName} (${user?.email ?? profile.email})`
             : user?.email ?? "로그인 사용자"}
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full justify-start gap-2"
-          onClick={() => void logout()}
-        >
-          <LogOut className="size-4" />
-          로그아웃
-        </Button>
+        <LogoutButton fullWidth />
       </div>
     </aside>
   );

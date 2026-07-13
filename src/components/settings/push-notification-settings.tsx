@@ -8,7 +8,6 @@ import { withBasePath } from "@/lib/base-path";
 import {
   isWebPushConfigured,
   isWebPushSupported,
-  obtainFcmToken,
   registerMessagingServiceWorker,
 } from "@/lib/firebase-messaging";
 import { getNotificationPermission } from "@/lib/notification-api";
@@ -62,55 +61,56 @@ function StatusRow({
 }
 
 export function PushNotificationSettings() {
-  const { enabling, enabled, enablePush, pushError } = useWebPush();
+  const {
+    enabling,
+    enabled,
+    enablePush,
+    pushError,
+    pushSuccessMessage,
+    registeredTokenPreview,
+    savedTokenCount,
+    refreshTokenStatus,
+    clearPushSuccess,
+  } = useWebPush();
   const [checking, setChecking] = useState(true);
   const [swOk, setSwOk] = useState(false);
-  const [tokenPreview, setTokenPreview] = useState("");
-  const [lastError, setLastError] = useState("");
+  const [localError, setLocalError] = useState("");
 
   const runChecks = useCallback(async () => {
     setChecking(true);
-    setLastError("");
+    setLocalError("");
     try {
       const supported = await isWebPushSupported();
       if (!supported) {
         setSwOk(false);
-        setTokenPreview("");
         return;
       }
       await registerMessagingServiceWorker();
       const scope = withBasePath("/").replace(/\/?$/, "/");
       const reg = await navigator.serviceWorker.getRegistration(scope);
       setSwOk(Boolean(reg?.active?.scriptURL?.includes("firebase-messaging-sw.js")));
+      await refreshTokenStatus();
     } catch (err) {
       setSwOk(false);
-      setLastError(err instanceof Error ? err.message : "진단 실패");
+      setLocalError(err instanceof Error ? err.message : "진단 실패");
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [refreshTokenStatus]);
 
   useEffect(() => {
     void runChecks();
   }, [runChecks]);
 
   const handleEnable = async () => {
-    setLastError("");
-    const ok = await enablePush();
-    if (ok) {
-      const result = await obtainFcmToken();
-      if (result.ok) {
-        setTokenPreview(`${result.token.slice(0, 12)}…`);
-      }
-      return;
+    setLocalError("");
+    clearPushSuccess();
+    const result = await enablePush();
+    if (!result.ok && result.error) {
+      setLocalError(result.error);
     }
-    if (pushError) {
-      setLastError(pushError);
-      return;
-    }
-    setLastError(
-      "알림 권한이 거부되었거나, VAPID 키·Service Worker 설정을 확인하세요.",
-    );
+    await refreshTokenStatus();
+    await runChecks();
   };
 
   const permission = getNotificationPermission();
@@ -118,6 +118,8 @@ export function PushNotificationSettings() {
   const relayConfigured = isPushRelayConfigured();
   const needsPwa = needsPwaInstallForBackgroundPush();
   const standalone = isStandalonePwa();
+  const hasSavedToken = enabled || savedTokenCount > 0 || Boolean(registeredTokenPreview);
+  const displayError = localError || pushError;
 
   return (
     <Card>
@@ -184,17 +186,26 @@ export function PushNotificationSettings() {
         />
         <StatusRow
           label="6. FCM 토큰 (Firestore)"
-          state={enabled || tokenPreview ? "ok" : "warn"}
+          state={hasSavedToken ? "ok" : "warn"}
           detail={
-            enabled || tokenPreview
-              ? `등록됨 ${tokenPreview ? `(${tokenPreview})` : ""} — users/{uid}.fcmTokens`
+            hasSavedToken
+              ? `등록됨 ${registeredTokenPreview ? `(${registeredTokenPreview})` : ""} — 저장된 기기 ${savedTokenCount || 1}대`
               : "아래 「푸시 등록」을 눌러 토큰을 저장하세요"
           }
         />
 
-        {lastError ? (
+        {pushSuccessMessage ? (
+          <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+            ✅ {pushSuccessMessage}
+            <span className="mt-1 block text-emerald-300/80">
+              Firestore 저장까지 확인되었습니다. 이 기기에서 백그라운드 푸시를 받을 수 있습니다.
+            </span>
+          </p>
+        ) : null}
+
+        {displayError ? (
           <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-            {lastError}
+            ❌ {displayError}
           </p>
         ) : null}
 

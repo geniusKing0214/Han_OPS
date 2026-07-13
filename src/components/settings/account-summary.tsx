@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/providers/auth-provider";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -47,6 +48,9 @@ export function AccountSummary() {
               <Badge variant={profile?.role === "admin" ? "accent" : "outline"}>
                 {profile?.role === "admin" ? "관리자" : "일반"}
               </Badge>
+            </div>
+            <div className="pt-3">
+              <LogoutButton fullWidth />
             </div>
           </>
         )}
