@@ -29,7 +29,7 @@ const PUSH_DISMISSED_KEY = "han-ops-push-banner-dismissed";
 
 function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
   if (item.type === "schedule_created" || item.type === "schedule_cancelled") return !isAdmin;
-  if (item.type === "application_submitted") return isAdmin;
+  if (item.type === "application_submitted" || item.type === "application_cancelled") return isAdmin;
   if (item.type === "application_approved") return !isAdmin;
   if (item.type === "notice_posted") return true;
   return false;
@@ -39,7 +39,9 @@ function openUrlForNotification(item: NotificationItem): string {
   if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
     return withBasePath("/schedule");
   }
-  if (item.type === "application_submitted") return withBasePath("/admin/applications");
+  if (item.type === "application_submitted" || item.type === "application_cancelled") {
+    return withBasePath("/admin/applications");
+  }
   if (item.type === "application_approved") return withBasePath("/applications");
   if (item.type === "notice_posted") return withBasePath("/notices");
   return withBasePath("/dashboard");
@@ -246,12 +248,18 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
         type !== "schedule_created" &&
         type !== "schedule_cancelled" &&
         type !== "application_submitted" &&
+        type !== "application_cancelled" &&
         type !== "application_approved" &&
         type !== "notice_posted"
       ) {
         return;
       }
-      if (type === "application_submitted" && !isAdmin) return;
+      if (
+        (type === "application_submitted" || type === "application_cancelled") &&
+        !isAdmin
+      ) {
+        return;
+      }
       if (
         (type === "schedule_created" ||
           type === "schedule_cancelled" ||
@@ -265,7 +273,7 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
       const body = payload.notification?.body ?? "";
       const url = payload.data?.url
         ? String(payload.data.url)
-        : type === "application_submitted"
+        : type === "application_submitted" || type === "application_cancelled"
           ? withBasePath("/admin/applications")
           : type === "application_approved"
             ? withBasePath("/applications")

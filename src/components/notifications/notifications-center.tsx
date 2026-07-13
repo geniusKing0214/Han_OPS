@@ -31,7 +31,7 @@ function scheduleHrefFor(item: NotificationItem, isAdmin: boolean) {
   if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
     return withBasePath("/schedule");
   }
-  if (isAdmin && item.type === "application_submitted") {
+  if (item.type === "application_submitted" || item.type === "application_cancelled") {
     return withBasePath("/admin/applications");
   }
   if (item.type === "application_approved") {

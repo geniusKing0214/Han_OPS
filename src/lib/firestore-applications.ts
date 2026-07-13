@@ -21,6 +21,7 @@ import { db } from "@/lib/firebase";
 import { userCanApplyToEvent } from "@/lib/team-utils";
 import {
   notifyAdminsOnApplicationSubmitted,
+  notifyAdminsOnApplicationCancelled,
   notifyMemberOnApplicationApproved,
 } from "@/lib/firestore-notifications";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
@@ -584,6 +585,23 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
     throw new Error("완료된 신청은 취소할 수 없습니다.");
   }
 
+  const notifyPayload = {
+    applicationId,
+    createdByUserId: uid,
+    applicantName:
+      typeof appData.applicantDisplayName === "string"
+        ? appData.applicantDisplayName
+        : "",
+    applicantEmail:
+      typeof appData.applicantEmail === "string" ? appData.applicantEmail : "",
+    eventId: typeof appData.eventId === "string" ? appData.eventId : "",
+    eventTitle: typeof appData.eventTitle === "string" ? appData.eventTitle : "",
+    eventDate: typeof appData.date === "string" ? appData.date : "",
+    slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
+    location: typeof appData.venue === "string" ? appData.venue : "",
+    wasApproved: status === "approved",
+  };
+
   await runTransaction(db, async (tx) => {
     const freshSnap = await tx.get(appRef);
     if (!freshSnap.exists()) {
@@ -652,4 +670,10 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
       tx.delete(appRef);
     }
   });
+
+  try {
+    await notifyAdminsOnApplicationCancelled(notifyPayload);
+  } catch {
+    // 취소는 성공 — 알림만 실패할 수 있음
+  }
 }

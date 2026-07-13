@@ -154,6 +154,7 @@ async function createNotificationDoc(payload: NotificationPayload) {
     payload.type === "schedule_created" ||
     payload.type === "schedule_cancelled" ||
     payload.type === "application_submitted" ||
+    payload.type === "application_cancelled" ||
     payload.type === "application_approved" ||
     payload.type === "notice_posted"
   ) {

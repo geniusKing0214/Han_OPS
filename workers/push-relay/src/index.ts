@@ -26,6 +26,7 @@ const PUSH_TYPES = new Set([
   "schedule_created",
   "schedule_cancelled",
   "application_submitted",
+  "application_cancelled",
   "application_approved",
   "notice_posted",
 ]);
@@ -56,7 +57,7 @@ function resolveOpenUrl(env: Env, type: string | undefined): string {
   if (type === "schedule_created" || type === "schedule_cancelled") {
     return `${origin}${base}/schedule/`;
   }
-  if (type === "application_submitted") {
+  if (type === "application_submitted" || type === "application_cancelled") {
     return `${origin}${base}/admin/applications/`;
   }
   if (type === "application_approved") {

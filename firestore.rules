@@ -80,6 +80,13 @@ service cloud.firestore {
         )
         ||
         (
+          request.resource.data.type == 'application_cancelled'
+          && request.resource.data.createdByUserId == request.auth.uid
+          && request.resource.data.targetRole == 'admin'
+          && request.resource.data.targetUserId is string
+        )
+        ||
+        (
           isAdmin()
           && request.resource.data.type == 'schedule_created'
           && request.resource.data.targetRole == 'member'
