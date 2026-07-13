@@ -107,6 +107,15 @@ jobs:
             echo "Add them under Repository OR Environment (github-pages) → Actions variables/secrets."
             exit 1
           fi
+          vapid="${NEXT_PUBLIC_FIREBASE_VAPID_KEY:-}"
+          if [ -n "$vapid" ]; then
+            vapid_len="${#vapid}"
+            echo "VAPID key length: ${vapid_len} chars"
+            if [ "$vapid_len" -lt 87 ]; then
+              echo "VAPID key too short (${vapid_len} chars). Firebase에서 키 전체를 복사하세요."
+              exit 1
+            fi
+          fi
 
       - name: Install and build
         run: |
