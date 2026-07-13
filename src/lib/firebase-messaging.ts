@@ -35,12 +35,81 @@ function getMessagingApp() {
 
 let messagingInstance: Messaging | null = null;
 
+/** Firebase Web Push 공개키(VAPID) 정규화 */
+export function normalizeVapidKey(raw: string): string {
+  return raw.trim().replace(/^["']|["']$/g, "");
+}
+
+function decodeVapidPublicKey(key: string): Uint8Array | null {
+  try {
+    const normalized = normalizeVapidKey(key);
+    if (!normalized || !/^[A-Za-z0-9_-]+$/.test(normalized)) return null;
+    const pad = "=".repeat((4 - (normalized.length % 4)) % 4);
+    const b64 = normalized.replace(/-/g, "+").replace(/_/g, "/") + pad;
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+export type VapidKeyValidation = {
+  ok: boolean;
+  error?: string;
+  charLength?: number;
+  byteLength?: number;
+};
+
+/** P-256 공개키(65바이트, 0x04…) 여부 확인 */
+export function validateVapidPublicKey(raw: string): VapidKeyValidation {
+  const key = normalizeVapidKey(raw);
+  if (!key) {
+    return { ok: false, error: "VAPID 키가 비어 있습니다." };
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(key)) {
+    return {
+      ok: false,
+      charLength: key.length,
+      error:
+        "VAPID 키에 공백·따옴표 등 잘못된 문자가 있습니다. Firebase에서 키만 다시 복사하세요.",
+    };
+  }
+
+  const decoded = decodeVapidPublicKey(key);
+  if (!decoded) {
+    return {
+      ok: false,
+      charLength: key.length,
+      error: "VAPID 키를 해석할 수 없습니다. Firebase Web Push 공개키를 사용하세요.",
+    };
+  }
+
+  if (decoded.length !== 65 || decoded[0] !== 0x04) {
+    return {
+      ok: false,
+      charLength: key.length,
+      byteLength: decoded.length,
+      error: `VAPID 키가 올바른 P-256 공개키가 아닙니다 (${key.length}자, ${decoded.length}바이트). Firebase Console → Cloud Messaging → 웹 푸시 인증서에서 키 **전체**(보통 87~88자)를 복사하거나 새 키 쌍을 생성하세요.`,
+    };
+  }
+
+  return { ok: true, charLength: key.length, byteLength: decoded.length };
+}
+
 export function getVapidKey(): string {
-  return process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim() ?? "";
+  return normalizeVapidKey(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ?? "");
+}
+
+export function isVapidKeyValid(): boolean {
+  return validateVapidPublicKey(getVapidKey()).ok;
 }
 
 export function isWebPushConfigured(): boolean {
-  return getMissingFirebaseVars().length === 0 && getVapidKey().length > 0;
+  return getMissingFirebaseVars().length === 0 && isVapidKeyValid();
 }
 
 export async function isWebPushSupported(): Promise<boolean> {
@@ -79,7 +148,17 @@ function formatPushError(error: unknown): string {
     }
     return error.message || error.code;
   }
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) {
+    const msg = error.message;
+    if (/applicationServerKey|valid P-256 public Key/i.test(msg)) {
+      const vapid = validateVapidPublicKey(getVapidKey());
+      return (
+        vapid.error ??
+        "VAPID 공개키가 올바르지 않습니다. Firebase에서 키 전체를 다시 복사한 뒤 GitHub Secret을 갱신하고 재배포하세요."
+      );
+    }
+    return msg;
+  }
   return "푸시 토큰을 받지 못했습니다.";
 }
 
@@ -181,6 +260,14 @@ export async function obtainFcmToken(): Promise<ObtainFcmTokenResult> {
   }
 
   if (!isWebPushConfigured()) {
+    const vapid = validateVapidPublicKey(getVapidKey());
+    if (getVapidKey() && !vapid.ok) {
+      return {
+        ok: false,
+        error: vapid.error ?? "VAPID 키가 올바르지 않습니다.",
+        permission: getNotificationPermission(),
+      };
+    }
     return {
       ok: false,
       error: "VAPID 키(NEXT_PUBLIC_FIREBASE_VAPID_KEY)가 설정되지 않았습니다.",

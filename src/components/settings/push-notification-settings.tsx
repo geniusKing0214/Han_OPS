@@ -8,7 +8,10 @@ import { withBasePath } from "@/lib/base-path";
 import {
   isWebPushConfigured,
   isWebPushSupported,
+  isVapidKeyValid,
   registerMessagingServiceWorker,
+  validateVapidPublicKey,
+  getVapidKey,
 } from "@/lib/firebase-messaging";
 import { getNotificationPermission } from "@/lib/notification-api";
 import {
@@ -115,6 +118,8 @@ export function PushNotificationSettings() {
 
   const permission = getNotificationPermission();
   const configured = isWebPushConfigured();
+  const vapidValidation = validateVapidPublicKey(getVapidKey());
+  const vapidPresent = getVapidKey().length > 0;
   const relayConfigured = isPushRelayConfigured();
   const needsPwa = needsPwaInstallForBackgroundPush();
   const standalone = isStandalonePwa();
@@ -133,11 +138,13 @@ export function PushNotificationSettings() {
       <CardContent className="space-y-3">
         <StatusRow
           label="1. VAPID 키 (빌드)"
-          state={configured ? "ok" : "fail"}
+          state={configured ? "ok" : vapidPresent && !isVapidKeyValid() ? "fail" : "fail"}
           detail={
             configured
-              ? "앱 빌드에 VAPID가 포함되어 있습니다."
-              : "GitHub Secret NEXT_PUBLIC_FIREBASE_VAPID_KEY 확인 후 재배포"
+              ? `앱 빌드에 유효한 VAPID가 포함되어 있습니다. (${vapidValidation.charLength ?? 0}자)`
+              : vapidPresent && !vapidValidation.ok
+                ? vapidValidation.error ?? "VAPID 키 형식 오류"
+                : "GitHub Secret NEXT_PUBLIC_FIREBASE_VAPID_KEY 확인 후 재배포"
           }
         />
         <StatusRow
