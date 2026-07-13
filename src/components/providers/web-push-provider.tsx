@@ -28,7 +28,7 @@ import type { NotificationItem } from "@/types/notification";
 const PUSH_DISMISSED_KEY = "han-ops-push-banner-dismissed";
 
 function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
-  if (item.type === "schedule_created") return !isAdmin;
+  if (item.type === "schedule_created" || item.type === "schedule_cancelled") return !isAdmin;
   if (item.type === "application_submitted") return isAdmin;
   if (item.type === "application_approved") return !isAdmin;
   if (item.type === "notice_posted") return true;
@@ -36,7 +36,9 @@ function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
 }
 
 function openUrlForNotification(item: NotificationItem): string {
-  if (item.type === "schedule_created") return withBasePath("/schedule");
+  if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
+    return withBasePath("/schedule");
+  }
   if (item.type === "application_submitted") return withBasePath("/admin/applications");
   if (item.type === "application_approved") return withBasePath("/applications");
   if (item.type === "notice_posted") return withBasePath("/notices");
@@ -242,6 +244,7 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
       const type = payload.data?.type ?? "";
       if (
         type !== "schedule_created" &&
+        type !== "schedule_cancelled" &&
         type !== "application_submitted" &&
         type !== "application_approved" &&
         type !== "notice_posted"
@@ -249,7 +252,12 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (type === "application_submitted" && !isAdmin) return;
-      if ((type === "schedule_created" || type === "application_approved") && isAdmin) {
+      if (
+        (type === "schedule_created" ||
+          type === "schedule_cancelled" ||
+          type === "application_approved") &&
+        isAdmin
+      ) {
         return;
       }
 

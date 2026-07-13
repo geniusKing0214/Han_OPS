@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
-import { notifyTeamMembersOnScheduleCreated } from "@/lib/firestore-notifications";
+import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
 
@@ -116,7 +116,28 @@ export async function createScheduleEvent(
   }
 }
 
-export async function deleteEvent(eventId: string): Promise<void> {
+export async function deleteEvent(
+  eventId: string,
+  options?: {
+    event?: EventItem;
+    cancelledByUserId?: string;
+  },
+): Promise<void> {
+  if (options?.event && options.cancelledByUserId) {
+    try {
+      await notifyTeamMembersOnScheduleCancelled({
+        eventId: options.event.id,
+        eventTitle: options.event.title,
+        venue: options.event.venue,
+        teamIds: normalizeTeamIds(options.event.team_ids),
+        sessions: options.event.sessions,
+        createdByUserId: options.cancelledByUserId,
+      });
+    } catch {
+      // 알림 실패해도 삭제는 진행
+    }
+  }
+
   const appSnap = await getDocs(
     query(collection(db, APPLICATIONS_COLLECTION), where("eventId", "==", eventId)),
   );

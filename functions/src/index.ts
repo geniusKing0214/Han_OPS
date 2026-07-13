@@ -6,6 +6,7 @@ admin.initializeApp();
 
 const PUSH_NOTIFICATION_TYPES = new Set([
   "schedule_created",
+  "schedule_cancelled",
   "application_submitted",
   "application_approved",
   "notice_posted",
@@ -33,7 +34,9 @@ function appBasePath(): string {
 function resolveOpenUrl(type: string | undefined): string {
   const origin = appOrigin();
   const base = appBasePath();
-  if (type === "schedule_created") return `${origin}${base}/schedule/`;
+  if (type === "schedule_created" || type === "schedule_cancelled") {
+    return `${origin}${base}/schedule/`;
+  }
   if (type === "application_submitted") {
     return `${origin}${base}/admin/applications/`;
   }

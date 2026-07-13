@@ -12,6 +12,7 @@ export function isPushRelayConfigured(): boolean {
 
 const RELAY_PUSH_TYPES = new Set([
   "schedule_created",
+  "schedule_cancelled",
   "application_submitted",
   "application_approved",
   "notice_posted",
@@ -24,6 +25,7 @@ export type PushRelayInput = {
   notificationId?: string;
   type:
     | "schedule_created"
+    | "schedule_cancelled"
     | "application_submitted"
     | "application_approved"
     | "notice_posted";

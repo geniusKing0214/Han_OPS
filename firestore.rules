@@ -89,6 +89,14 @@ service cloud.firestore {
         ||
         (
           isAdmin()
+          && request.resource.data.type == 'schedule_cancelled'
+          && request.resource.data.targetRole == 'member'
+          && request.resource.data.targetUserId is string
+          && request.resource.data.createdByUserId == request.auth.uid
+        )
+        ||
+        (
+          isAdmin()
           && request.resource.data.type == 'application_approved'
           && request.resource.data.targetRole == 'member'
           && request.resource.data.targetUserId is string

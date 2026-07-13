@@ -38,9 +38,9 @@ export function NotificationDetail({
           ? UserMinus
           : item.type === "notice_posted"
             ? Megaphone
-        : item.type === "schedule_created"
-          ? Calendar
-          : UserPlus;
+            : item.type === "schedule_created" || item.type === "schedule_cancelled"
+              ? Calendar
+              : UserPlus;
 
   const rows: { label: string; value: string }[] =
     item.type === "notice_posted"
@@ -119,6 +119,7 @@ export function NotificationDetail({
               item.type === "application_submitted" && "text-accent",
               item.type === "application_cancelled" && "text-red-400",
               item.type === "schedule_created" && "text-sky-400",
+              item.type === "schedule_cancelled" && "text-red-400",
             )}
           >
             <Icon className="size-7" />

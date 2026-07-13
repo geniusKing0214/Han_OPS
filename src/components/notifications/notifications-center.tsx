@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types/notification";
 
 function scheduleHrefFor(item: NotificationItem, isAdmin: boolean) {
-  if (item.type === "schedule_created") {
+  if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
     return withBasePath("/schedule");
   }
   if (isAdmin && item.type === "application_submitted") {

@@ -99,7 +99,11 @@ export function ScheduleManager() {
       return;
     setSaving(true);
     try {
-      await deleteEvent(detailCtx.event.id);
+      if (!user) throw new Error("로그인이 필요합니다.");
+      await deleteEvent(detailCtx.event.id, {
+        event: detailCtx.event,
+        cancelledByUserId: user.uid,
+      });
       setDetailOpen(false);
       setDetailCtx(null);
     } finally {

@@ -24,6 +24,7 @@ type PushBody = {
 
 const PUSH_TYPES = new Set([
   "schedule_created",
+  "schedule_cancelled",
   "application_submitted",
   "application_approved",
   "notice_posted",
@@ -52,7 +53,9 @@ function json(data: unknown, status = 200): Response {
 function resolveOpenUrl(env: Env, type: string | undefined): string {
   const origin = env.APP_ORIGIN.replace(/\/$/, "");
   const base = env.APP_BASE_PATH.replace(/\/$/, "");
-  if (type === "schedule_created") return `${origin}${base}/schedule/`;
+  if (type === "schedule_created" || type === "schedule_cancelled") {
+    return `${origin}${base}/schedule/`;
+  }
   if (type === "application_submitted") {
     return `${origin}${base}/admin/applications/`;
   }

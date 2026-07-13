@@ -95,6 +95,7 @@ function normalizeNotificationType(value: unknown): NotificationType {
     value === "application_approved" ||
     value === "application_rejected" ||
     value === "schedule_created" ||
+    value === "schedule_cancelled" ||
     value === "notice_posted"
   ) {
     return value;
@@ -151,6 +152,7 @@ async function createNotificationDoc(payload: NotificationPayload) {
 
   if (
     payload.type === "schedule_created" ||
+    payload.type === "schedule_cancelled" ||
     payload.type === "application_submitted" ||
     payload.type === "application_approved" ||
     payload.type === "notice_posted"
@@ -369,6 +371,44 @@ export async function notifyTeamMembersOnScheduleCreated(
         targetEmail: member.email,
         targetRole: "member",
         type: "schedule_created",
+        title,
+        message,
+        eventId: input.eventId,
+        eventTitle: input.eventTitle,
+        eventDate,
+        slotTime,
+        location: input.venue,
+        createdByUserId: input.createdByUserId,
+      }),
+    ),
+  );
+}
+
+export type NotifyScheduleCancelledInput = NotifyScheduleCreatedInput;
+
+/** 스케줄 삭제(취소) 시 해당 팀 승인 멤버에게 알림 */
+export async function notifyTeamMembersOnScheduleCancelled(
+  input: NotifyScheduleCancelledInput,
+) {
+  const members = await listApprovedMembersByTeamIds(input.teamIds);
+  if (members.length === 0) return;
+
+  const { eventDate, slotTime } = summarizeScheduleSessions(input.sessions);
+  const teamLabel = formatTeamIdsLabel(input.teamIds);
+  const dateLabel = formatEventDateLabel(eventDate);
+  const title = dateLabel
+    ? `${dateLabel} 일정이 취소되었어요`
+    : "일정이 취소되었어요";
+  const timePart = slotTime ? ` · ${slotTime}` : "";
+  const message = `${input.eventTitle} · ${input.venue}${timePart} (${teamLabel}) 일정이 취소되었습니다.`;
+
+  await Promise.all(
+    members.map((member) =>
+      createNotificationDoc({
+        targetUserId: member.uid,
+        targetEmail: member.email,
+        targetRole: "member",
+        type: "schedule_cancelled",
         title,
         message,
         eventId: input.eventId,

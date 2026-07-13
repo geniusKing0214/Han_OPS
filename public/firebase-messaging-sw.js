@@ -12,6 +12,7 @@ const APP_BASE = typeof self.APP_BASE_PATH === "string" ? self.APP_BASE_PATH : "
 
 const PUSH_TYPES = new Set([
   "schedule_created",
+  "schedule_cancelled",
   "application_submitted",
   "application_approved",
   "notice_posted",
