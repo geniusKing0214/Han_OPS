@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../mockup.css" />
+  <title>06 신청 완료</title>
+</head>
+<body>
+  <div class="phone" id="screen">
+    <div class="status-bar">12:00</div>
+    <div class="top-bar">
+      <div class="logo">HAN <span>OPS</span></div>
+      <div class="bell">🔔</div>
+    </div>
+    <div class="content">
+      <div class="h1">Applications</div>
+      <p class="sub">스케줄에서 신청한 내역이 여기에 표시됩니다.</p>
+      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+        <span class="badge" style="background:var(--muted);color:var(--fg);padding:6px 12px">전체</span>
+        <span class="badge" style="background:var(--muted);color:var(--muted-fg);padding:6px 12px">승인 완료</span>
+        <span class="badge badge-warn highlight" style="padding:6px 12px">대기 중</span>
+        <span class="badge" style="background:var(--muted);color:var(--muted-fg);padding:6px 12px">거절됨</span>
+      </div>
+      <div class="card highlight">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:15px;font-weight:600">7월 토너먼트</div>
+            <div style="font-size:12px;color:var(--muted-fg);margin-top:4px">코엑스 · 2026-07-20 14:00</div>
+            <div style="font-size:11px;color:var(--muted-fg);margin-top:4px">접수 2026-07-14 12:00</div>
+          </div>
+          <span class="badge badge-warn">대기 중</span>
+        </div>
+        <div style="margin-top:12px">
+          <div class="btn btn-outline" style="height:36px;font-size:12px;color:#f87171;border-color:rgba(248,113,113,.3)">신청 취소</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:20px;padding:16px;background:rgba(200,169,107,.1);border-radius:var(--radius);border:1px dashed rgba(200,169,107,.4)">
+        <div style="font-size:24px;margin-bottom:8px">✅</div>
+        <div style="font-size:14px;font-weight:600;color:var(--accent)">신청이 접수되었습니다!</div>
+        <div style="font-size:12px;color:var(--muted-fg);margin-top:6px">관리자 승인 후 알림이 옵니다.</div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item"><span class="nav-icon">🏠</span>홈</div>
+      <div class="nav-item"><span class="nav-icon">📅</span>일정</div>
+      <div class="nav-item on"><span class="nav-icon">📋</span>신청</div>
+      <div class="nav-item"><span class="nav-icon">📢</span>공지</div>
+      <div class="nav-item"><span class="nav-icon">⋯</span>더보기</div>
+    </div>
+  </div>
+</body>
+</html>

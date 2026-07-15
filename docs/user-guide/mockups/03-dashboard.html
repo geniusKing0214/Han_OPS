@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../mockup.css" />
+  <title>03 대시보드</title>
+</head>
+<body>
+  <div class="phone" id="screen">
+    <div class="status-bar">12:00</div>
+    <div class="top-bar">
+      <div class="logo">HAN <span>OPS</span></div>
+      <div class="bell">🔔</div>
+    </div>
+    <div class="content">
+      <div class="h1">Dashboard</div>
+      <p class="sub">오늘 일정과 신청 현황을 확인하세요.</p>
+      <div class="stat-grid">
+        <div class="stat highlight">
+          <div class="stat-label">오늘 근무</div>
+          <div class="stat-val" style="color:var(--accent)">1</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">대기 중 신청</div>
+          <div class="stat-val">2</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">오늘 일정</div>
+        <div style="font-size:13px;margin-top:8px">
+          <strong>7월 토너먼트</strong><br/>
+          <span style="color:var(--muted-fg)">코엑스 · 14:00 시작</span>
+          <span class="badge badge-ok" style="margin-left:6px">승인 완료</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">최근 신청</div>
+        <div style="font-size:13px;margin-top:8px;color:var(--muted-fg)">
+          7월 토너먼트 · 7/20 14:00
+          <span class="badge badge-warn" style="float:right">대기 중</span>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item on"><span class="nav-icon">🏠</span>홈</div>
+      <div class="nav-item"><span class="nav-icon">📅</span>일정</div>
+      <div class="nav-item"><span class="nav-icon">📋</span>신청</div>
+      <div class="nav-item"><span class="nav-icon">📢</span>공지</div>
+      <div class="nav-item"><span class="nav-icon">⋯</span>더보기</div>
+    </div>
+  </div>
+</body>
+</html>

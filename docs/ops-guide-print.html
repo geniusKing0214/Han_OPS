@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HAN OPS 가이드 레퍼런스</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --blue: #1e40af;
+      --blue-light: #dbeafe;
+      --accent: #2563eb;
+      --green: #059669;
+      --red: #dc2626;
+      --amber: #d97706;
+      --gray: #4b5563;
+      --border: #e5e7eb;
+      --bg: #f8fafc;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      font-size: 10pt;
+      line-height: 1.55;
+      color: #111827;
+      background: #fff;
+    }
+    .page { padding: 0 2mm; }
+    .cover {
+      text-align: center;
+      padding: 28mm 8mm 18mm;
+      border-bottom: 4px solid var(--accent);
+      margin-bottom: 10mm;
+    }
+    .cover-badge {
+      display: inline-block;
+      background: var(--blue-light);
+      color: var(--blue);
+      font-size: 9pt;
+      font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+    .cover h1 {
+      font-size: 32pt;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #111;
+    }
+    .cover h1 span { color: var(--accent); }
+    .cover .sub {
+      font-size: 14pt;
+      font-weight: 600;
+      color: var(--blue);
+      margin: 6px 0 14px;
+    }
+    .cover .url {
+      font-size: 9.5pt;
+      color: var(--gray);
+    }
+    .section {
+      margin-bottom: 12mm;
+      page-break-inside: avoid;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .section-num {
+      width: 28px;
+      height: 28px;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11pt;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 13pt;
+      font-weight: 700;
+      color: var(--blue);
+    }
+    .section-desc {
+      font-size: 9pt;
+      color: var(--gray);
+      margin-bottom: 8px;
+    }
+    .figure {
+      margin: 8px 0 10px;
+      text-align: center;
+    }
+    .figure img, .figure svg {
+      max-width: 100%;
+      height: auto;
+    }
+    .figure-caption {
+      font-size: 8pt;
+      color: var(--gray);
+      margin-top: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin: 6px 0;
+    }
+    th {
+      background: var(--blue);
+      color: #fff;
+      font-weight: 600;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    td {
+      border: 1px solid var(--border);
+      padding: 5px 8px;
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: var(--bg); }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .sub-title {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #374151;
+      margin: 8px 0 4px;
+    }
+    .tip {
+      background: #fffbeb;
+      border-left: 4px solid var(--amber);
+      padding: 8px 10px;
+      font-size: 9pt;
+      margin-top: 6px;
+      border-radius: 0 6px 6px 0;
+    }
+    .check { color: var(--green); font-weight: 700; }
+    .cross { color: #9ca3af; }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 표지 -->
+  <div class="cover">
+    <div class="cover-badge">딜러팀 스케줄 · 신청 · 운영</div>
+    <h1>HAN <span>OPS</span></h1>
+    <p class="sub">가이드 레퍼런스</p>
+    <p class="url">https://geniusking0214.github.io/Han_OPS/</p>
+  </div>
+
+  <!-- 1. 빠른 시작 -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-num">1</div>
+      <div class="section-title">빠른 시작</div>
+    </div>
+    <p class="section-desc">처음 사용하는 순서입니다.</p>
+    <div class="figure">
+      <img src="assets/guide/quick-start.svg" alt="빠른 시작 흐름" width="680" />
+      <p class="figure-caption">그림 1 — 로그인부터 슬롯 신청까지 4단계</p>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>할 일</th><th>위치</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Google 로그인</td><td>/login</td></tr>
+        <tr><td>2</td><td>관리자 승인 대기</td><td>승인 전 앱 이용 불가</td></tr>
+        <tr><td>3</td><td>푸시 알림 켜기</td><td>/settings</td></tr>
+        <tr><td>4</td><td>일정 신청</td><td>/schedule</td></tr>
+      </tbody>
+    </table>
+    <div class="tip"><strong>iPhone</strong> — Safari → 공유 → <strong>홈 화면에 추가</strong> → 아이콘으로 실행 (푸시 필수)</div>
+  </section>
+
+  <!-- 2. 메뉴 맵 -->
+  <section class="section page-break">
+    <div class="section-head">
+      <div class="section-num">2</div>
+      <div class="section-title">메뉴 맵</div>
+    </div>
+    <p class="section-desc">PC 사이드바 · 모바일 하단 탭 구조</p>
+    <div class="figure">
+      <img src="assets/guide/menu-map.svg" alt="메뉴 맵" width="680" />
+      <p class="figure-caption">그림 2 — 멤버 / 관리자 / 모바일 메뉴</p>
+    </div>
+    <div class="two-col">
+      <div>
+        <p class="sub-title">멤버 메뉴</p>
+        <table>
+          <thead><tr><th>메뉴</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td>오늘 일정·신청 요약</td></tr>
+            <tr><td>Schedule</td><td>날짜 선택 → 슬롯 신청</td></tr>
+            <tr><td>Applications</td><td>내 신청·취소</td></tr>
+            <tr><td>취합표</td><td>월간 배치 (읽기 전용)</td></tr>
+            <tr><td>Notices</td><td>공지</td></tr>
+            <tr><td>Settings</td><td>프로필·푸시</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <p class="sub-title">관리자 메뉴</p>
+        <table>
+          <thead><tr><th>메뉴</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td>가입 승인</td><td>신규 계정·팀 배정</td></tr>
+            <tr><td>사용자 관리</td><td>권한·상태</td></tr>
+            <tr><td>일정</td><td>스케줄 CRUD</td></tr>
+            <tr><td>신청</td><td>승인/거절</td></tr>
+            <tr><td>신청 인원 관리</td><td>명단·근무 상태</td></tr>
+            <tr><td>포인트/랭킹</td><td>포인트·CSV</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 역할별 권한 -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-num">3</div>
+      <div class="section-title">역할별 권한</div>
+    </div>
+    <div class="figure">
+      <img src="assets/guide/roles.svg" alt="역할별 권한" width="680" />
+      <p class="figure-caption">그림 3 — 멤버 vs 관리자 권한 비교</p>
+    </div>
+    <table>
+      <thead><tr><th>기능</th><th style="text-align:center">멤버</th><th style="text-align:center">관리자</th></tr></thead>
+      <tbody>
+        <tr><td>일정 보기·신청</td><td style="text-align:center" class="check">✓</td><td style="text-align:center" class="check">✓</td></tr>
+        <tr><td>일정 생성·삭제</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+        <tr><td>신청 승인/거절</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+        <tr><td>근무 상태·포인트</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+        <tr><td>공지 작성</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+        <tr><td>가입 승인</td><td style="text-align:center" class="cross">—</td><td style="text-align:center" class="check">✓</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 4. 멤버 워크플로 -->
+  <section class="section page-break">
+    <div class="section-head">
+      <div class="section-num">4</div>
+      <div class="section-title">멤버 워크플로</div>
+    </div>
+    <div class="figure">
+      <img src="assets/guide/member-flow.svg" alt="멤버 워크플로" width="520" />
+      <p class="figure-caption">그림 4 — 멤버 일정 신청 ~ 포인트 반영 흐름</p>
+    </div>
+    <p class="sub-title">신청 취소 규칙</p>
+    <table>
+      <thead><tr><th>상태</th><th>취소 가능</th></tr></thead>
+      <tbody>
+        <tr><td><strong>대기 중</strong></td><td class="check">✓ 언제든</td></tr>
+        <tr><td><strong>승인 완료</strong></td><td class="check">✓ 오늘 이후 일정만</td></tr>
+        <tr><td><strong>완료됨</strong></td><td class="cross">✗ 불가</td></tr>
+      </tbody>
+    </table>
+    <div class="tip">당일 취소는 <strong>−5P</strong> 차감 대상일 수 있습니다.</div>
+  </section>
+
+  <!-- 5. 관리자 워크플로 -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-num">5</div>
+      <div class="section-title">관리자 워크플로</div>
+    </div>
+    <div class="figure">
+      <img src="assets/guide/admin-flow.svg" alt="관리자 워크플로" width="520" />
+      <p class="figure-caption">그림 5 — 가입 승인부터 포인트 관리까지</p>
+    </div>
+  </section>
+
+  <!-- 6. 알림 -->
+  <section class="section page-break">
+    <div class="section-head">
+      <div class="section-num">6</div>
+      <div class="section-title">알림</div>
+    </div>
+    <p class="section-desc">앱 내 벨 아이콘 + (설정 시) 푸시 알림</p>
+    <div class="figure">
+      <img src="assets/guide/notifications.svg" alt="알림 구조" width="680" />
+      <p class="figure-caption">그림 6 — 역할별 알림 수신 대상</p>
+    </div>
+    <div class="two-col">
+      <div>
+        <p class="sub-title">멤버가 받는 알림</p>
+        <table>
+          <thead><tr><th>이벤트</th><th>시점</th></tr></thead>
+          <tbody>
+            <tr><td>새 스케줄</td><td>일정 생성</td></tr>
+            <tr><td>일정 취소</td><td>일정 삭제</td></tr>
+            <tr><td>승인/거절</td><td>신청 처리</td></tr>
+            <tr><td>공지</td><td>새 공지</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <p class="sub-title">관리자가 받는 알림</p>
+        <table>
+          <thead><tr><th>이벤트</th><th>시점</th></tr></thead>
+          <tbody>
+            <tr><td>신규 신청</td><td>멤버 신청</td></tr>
+            <tr><td>신청 취소</td><td>멤버 취소</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. 포인트 -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-num">7</div>
+      <div class="section-title">포인트 정책</div>
+    </div>
+    <p class="section-desc">Admin → 신청 인원 관리에서 근무 상태 변경 시 자동 반영</p>
+    <div class="figure">
+      <img src="assets/guide/points.svg" alt="포인트 정책" width="680" />
+      <p class="figure-caption">그림 7 — 근무 상태별 포인트</p>
+    </div>
+    <p class="sub-title">수동 조정: Admin → 포인트/랭킹</p>
+  </section>
+
+  <!-- 8. FAQ -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-num">8</div>
+      <div class="section-title">자주 묻는 상황</div>
+    </div>
+    <div class="figure">
+      <img src="assets/guide/troubleshoot.svg" alt="문제 해결" width="680" />
+      <p class="figure-caption">그림 8 — 증상별 확인 방법</p>
+    </div>
+    <table>
+      <thead><tr><th>증상</th><th>확인</th></tr></thead>
+      <tbody>
+        <tr><td>로그인 후 화면 안 열림</td><td>가입 승인 대기 — 관리자 문의</td></tr>
+        <tr><td>푸시 안 옴</td><td>Settings 알림 허용 · iPhone PWA 설치 후 재실행</td></tr>
+        <tr><td>404</td><td>URL에 /Han_OPS/ 포함 여부</td></tr>
+        <tr><td>VAPID 오류</td><td>Settings에서 푸시 재등록</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 9. 팀 구조 -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-num">9</div>
+      <div class="section-title">팀 구조</div>
+    </div>
+    <div class="figure">
+      <img src="assets/guide/teams.svg" alt="팀 구조" width="520" />
+      <p class="figure-caption">그림 9 — 1팀 / 2팀 운영 구조</p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

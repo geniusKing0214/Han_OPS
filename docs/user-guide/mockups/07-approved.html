@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="../mockup.css" />
+  <title>07 승인 완료</title>
+</head>
+<body>
+  <div class="phone" id="screen">
+    <div class="status-bar">12:00</div>
+    <div class="top-bar">
+      <div class="logo">HAN <span>OPS</span></div>
+      <div class="bell highlight" style="position:relative">🔔<span style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%"></span></div>
+    </div>
+    <div class="notif-popup highlight">
+      <div class="notif-item">
+        <div class="notif-title" style="color:var(--success)">✓ 신청이 승인되었습니다</div>
+        <div class="notif-msg">7월 토너먼트 · 7/20 14:00 · 코엑스</div>
+      </div>
+    </div>
+    <div class="content" style="padding-top:100px">
+      <div class="h1">Applications</div>
+      <p class="sub">승인된 일정은 여기서 확인할 수 있습니다.</p>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <span class="badge" style="background:var(--muted);color:var(--muted-fg);padding:6px 12px">전체</span>
+        <span class="badge badge-ok highlight" style="padding:6px 12px">승인 완료</span>
+        <span class="badge" style="background:var(--muted);color:var(--muted-fg);padding:6px 12px">대기 중</span>
+      </div>
+      <div class="card highlight">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:15px;font-weight:600">7월 토너먼트</div>
+            <div style="font-size:12px;color:var(--muted-fg);margin-top:4px">코엑스 · 2026-07-20 14:00</div>
+          </div>
+          <span class="badge badge-ok">승인 완료</span>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--muted-fg)">
+          📅 당일 코엑스로 출근 · 근무 후 포인트 반영
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px">승인 후 이렇게 됩니다</div>
+        <div style="font-size:12px;color:var(--muted-fg);line-height:1.7">
+          ① 🔔 푸시/앱 알림 수신<br/>
+          ② Dashboard에 오늘 일정 표시<br/>
+          ③ Schedule에서 내 신청 일정 확인<br/>
+          ④ 근무 후 관리자가 완료 처리 → 포인트 +10P
+        </div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item"><span class="nav-icon">🏠</span>홈</div>
+      <div class="nav-item"><span class="nav-icon">📅</span>일정</div>
+      <div class="nav-item on"><span class="nav-icon">📋</span>신청</div>
+      <div class="nav-item"><span class="nav-icon">📢</span>공지</div>
+      <div class="nav-item"><span class="nav-icon">⋯</span>더보기</div>
+    </div>
+  </div>
+</body>
+</html>
