@@ -5,7 +5,10 @@ export type NotificationType =
   | "application_rejected"
   | "schedule_created"
   | "schedule_cancelled"
-  | "notice_posted";
+  | "notice_posted"
+  | "attendance_submitted"
+  | "attendance_approved"
+  | "attendance_rejected";
 
 export type NotificationTargetRole = "admin" | "member";
 
@@ -19,6 +22,7 @@ export type NotificationItem = {
   message: string;
   eventId?: string;
   applicationId?: string;
+  attendanceId?: string;
   noticeId?: string;
   eventTitle: string;
   eventDate: string;
@@ -41,6 +45,9 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   schedule_created: "스케줄",
   schedule_cancelled: "일정 취소",
   notice_posted: "공지",
+  attendance_submitted: "출근 인증",
+  attendance_approved: "인증 확인",
+  attendance_rejected: "재인증",
 };
 
 export const notificationStatusBadgeVariant: Record<
@@ -54,4 +61,7 @@ export const notificationStatusBadgeVariant: Record<
   schedule_created: "accent",
   schedule_cancelled: "destructive",
   notice_posted: "warning",
+  attendance_submitted: "accent",
+  attendance_approved: "success",
+  attendance_rejected: "destructive",
 };

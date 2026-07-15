@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 import {
   getEnvFirebaseConfig,
@@ -33,3 +34,7 @@ export const app = initFirebaseApp();
 export const db = app
   ? getFirestore(app)
   : (null as unknown as ReturnType<typeof getFirestore>);
+
+export const storage = app
+  ? getStorage(app)
+  : (null as unknown as ReturnType<typeof getStorage>);

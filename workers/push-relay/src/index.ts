@@ -29,6 +29,9 @@ const PUSH_TYPES = new Set([
   "application_cancelled",
   "application_approved",
   "notice_posted",
+  "attendance_submitted",
+  "attendance_approved",
+  "attendance_rejected",
 ]);
 
 const corsOrigin = "https://geniusking0214.github.io";
@@ -65,6 +68,12 @@ function resolveOpenUrl(env: Env, type: string | undefined): string {
   }
   if (type === "notice_posted") {
     return `${origin}${base}/notices/`;
+  }
+  if (type === "attendance_submitted") {
+    return `${origin}${base}/admin/attendance/`;
+  }
+  if (type === "attendance_approved" || type === "attendance_rejected") {
+    return `${origin}${base}/applications/`;
   }
   return `${origin}${base}/dashboard/`;
 }

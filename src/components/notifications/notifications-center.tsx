@@ -27,7 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types/notification";
 
-function scheduleHrefFor(item: NotificationItem, isAdmin: boolean) {
+function scheduleHrefFor(item: NotificationItem, _isAdmin: boolean) {
   if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
     return withBasePath("/schedule");
   }
@@ -39,6 +39,15 @@ function scheduleHrefFor(item: NotificationItem, isAdmin: boolean) {
   }
   if (item.type === "notice_posted") {
     return withBasePath("/notices");
+  }
+  if (item.type === "attendance_submitted") {
+    return withBasePath("/admin/attendance");
+  }
+  if (
+    item.type === "attendance_approved" ||
+    item.type === "attendance_rejected"
+  ) {
+    return withBasePath("/applications");
   }
   return withBasePath("/applications");
 }

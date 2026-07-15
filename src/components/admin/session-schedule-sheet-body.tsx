@@ -5,6 +5,11 @@ import { Trash2 } from "lucide-react";
 
 import type { EventItem } from "@/types/schedule";
 import {
+  DEFAULT_ATTENDANCE_SETTINGS,
+  type AttendanceSettings,
+} from "@/types/attendance";
+import { parseAttendanceSettings } from "@/lib/attendance-settings";
+import {
   addSession,
   addSlot,
   removeSession,
@@ -13,6 +18,7 @@ import {
   updateEventDetails,
   updateSlot,
 } from "@/lib/schedule-mutations";
+import { EventAttendanceSettingsFields } from "@/components/admin/event-attendance-settings-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,6 +83,9 @@ export function SessionScheduleSheetBody({
   const [metaVenue, setMetaVenue] = useState("");
   const [metaNotice, setMetaNotice] = useState("");
   const [metaColor, setMetaColor] = useState("#C8A96B");
+  const [metaAttendance, setMetaAttendance] = useState<AttendanceSettings>({
+    ...DEFAULT_ATTENDANCE_SETTINGS,
+  });
   const [saveError, setSaveError] = useState("");
   const [addSessionDatePick, setAddSessionDatePick] = useState("");
   const [sessionDateDraft, setSessionDateDraft] = useState("");
@@ -102,6 +111,7 @@ export function SessionScheduleSheetBody({
     setMetaVenue(live.venue);
     setMetaNotice(live.notice ?? "");
     setMetaColor(live.color ?? "#C8A96B");
+    setMetaAttendance(parseAttendanceSettings(live.attendance));
     setSaveError("");
   }, [resetKey, live?.id]);
 
@@ -205,6 +215,7 @@ export function SessionScheduleSheetBody({
           venue: metaVenue.trim(),
           notice: metaNotice.trim() || undefined,
           color: metaColor.trim() || undefined,
+          attendance: metaAttendance,
         }),
       );
     } catch (err) {
@@ -285,6 +296,10 @@ export function SessionScheduleSheetBody({
               />
             </div>
           </div>
+          <EventAttendanceSettingsFields
+            value={metaAttendance}
+            onChange={setMetaAttendance}
+          />
           <div className="flex flex-wrap gap-2 pt-1">
             <Button
               type="button"

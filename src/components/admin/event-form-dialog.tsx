@@ -8,6 +8,11 @@ import {
   teamExposureToTeamIds,
   type TeamExposure,
 } from "@/types/team";
+import {
+  DEFAULT_ATTENDANCE_SETTINGS,
+  type AttendanceSettings,
+} from "@/types/attendance";
+import { EventAttendanceSettingsFields } from "@/components/admin/event-attendance-settings-fields";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,6 +60,9 @@ export function CreateScheduleDialog({
   const [venue, setVenue] = useState("");
   const [notice, setNotice] = useState("");
   const [color, setColor] = useState("#C8A96B");
+  const [attendance, setAttendance] = useState<AttendanceSettings>({
+    ...DEFAULT_ATTENDANCE_SETTINGS,
+  });
   const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [sessions, setSessions] = useState<SessionDraft[]>([emptySession()]);
   const [error, setError] = useState("");
@@ -65,6 +73,7 @@ export function CreateScheduleDialog({
     setVenue("");
     setNotice("");
     setColor("#C8A96B");
+    setAttendance({ ...DEFAULT_ATTENDANCE_SETTINGS });
     setTeamExposure("team_1");
     setSessions([emptySession()]);
     setError("");
@@ -171,6 +180,7 @@ export function CreateScheduleDialog({
       venue: venue.trim(),
       team_ids: teamExposureToTeamIds(teamExposure),
       sessions: builtSessions,
+      attendance,
     };
     if (notice.trim()) payload.notice = notice.trim();
     if (color.trim()) payload.color = color.trim();
@@ -262,6 +272,11 @@ export function CreateScheduleDialog({
               </div>
             </div>
           </div>
+
+          <EventAttendanceSettingsFields
+            value={attendance}
+            onChange={setAttendance}
+          />
 
           <Separator />
 

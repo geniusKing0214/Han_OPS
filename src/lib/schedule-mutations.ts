@@ -1,3 +1,4 @@
+import type { AttendanceSettings } from "@/types/attendance";
 import type { EventItem, Session, Slot } from "@/types/schedule";
 
 export function updateEventMeta(
@@ -15,6 +16,7 @@ export function updateEventDetails(
     venue: string;
     notice?: string;
     color?: string;
+    attendance?: AttendanceSettings;
   },
 ): EventItem {
   return {
@@ -23,6 +25,9 @@ export function updateEventDetails(
     venue: details.venue.trim(),
     notice: details.notice?.trim() || undefined,
     color: details.color?.trim() || undefined,
+    ...(details.attendance !== undefined
+      ? { attendance: details.attendance }
+      : {}),
   };
 }
 

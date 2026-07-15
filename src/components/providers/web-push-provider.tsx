@@ -32,6 +32,10 @@ function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
   if (item.type === "application_submitted" || item.type === "application_cancelled") return isAdmin;
   if (item.type === "application_approved") return !isAdmin;
   if (item.type === "notice_posted") return true;
+  if (item.type === "attendance_submitted") return isAdmin;
+  if (item.type === "attendance_approved" || item.type === "attendance_rejected") {
+    return !isAdmin;
+  }
   return false;
 }
 
@@ -44,6 +48,13 @@ function openUrlForNotification(item: NotificationItem): string {
   }
   if (item.type === "application_approved") return withBasePath("/applications");
   if (item.type === "notice_posted") return withBasePath("/notices");
+  if (item.type === "attendance_submitted") return withBasePath("/admin/attendance");
+  if (
+    item.type === "attendance_approved" ||
+    item.type === "attendance_rejected"
+  ) {
+    return withBasePath("/applications");
+  }
   return withBasePath("/dashboard");
 }
 

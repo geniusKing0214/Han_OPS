@@ -43,6 +43,15 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import type { EventItem, Session, Slot } from "@/types/schedule";
+import { subscribeAttendancesByWorkDate, pickLatestAttendance } from "@/lib/firestore-attendance";
+import {
+  LOCATION_STATUS_LABELS,
+  REVIEW_STATUS_LABELS,
+  TIME_STATUS_LABELS,
+  type AttendanceRecord,
+} from "@/types/attendance";
+import { formatAttendanceDateTime } from "@/lib/attendance-window";
+import Link from "next/link";
 
 function toYmd(date: Date): string {
   const y = date.getFullYear();
@@ -90,6 +99,7 @@ type SlotRosterProps = {
   slot: Slot;
   applications: ApplicationItem[];
   profiles: Map<string, { email: string; displayName: string }>;
+  attendances: AttendanceRecord[];
   expanded: boolean;
   onToggle: () => void;
   busyId: string | null;
@@ -105,6 +115,7 @@ function SlotRosterRow({
   slot,
   applications,
   profiles,
+  attendances,
   expanded,
   onToggle,
   busyId,
@@ -176,6 +187,43 @@ function SlotRosterRow({
                         <span className="text-foreground/70">메모</span>{" "}
                         {adminMemoDisplay(a)}
                       </p>
+                      {(() => {
+                        const att = pickLatestAttendance(attendances, a.id);
+                        const attendanceOn =
+                          event.attendance?.attendanceEnabled === true;
+                        if (!attendanceOn) return null;
+                        if (!att) {
+                          return (
+                            <p className="text-xs text-amber-300/90">
+                              출근 인증 미완료
+                            </p>
+                          );
+                        }
+                        return (
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <p>
+                              인증{" "}
+                              {att.actualCheckInAt
+                                ? formatAttendanceDateTime(att.actualCheckInAt)
+                                : "—"}{" "}
+                              · {TIME_STATUS_LABELS[att.timeStatus]}
+                            </p>
+                            <p>
+                              {LOCATION_STATUS_LABELS[att.locationStatus]}
+                              {att.distanceFromVenueMeters != null
+                                ? ` · ${att.distanceFromVenueMeters}m`
+                                : ""}{" "}
+                              · {REVIEW_STATUS_LABELS[att.reviewStatus]}
+                            </p>
+                            <Link
+                              href="/admin/attendance"
+                              className="text-accent hover:underline"
+                            >
+                              인증 상세 보기
+                            </Link>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <ApplicationWorkActions
                       application={a}
@@ -223,6 +271,11 @@ export function ApplicationRosterPanel() {
   >(() => new Map());
   const [rejectTarget, setRejectTarget] = useState<ApplicationItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+
+  useEffect(() => {
+    return subscribeAttendancesByWorkDate(date, setAttendances);
+  }, [date]);
 
   const eventRows = useMemo(
     () => eventsWithSessionsOnDate(events, date),
@@ -436,6 +489,7 @@ export function ApplicationRosterPanel() {
                                     slot={slot}
                                     applications={applications}
                                     profiles={profiles}
+                                    attendances={attendances}
                                     expanded={!!expandedSlots[key]}
                                     onToggle={() => toggleSlot(key)}
                                     busyId={busyId}

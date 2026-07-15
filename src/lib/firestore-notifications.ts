@@ -60,6 +60,8 @@ function docToNotificationItem(
     eventId: typeof data.eventId === "string" ? data.eventId : undefined,
     applicationId:
       typeof data.applicationId === "string" ? data.applicationId : undefined,
+    attendanceId:
+      typeof data.attendanceId === "string" ? data.attendanceId : undefined,
     noticeId: typeof data.noticeId === "string" ? data.noticeId : undefined,
     eventTitle: typeof data.eventTitle === "string" ? data.eventTitle : "",
     eventDate: typeof data.eventDate === "string" ? data.eventDate : "",
@@ -96,7 +98,10 @@ function normalizeNotificationType(value: unknown): NotificationType {
     value === "application_rejected" ||
     value === "schedule_created" ||
     value === "schedule_cancelled" ||
-    value === "notice_posted"
+    value === "notice_posted" ||
+    value === "attendance_submitted" ||
+    value === "attendance_approved" ||
+    value === "attendance_rejected"
   ) {
     return value;
   }
@@ -132,6 +137,7 @@ type NotificationPayload = {
   message: string;
   eventId?: string;
   applicationId?: string;
+  attendanceId?: string;
   noticeId?: string;
   eventTitle: string;
   eventDate: string;
@@ -156,13 +162,25 @@ async function createNotificationDoc(payload: NotificationPayload) {
     payload.type === "application_submitted" ||
     payload.type === "application_cancelled" ||
     payload.type === "application_approved" ||
-    payload.type === "notice_posted"
+    payload.type === "notice_posted" ||
+    payload.type === "attendance_submitted" ||
+    payload.type === "attendance_approved" ||
+    payload.type === "attendance_rejected"
   ) {
     void dispatchPushRelay({
       targetUserId: payload.targetUserId,
       title: payload.title,
       message: payload.message,
-      type: payload.type,
+      type: payload.type as
+        | "schedule_created"
+        | "schedule_cancelled"
+        | "application_submitted"
+        | "application_cancelled"
+        | "application_approved"
+        | "notice_posted"
+        | "attendance_submitted"
+        | "attendance_approved"
+        | "attendance_rejected",
       notificationId: ref.id,
     }).catch((err) => {
       console.warn("[push-relay]", err);
@@ -428,6 +446,80 @@ export type NotifyNoticePostedInput = {
   title: string;
   createdByUserId: string;
 };
+
+export async function notifyAdminsOnAttendanceSubmitted(input: {
+  attendanceId: string;
+  applicationId: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  slotTime: string;
+  location: string;
+  applicantName: string;
+  createdByUserId: string;
+}) {
+  const adminUids = await getAdminUidsFromConfig();
+  if (adminUids.length === 0) return;
+  const displayName = input.applicantName.trim() || "멤버";
+  const title = "출근 인증이 도착했어요";
+  const message = `${displayName}님이 ${input.eventTitle} 출근 인증을 완료했습니다.`;
+  await Promise.all(
+    adminUids.map((adminUid) =>
+      createNotificationDoc({
+        targetUserId: adminUid,
+        targetRole: "admin",
+        type: "attendance_submitted",
+        title,
+        message,
+        eventId: input.eventId,
+        applicationId: input.applicationId,
+        attendanceId: input.attendanceId,
+        eventTitle: input.eventTitle,
+        eventDate: input.eventDate,
+        slotTime: input.slotTime,
+        location: input.location,
+        applicantName: input.applicantName,
+        createdByUserId: input.createdByUserId,
+      }),
+    ),
+  );
+}
+
+export async function notifyMemberOnAttendanceReviewed(input: {
+  targetUserId: string;
+  attendanceId: string;
+  applicationId: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  slotTime: string;
+  location: string;
+  decision: "approved" | "rejected";
+  rejectionReason: string | null;
+  createdByUserId: string;
+}) {
+  const approved = input.decision === "approved";
+  await createNotificationDoc({
+    targetUserId: input.targetUserId,
+    targetRole: "member",
+    type: approved ? "attendance_approved" : "attendance_rejected",
+    title: approved
+      ? "출근 인증이 확인되었습니다"
+      : "출근 인증 재확인이 필요합니다",
+    message: approved
+      ? `${input.eventTitle} 출근 인증이 관리자에게 확인되었습니다.`
+      : `사유: ${input.rejectionReason?.trim() || "기타"}`,
+    eventId: input.eventId,
+    applicationId: input.applicationId,
+    attendanceId: input.attendanceId,
+    eventTitle: input.eventTitle,
+    eventDate: input.eventDate,
+    slotTime: input.slotTime,
+    location: input.location,
+    rejectionReason: input.rejectionReason ?? undefined,
+    createdByUserId: input.createdByUserId,
+  });
+}
 
 /** 공지 등록 시 승인된 전체 이용자에게 알림 */
 export async function notifyAllUsersOnNoticePosted(

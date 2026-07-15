@@ -11,6 +11,10 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import {
+  parseAttendanceSettings,
+  serializeAttendanceSettings,
+} from "@/lib/attendance-settings";
 import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
@@ -35,6 +39,7 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     noticeRaw && noticeRaw.trim() !== "" ? noticeRaw.trim() : undefined;
   const color =
     colorRaw && colorRaw.trim() !== "" ? colorRaw.trim() : undefined;
+  const attendance = parseAttendanceSettings(data.attendance);
   return {
     id,
     title,
@@ -42,6 +47,7 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     team_ids: normalizeTeamIds(data.team_ids),
     ...(notice !== undefined ? { notice } : {}),
     ...(color !== undefined ? { color } : {}),
+    attendance,
     sessions: sessions as EventItem["sessions"],
   };
 }
@@ -90,6 +96,9 @@ export async function saveEvent(event: EventItem): Promise<void> {
       sessions: event.sessions,
       notice: event.notice?.trim() ?? "",
       color: event.color?.trim() ?? "",
+      attendance: serializeAttendanceSettings(
+        parseAttendanceSettings(event.attendance),
+      ),
       updatedAt: serverTimestamp(),
     },
     { merge: true },

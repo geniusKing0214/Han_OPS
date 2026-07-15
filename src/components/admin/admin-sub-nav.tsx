@@ -7,6 +7,23 @@ import { cn } from "@/lib/utils";
 
 const items = [
   {
+    href: "/admin/schedule",
+    label: "일정",
+    isActive: (p: string) => p.startsWith("/admin/schedule"),
+  },
+  {
+    href: "/admin/roster",
+    label: "신청 인원 관리",
+    isActive: (p: string) =>
+      p === "/admin/roster" || p.startsWith("/admin/roster/"),
+  },
+  {
+    href: "/admin/attendance",
+    label: "출근 인증 관리",
+    isActive: (p: string) =>
+      p === "/admin/attendance" || p.startsWith("/admin/attendance/"),
+  },
+  {
     href: "/admin/registrations",
     label: "가입 승인",
     isActive: (p: string) =>
@@ -15,26 +32,14 @@ const items = [
   {
     href: "/admin/users",
     label: "사용자 관리",
-    /** 활성: 사용자 구간만 (일정 경로와 구분) */
     isActive: (p: string) =>
       p === "/admin/users" || p.startsWith("/admin/users/"),
-  },
-  {
-    href: "/admin/schedule",
-    label: "일정",
-    isActive: (p: string) => p.startsWith("/admin/schedule"),
   },
   {
     href: "/admin/applications",
     label: "신청",
     isActive: (p: string) =>
       p === "/admin/applications" || p.startsWith("/admin/applications/"),
-  },
-  {
-    href: "/admin/roster",
-    label: "신청 인원 관리",
-    isActive: (p: string) =>
-      p === "/admin/roster" || p.startsWith("/admin/roster/"),
   },
   {
     href: "/admin/points",
@@ -62,7 +67,7 @@ export function AdminSubNav() {
         className={cn(
           "items-stretch gap-0",
           "flex min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:overflow-visible lg:grid lg:grid-cols-7",
+          "md:overflow-visible lg:grid lg:grid-cols-8",
         )}
       >
         {items.map(({ href, label, isActive }) => {
