@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Calendar, CheckCircle2, ClipboardList, Timer } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,9 +22,50 @@ import {
 } from "@/lib/application-grouping";
 import { countAvailableApplicationEvents } from "@/lib/schedule-availability";
 import { normalizeTeamId } from "@/lib/team-utils";
+import { cn } from "@/lib/utils";
 import { statusLabels } from "@/types/application";
 import { TEAM_LABELS } from "@/types/team";
 import { mockAdminAlerts } from "@/data/mock-notices";
+
+function StatCard({
+  title,
+  value,
+  hint,
+  icon,
+  href,
+}: {
+  title: string;
+  value: number;
+  hint: string;
+  icon: ReactNode;
+  href?: string;
+}) {
+  const card = (
+    <Card
+      className={cn(
+        href &&
+          "transition-colors hover:border-accent/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+      )}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-semibold tabular-nums">{value}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      </CardContent>
+    </Card>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link href={href} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      {card}
+    </Link>
+  );
+}
 
 const RECENT_NOTICES_LIMIT = 3;
 
@@ -126,56 +167,33 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">오늘 일정</CardTitle>
-            <Calendar className="size-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">
-              {stats.todayShiftCount}
-            </p>
-            <p className="text-xs text-muted-foreground">배정된 근무 블록</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">승인 대기</CardTitle>
-            <Timer className="size-4 text-amber-400/90" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">
-              {stats.pendingApprovals}
-            </p>
-            <p className="text-xs text-muted-foreground">관리자 검토 필요</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">신청 가능 일정</CardTitle>
-            <ClipboardList className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">
-              {stats.openSlots}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {stats.openSlotsTeamLabel} · 오늘 이후 · 정원 여유 있는 일정
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">이번 달 근무</CardTitle>
-            <CheckCircle2 className="size-4 text-emerald-400/90" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">
-              {stats.monthWorked}
-            </p>
-            <p className="text-xs text-muted-foreground">확정/완료 기준</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="오늘 일정"
+          value={stats.todayShiftCount}
+          hint="배정된 근무 블록"
+          icon={<Calendar className="size-4 text-accent" />}
+          href="/schedule"
+        />
+        <StatCard
+          title="승인 대기"
+          value={stats.pendingApprovals}
+          hint="관리자 검토 필요"
+          icon={<Timer className="size-4 text-amber-400/90" />}
+          href="/applications?tab=pending"
+        />
+        <StatCard
+          title="신청 가능 일정"
+          value={stats.openSlots}
+          hint={`${stats.openSlotsTeamLabel} · 오늘 이후 · 정원 여유 있는 일정`}
+          icon={<ClipboardList className="size-4 text-muted-foreground" />}
+          href="/schedule"
+        />
+        <StatCard
+          title="이번 달 근무"
+          value={stats.monthWorked}
+          hint="확정/완료 기준"
+          icon={<CheckCircle2 className="size-4 text-emerald-400/90" />}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">

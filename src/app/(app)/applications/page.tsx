@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { ApplicationListByMonth } from "@/components/applications/application-list-by-month";
 import { MyApplicationRow } from "@/components/applications/my-application-row";
@@ -26,6 +27,21 @@ const tabConfig: { value: ApplicationStatus | "all"; label: string }[] = [
   { value: "completed", label: "완료됨" },
 ];
 
+type TabValue = (typeof tabConfig)[number]["value"];
+
+function parseTab(raw: string | null): TabValue {
+  if (
+    raw === "all" ||
+    raw === "approved" ||
+    raw === "pending" ||
+    raw === "rejected" ||
+    raw === "completed"
+  ) {
+    return raw;
+  }
+  return "all";
+}
+
 function rowsForTab(
   tab: ApplicationStatus | "all",
   items: ApplicationItem[],
@@ -34,9 +50,16 @@ function rowsForTab(
   return items.filter((a) => a.status === tab);
 }
 
-export default function ApplicationsPage() {
+function ApplicationsPageContent() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<(typeof tabConfig)[0]["value"]>("all");
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<TabValue>(() =>
+    parseTab(searchParams.get("tab")),
+  );
+
+  useEffect(() => {
+    setTab(parseTab(searchParams.get("tab")));
+  }, [searchParams]);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -200,6 +223,20 @@ export default function ApplicationsPage() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+export default function ApplicationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          불러오는 중...
+        </p>
+      }
+    >
+      <ApplicationsPageContent />
+    </Suspense>
   );
 }
 
