@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Copy,
   MoreHorizontal,
   Pencil,
@@ -14,6 +16,7 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useEvents } from "@/hooks/use-events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +48,8 @@ import {
   duplicateWorkforceSchedule,
   ensureWeekMeta,
   exportWeekToMonthlySheet,
+  importEventsForWeek,
+  countPendingEventImports,
   resetWorkforceWeek,
   saveWeekDraft,
   setScheduleAssignees,
@@ -131,8 +136,10 @@ function emptyForm(date: string): ScheduleFormState {
 export function WorkforceSchedulerPanel() {
   const { user, isAdmin } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const { events } = useEvents();
   const [weekStart, setWeekStart] = useState(() => getWeekStartMonday());
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const [workersOpen, setWorkersOpen] = useState(false);
   const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkforceWorkerStatus>(
@@ -258,6 +265,10 @@ export function WorkforceSchedulerPanel() {
   const unavailableHits = useMemo(
     () => findUnavailableAssignments(schedules, availMap),
     [schedules, availMap],
+  );
+  const pendingEventImports = useMemo(
+    () => countPendingEventImports(weekDates, events, schedules),
+    [weekDates, events, schedules],
   );
   const unassignedWorkers = useMemo(
     () =>
@@ -549,6 +560,43 @@ export function WorkforceSchedulerPanel() {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={busy || pendingEventImports === 0}
+                onClick={() =>
+                  void (async () => {
+                    setBusy(true);
+                    setError("");
+                    try {
+                      const { imported, skipped } = await importEventsForWeek({
+                        weekStart,
+                        weekDates,
+                        events,
+                        existing: schedules,
+                      });
+                      alert(
+                        `스케줄에서 ${imported}개 슬롯을 가져왔습니다.` +
+                          (skipped > 0
+                            ? ` (이미 연결된 ${skipped}개는 건너뜀)`
+                            : ""),
+                      );
+                    } catch (e) {
+                      setError(
+                        e instanceof Error
+                          ? e.message
+                          : "스케줄 불러오기에 실패했습니다.",
+                      );
+                    } finally {
+                      setBusy(false);
+                    }
+                  })()
+                }
+              >
+                스케줄에서 불러오기
+                {pendingEventImports > 0 ? ` (${pendingEventImports})` : ""}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 disabled={busy}
                 onClick={() =>
                   void (async () => {
@@ -672,8 +720,38 @@ export function WorkforceSchedulerPanel() {
         </p>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        {/* Worker list */}
+      <div
+        className={cn(
+          "grid gap-4",
+          workersOpen
+            ? "lg:grid-cols-[280px_minmax(0,1fr)]"
+            : "lg:grid-cols-1",
+        )}
+      >
+        {/* Worker list — 기본 접힘 */}
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full justify-between gap-2 lg:w-auto"
+            onClick={() => setWorkersOpen((o) => !o)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Users className="size-3.5" />
+              근무자 목록
+              {selectedWorkerIds.length > 0
+                ? ` (선택 ${selectedWorkerIds.length})`
+                : ""}
+            </span>
+            {workersOpen ? (
+              <ChevronUp className="size-4" />
+            ) : (
+              <ChevronDown className="size-4" />
+            )}
+          </Button>
+
+          {workersOpen ? (
         <Card className="lg:max-h-[calc(100dvh-220px)] lg:overflow-hidden">
           <CardHeader className="space-y-2 pb-2">
             <CardTitle className="text-sm">근무자 목록</CardTitle>
@@ -785,6 +863,8 @@ export function WorkforceSchedulerPanel() {
             ) : null}
           </CardContent>
         </Card>
+          ) : null}
+        </div>
 
         {/* Week calendar */}
         <div className="min-w-0 space-y-3 overflow-x-auto">
@@ -905,9 +985,9 @@ export function WorkforceSchedulerPanel() {
           />
         </CardContent>
         <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          PC: 근무자를 일정 카드로 드래그 · 클릭 선택 후 일정 탭 · 모바일:
-          선택 후 일정 탭으로 배정. 근무 불가일·주간 초과·같은 날 중복은 경고 후
-          사유 입력으로 예외 배정 가능.
+          근무자 목록은 기본 접힘 — 상단 «근무자 목록»으로 펼칩니다. «스케줄에서
+          불러오기»로 Admin 일정의 이벤트·슬롯을 가져올 수 있습니다. PC: 드래그
+          배정 · 클릭 선택 후 일정 탭.
         </p>
       </Card>
 
@@ -1225,6 +1305,11 @@ function ScheduleCard({
             {schedule.startTime}
           </span>
           <p className="mt-1 truncate text-xs font-semibold">{schedule.title}</p>
+          {schedule.sourceEventId ? (
+            <p className="mt-0.5 text-[9px] font-medium text-sky-300/90">
+              스케줄 연동
+            </p>
+          ) : null}
           <p className="truncate text-[10px] text-muted-foreground">
             {schedule.venue || "장소 미정"}
           </p>

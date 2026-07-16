@@ -20,6 +20,7 @@ import { db } from "@/lib/firebase";
 import {
   DEFAULT_AVAILABLE_WEEKDAYS,
   DEFAULT_WEEKLY_MAX,
+  WORKFORCE_COLORS,
   type WorkforceAssignStatus,
   type WorkforceAssignmentLog,
   type WorkforceAvailability,
@@ -30,6 +31,7 @@ import {
   type WeekdayKey,
 } from "@/types/workforce";
 import { normalizeTeamIds, type TeamId } from "@/types/team";
+import type { EventItem } from "@/types/schedule";
 
 export const WORKFORCE_WEEKS = "workforceWeeks";
 export const WORKFORCE_SCHEDULES = "workforceSchedules";
@@ -96,6 +98,14 @@ export function docToSchedule(
       data.status === "draft"
         ? data.status
         : "draft",
+    sourceEventId:
+      typeof data.sourceEventId === "string" ? data.sourceEventId : undefined,
+    sourceSessionId:
+      typeof data.sourceSessionId === "string"
+        ? data.sourceSessionId
+        : undefined,
+    sourceSlotId:
+      typeof data.sourceSlotId === "string" ? data.sourceSlotId : undefined,
     createdAt: timestampToIso(data.createdAt),
     updatedAt: timestampToIso(data.updatedAt),
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
@@ -254,6 +264,9 @@ export async function createWorkforceSchedule(input: {
   teamIds: TeamId[];
   note: string;
   color: string;
+  sourceEventId?: string;
+  sourceSessionId?: string;
+  sourceSlotId?: string;
 }): Promise<string> {
   const uid = await assertAdmin();
   await ensureWeekMeta(input.weekStart, uid);
@@ -269,6 +282,13 @@ export async function createWorkforceSchedule(input: {
     color: input.color,
     assignedUserIds: [],
     status: "draft",
+    ...(input.sourceEventId
+      ? {
+          sourceEventId: input.sourceEventId,
+          sourceSessionId: input.sourceSessionId ?? "",
+          sourceSlotId: input.sourceSlotId ?? "",
+        }
+      : {}),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     createdBy: uid,
@@ -641,3 +661,110 @@ export function subscribeRecentLogs(
 }
 
 export type { WorkforceAssignStatus };
+
+export function sourceSlotKey(
+  eventId: string,
+  sessionId: string,
+  slotId: string,
+) {
+  return `${eventId}:${sessionId}:${slotId}`;
+}
+
+/** 해당 주에 있는 events 슬롯 중, 아직 인력배정에 없는 항목만 가져옵니다. */
+export async function importEventsForWeek(input: {
+  weekStart: string;
+  weekDates: string[];
+  events: EventItem[];
+  existing: WorkforceSchedule[];
+}): Promise<{ imported: number; skipped: number }> {
+  const uid = await assertAdmin();
+  await ensureWeekMeta(input.weekStart, uid);
+
+  const existingKeys = new Set(
+    input.existing
+      .filter((s) => s.sourceEventId && s.sourceSessionId && s.sourceSlotId)
+      .map((s) =>
+        sourceSlotKey(s.sourceEventId!, s.sourceSessionId!, s.sourceSlotId!),
+      ),
+  );
+
+  const dateSet = new Set(input.weekDates);
+  let imported = 0;
+  let skipped = 0;
+  let colorIdx = 0;
+
+  for (const event of input.events) {
+    for (const session of event.sessions) {
+      if (!dateSet.has(session.date)) continue;
+      for (const slot of session.slots) {
+        const key = sourceSlotKey(event.id, session.id, slot.id);
+        if (existingKeys.has(key)) {
+          skipped += 1;
+          continue;
+        }
+        const color =
+          event.color?.trim() ||
+          WORKFORCE_COLORS[colorIdx % WORKFORCE_COLORS.length];
+        colorIdx += 1;
+        await createWorkforceSchedule({
+          weekStart: input.weekStart,
+          date: session.date,
+          title: event.title,
+          startTime: slot.start_time.trim() || "00:00",
+          venue: event.venue,
+          requiredCount: Math.max(0, slot.capacity || 0),
+          teamIds: normalizeTeamIds(event.team_ids),
+          note: event.notice?.trim() || "",
+          color,
+          sourceEventId: event.id,
+          sourceSessionId: session.id,
+          sourceSlotId: slot.id,
+        });
+        existingKeys.add(key);
+        imported += 1;
+      }
+    }
+  }
+
+  if (imported > 0) {
+    await writeAssignmentLog({
+      weekStart: input.weekStart,
+      actorUserId: uid,
+      actorName: "",
+      action: "import_events",
+      detail: `${imported}개 슬롯 가져옴 (중복 ${skipped})`,
+    });
+  }
+
+  return { imported, skipped };
+}
+
+/** 이번 주 스케줄에 아직 없는 이벤트 슬롯 개수 */
+export function countPendingEventImports(
+  weekDates: string[],
+  events: EventItem[],
+  existing: WorkforceSchedule[],
+): number {
+  const existingKeys = new Set(
+    existing
+      .filter((s) => s.sourceEventId && s.sourceSessionId && s.sourceSlotId)
+      .map((s) =>
+        sourceSlotKey(s.sourceEventId!, s.sourceSessionId!, s.sourceSlotId!),
+      ),
+  );
+  const dateSet = new Set(weekDates);
+  let n = 0;
+  for (const event of events) {
+    for (const session of event.sessions) {
+      if (!dateSet.has(session.date)) continue;
+      for (const slot of session.slots) {
+        if (
+          !existingKeys.has(sourceSlotKey(event.id, session.id, slot.id))
+        ) {
+          n += 1;
+        }
+      }
+    }
+  }
+  return n;
+}

@@ -105,6 +105,10 @@ export type WorkforceSchedule = {
   color: string;
   assignedUserIds: string[];
   status: WorkforceAssignStatus;
+  /** 기존 events 스케줄과 연동 시 */
+  sourceEventId?: string;
+  sourceSessionId?: string;
+  sourceSlotId?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -131,7 +135,8 @@ export type WorkforceLogAction =
   | "reset_week"
   | "save_draft"
   | "export_monthly"
-  | "update_availability";
+  | "update_availability"
+  | "import_events";
 
 export type WorkforceAssignmentLog = {
   id: string;
