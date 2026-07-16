@@ -98,14 +98,15 @@
   background-color: #fef3c7 !important;
 }
 
+.wf-standalone .bg-red-500\/10,
+.wf-standalone .bg-red-500\/15,
+.wf-standalone .bg-red-500\/20 {
+  background-color: #fee2e2 !important;
+}
+
 .wf-standalone .text-red-300,
 .wf-standalone .text-red-200 {
   color: #dc2626 !important;
-}
-
-.wf-standalone .bg-red-500\/10,
-.wf-standalone .bg-red-500\/15 {
-  background-color: #fee2e2 !important;
 }
 
 .wf-standalone .text-violet-200,

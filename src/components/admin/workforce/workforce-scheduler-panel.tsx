@@ -977,9 +977,9 @@ export function WorkforceSchedulerPanel({
                                   "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
                                   on
                                     ? "bg-sky-500/25 text-sky-200"
-                                    : "bg-muted/60 text-muted-foreground",
+                                    : "bg-red-500/20 text-red-300",
                                 )}
-                                title={`${WEEKDAY_LABELS[k]} ${date}`}
+                                title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
                               >
                                 {WEEKDAY_LABELS[k]}
                               </span>
