@@ -167,6 +167,7 @@ export function WorkforceSchedulerPanel({
     () => getWeekStartsCoveringDates(weekDates),
     [weekDates],
   );
+  const weekStartsKey = weekStarts.join(",");
   const primaryWeekStart = weekStarts[0] ?? getWeekStartMonday(parseYmd(cursor));
   const calendarWeeks = useMemo(
     () => buildCalendarWeeks(weekDates),
@@ -184,6 +185,8 @@ export function WorkforceSchedulerPanel({
     () => new Map(),
   );
   const [schedules, setSchedules] = useState<WorkforceSchedule[]>([]);
+  const schedulesRef = useRef<WorkforceSchedule[]>([]);
+  schedulesRef.current = schedules;
   const [weekMeta, setWeekMeta] = useState<WorkforceWeekMeta | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -232,7 +235,7 @@ export function WorkforceSchedulerPanel({
       setSchedules,
       (e) => setError(e.message),
     );
-  }, [isAdmin, weekStarts]);
+  }, [isAdmin, weekStartsKey, weekStarts]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -246,21 +249,21 @@ export function WorkforceSchedulerPanel({
     for (const ws of weekStarts) {
       void ensureWeekMeta(ws, user.uid).catch(() => {});
     }
-  }, [isAdmin, user, weekStarts]);
+  }, [isAdmin, user, weekStartsKey, weekStarts]);
 
   const displaySchedules = useMemo(
     () =>
       mergeWeekSchedulesWithEvents(
         primaryWeekStart,
         weekDates,
-        events,
+        events ?? [],
         schedules,
       ),
     [primaryWeekStart, weekDates, events, schedules],
   );
 
   const pendingEventImports = useMemo(
-    () => countPendingEventImports(weekDates, events, schedules),
+    () => countPendingEventImports(weekDates, events ?? [], schedules),
     [weekDates, events, schedules],
   );
 
@@ -273,19 +276,18 @@ export function WorkforceSchedulerPanel({
   useEffect(() => {
     if (!isAdmin || eventsLoading) return;
     if (pendingEventImports <= 0 && !needsSessionCleanup) return;
-    const syncKey = `${weekStarts.join(",")}:i${pendingEventImports}:c${needsSessionCleanup ? 1 : 0}`;
+    const syncKey = `${weekStartsKey}:i${pendingEventImports}:c${needsSessionCleanup ? 1 : 0}`;
     if (autoSyncRef.current === syncKey) return;
     autoSyncRef.current = syncKey;
     void (async () => {
       try {
+        const current = schedulesRef.current;
         for (const ws of weekStarts) {
-          const dates = getWeekDates(ws).filter((d) => weekDates.includes(d));
-          if (dates.length === 0) continue;
           await importEventsForWeek({
             weekStart: ws,
             weekDates: getWeekDates(ws),
-            events,
-            existing: schedules.filter((s) => s.weekStart === ws),
+            events: events ?? [],
+            existing: current.filter((s) => s.weekStart === ws),
           });
         }
       } catch (e) {
@@ -298,10 +300,9 @@ export function WorkforceSchedulerPanel({
     eventsLoading,
     pendingEventImports,
     needsSessionCleanup,
+    weekStartsKey,
     weekStarts,
-    weekDates,
     events,
-    schedules,
   ]);
 
   const nameByUid = useMemo(() => {
