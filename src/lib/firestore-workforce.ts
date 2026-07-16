@@ -680,26 +680,77 @@ export function sourceSlotKey(
   return `${eventId}:${sessionId}:${slotId}`;
 }
 
+/** 이벤트 세션 단위 키 (슬롯 여러 개여도 배정 카드 1개) */
+export function sourceSessionKey(eventId: string, sessionId: string) {
+  return `${eventId}:${sessionId}`;
+}
+
+/** 세션 병합 슬롯 id — 슬롯별 중복 카드 방지 */
+export const MERGED_SLOT_ID = "__session__";
+
 function normalizeSessionDate(raw: string): string {
   return raw.trim().slice(0, 10);
 }
 
-/** 세션에 슬롯이 없으면 일정 1개로 취급 (달력 점과 동일 기준) */
-function slotsForSession(session: {
-  id: string;
+export type WeekEventSessionRow = {
+  event: EventItem;
+  sessionId: string;
   date: string;
-  slots: { id: string; start_time: string; capacity: number }[];
-}) {
-  if (session.slots.length > 0) return session.slots;
-  return [
-    {
-      id: `${session.id}__default`,
-      start_time: "10:00",
-      capacity: 1,
-    },
-  ];
+  startTime: string;
+  requiredCount: number;
+};
+
+/** 주간 세션을 이벤트×세션당 1건으로 취합 (동일 시간 슬롯 중복 제거) */
+export function listEventSessionsInWeek(
+  weekDates: string[],
+  events: EventItem[],
+): WeekEventSessionRow[] {
+  const dateSet = new Set(weekDates.map((d) => d.trim()));
+  const out: WeekEventSessionRow[] = [];
+
+  for (const event of events) {
+    for (const session of event.sessions) {
+      const date = normalizeSessionDate(session.date || "");
+      if (!date || !dateSet.has(date)) continue;
+
+      const slots = session.slots ?? [];
+      if (slots.length === 0) {
+        out.push({
+          event,
+          sessionId: session.id,
+          date,
+          startTime: "10:00",
+          requiredCount: 1,
+        });
+        continue;
+      }
+
+      // 같은 start_time 슬롯은 정원만 합산 (중복 카드 방지)
+      const byTime = new Map<string, number>();
+      for (const slot of slots) {
+        const t = (slot.start_time || "10:00").trim() || "10:00";
+        byTime.set(t, (byTime.get(t) ?? 0) + Math.max(0, slot.capacity || 0));
+      }
+
+      // 세션당 카드 1개: 가장 이른 시간 + 전체 정원 합
+      const times = [...byTime.keys()].sort();
+      const startTime = times[0] ?? "10:00";
+      const requiredCount = [...byTime.values()].reduce((a, b) => a + b, 0);
+
+      out.push({
+        event,
+        sessionId: session.id,
+        date,
+        startTime,
+        requiredCount: Math.max(1, requiredCount),
+      });
+    }
+  }
+
+  return out;
 }
 
+/** @deprecated use listEventSessionsInWeek */
 export function listEventSlotsInWeek(
   weekDates: string[],
   events: EventItem[],
@@ -709,28 +760,16 @@ export function listEventSlotsInWeek(
   date: string;
   slot: { id: string; start_time: string; capacity: number };
 }[] {
-  const dateSet = new Set(weekDates.map((d) => d.trim()));
-  const out: {
-    event: EventItem;
-    sessionId: string;
-    date: string;
-    slot: { id: string; start_time: string; capacity: number };
-  }[] = [];
-  for (const event of events) {
-    for (const session of event.sessions) {
-      const date = normalizeSessionDate(session.date || "");
-      if (!date || !dateSet.has(date)) continue;
-      for (const slot of slotsForSession(session)) {
-        out.push({
-          event,
-          sessionId: session.id,
-          date,
-          slot,
-        });
-      }
-    }
-  }
-  return out;
+  return listEventSessionsInWeek(weekDates, events).map((row) => ({
+    event: row.event,
+    sessionId: row.sessionId,
+    date: row.date,
+    slot: {
+      id: MERGED_SLOT_ID,
+      start_time: row.startTime,
+      capacity: row.requiredCount,
+    },
+  }));
 }
 
 /** 스케줄 events + 인력배정 문서를 한 주 달력용으로 합칩니다. */
@@ -740,42 +779,53 @@ export function mergeWeekSchedulesWithEvents(
   events: EventItem[],
   existing: WorkforceSchedule[],
 ): WorkforceSchedule[] {
-  const existingBySource = new Map<string, WorkforceSchedule>();
+  // 세션 단위로 existing 매칭 (옛 슬롯별 문서도 같은 세션이면 하나로 묶음)
+  const existingBySession = new Map<string, WorkforceSchedule[]>();
   for (const s of existing) {
-    if (s.sourceEventId && s.sourceSessionId && s.sourceSlotId) {
-      existingBySource.set(
-        sourceSlotKey(s.sourceEventId, s.sourceSessionId, s.sourceSlotId),
-        s,
-      );
-    }
+    if (!s.sourceEventId || !s.sourceSessionId) continue;
+    const key = sourceSessionKey(s.sourceEventId, s.sourceSessionId);
+    const list = existingBySession.get(key) ?? [];
+    list.push(s);
+    existingBySession.set(key, list);
   }
 
   const merged: WorkforceSchedule[] = [];
   const usedIds = new Set<string>();
   let colorIdx = 0;
 
-  for (const row of listEventSlotsInWeek(weekDates, events)) {
-    const key = sourceSlotKey(row.event.id, row.sessionId, row.slot.id);
-    const linked = existingBySource.get(key);
+  for (const row of listEventSessionsInWeek(weekDates, events)) {
+    const key = sourceSessionKey(row.event.id, row.sessionId);
+    const linkedList = existingBySession.get(key) ?? [];
     const color =
       row.event.color?.trim() ||
-      linked?.color ||
+      linkedList[0]?.color ||
       WORKFORCE_COLORS[colorIdx % WORKFORCE_COLORS.length];
     colorIdx += 1;
 
-    if (linked) {
-      usedIds.add(linked.id);
+    if (linkedList.length > 0) {
+      // 배정자 합치고, 대표 문서는 merged 슬롯 또는 첫 문서
+      const primary =
+        linkedList.find((s) => s.sourceSlotId === MERGED_SLOT_ID) ??
+        linkedList[0]!;
+      const assigneeSet = new Set<string>();
+      for (const s of linkedList) {
+        usedIds.add(s.id);
+        for (const uid of s.assignedUserIds) assigneeSet.add(uid);
+      }
       merged.push({
-        ...linked,
-        title: row.event.title || linked.title,
-        venue: row.event.venue || linked.venue,
-        startTime: row.slot.start_time.trim() || linked.startTime,
-        requiredCount:
-          row.slot.capacity > 0 ? row.slot.capacity : linked.requiredCount,
+        ...primary,
+        title: row.event.title || primary.title,
+        venue: row.event.venue || primary.venue,
+        startTime: row.startTime || primary.startTime,
+        requiredCount: row.requiredCount,
         teamIds: normalizeTeamIds(row.event.team_ids),
-        note: row.event.notice?.trim() || linked.note,
+        note: row.event.notice?.trim() || primary.note,
         color,
         date: row.date,
+        assignedUserIds: [...assigneeSet],
+        sourceEventId: row.event.id,
+        sourceSessionId: row.sessionId,
+        sourceSlotId: MERGED_SLOT_ID,
       });
     } else {
       merged.push({
@@ -783,9 +833,9 @@ export function mergeWeekSchedulesWithEvents(
         weekStart,
         date: row.date,
         title: row.event.title,
-        startTime: row.slot.start_time.trim() || "10:00",
+        startTime: row.startTime,
         venue: row.event.venue,
-        requiredCount: Math.max(0, row.slot.capacity || 0),
+        requiredCount: row.requiredCount,
         teamIds: normalizeTeamIds(row.event.team_ids),
         note: row.event.notice?.trim() || "",
         color,
@@ -793,7 +843,7 @@ export function mergeWeekSchedulesWithEvents(
         status: "draft",
         sourceEventId: row.event.id,
         sourceSessionId: row.sessionId,
-        sourceSlotId: row.slot.id,
+        sourceSlotId: MERGED_SLOT_ID,
         createdAt: "",
         updatedAt: "",
         createdBy: "",
@@ -803,6 +853,14 @@ export function mergeWeekSchedulesWithEvents(
 
   for (const s of existing) {
     if (usedIds.has(s.id)) continue;
+    // 스케줄 연동인데 이미 세션 병합에 포함된 슬롯 문서는 스킵
+    if (s.sourceEventId && s.sourceSessionId) {
+      const siblings =
+        existingBySession.get(
+          sourceSessionKey(s.sourceEventId, s.sourceSessionId),
+        ) ?? [];
+      if (siblings.some((x) => usedIds.has(x.id))) continue;
+    }
     merged.push(s);
   }
 
@@ -813,31 +871,42 @@ export function mergeWeekSchedulesWithEvents(
   );
 }
 
-/** 해당 주에 있는 events 슬롯 중, 아직 인력배정에 없는 항목만 가져옵니다. */
+/** 해당 주에 있는 events 세션 중, 아직 인력배정에 없는 항목만 가져옵니다. */
 export async function importEventsForWeek(input: {
   weekStart: string;
   weekDates: string[];
   events: EventItem[];
   existing: WorkforceSchedule[];
-}): Promise<{ imported: number; skipped: number }> {
+}): Promise<{ imported: number; skipped: number; cleaned: number }> {
   const uid = await assertAdmin();
   await ensureWeekMeta(input.weekStart, uid);
 
-  const existingKeys = new Set(
-    input.existing
-      .filter((s) => s.sourceEventId && s.sourceSessionId && s.sourceSlotId)
-      .map((s) =>
-        sourceSlotKey(s.sourceEventId!, s.sourceSessionId!, s.sourceSlotId!),
-      ),
+  // 기존 슬롯별 중복 문서 → 세션당 1개로 정리
+  const cleaned = await cleanupDuplicateSessionSchedules(input.existing);
+
+  const snap = await getDocs(
+    query(
+      collection(db, WORKFORCE_SCHEDULES),
+      where("weekStart", "==", input.weekStart),
+    ),
+  );
+  const freshExisting = snap.docs
+    .map((d) => docToSchedule(d.id, d.data() as Record<string, unknown>))
+    .filter((s) => s.status !== "cancelled");
+
+  const existingSessionKeys = new Set(
+    freshExisting
+      .filter((s) => s.sourceEventId && s.sourceSessionId)
+      .map((s) => sourceSessionKey(s.sourceEventId!, s.sourceSessionId!)),
   );
 
   let imported = 0;
   let skipped = 0;
   let colorIdx = 0;
 
-  for (const row of listEventSlotsInWeek(input.weekDates, input.events)) {
-    const key = sourceSlotKey(row.event.id, row.sessionId, row.slot.id);
-    if (existingKeys.has(key)) {
+  for (const row of listEventSessionsInWeek(input.weekDates, input.events)) {
+    const key = sourceSessionKey(row.event.id, row.sessionId);
+    if (existingSessionKeys.has(key)) {
       skipped += 1;
       continue;
     }
@@ -849,34 +918,113 @@ export async function importEventsForWeek(input: {
       weekStart: input.weekStart,
       date: row.date,
       title: row.event.title,
-      startTime: row.slot.start_time.trim() || "10:00",
+      startTime: row.startTime,
       venue: row.event.venue,
-      requiredCount: Math.max(0, row.slot.capacity || 0),
+      requiredCount: row.requiredCount,
       teamIds: normalizeTeamIds(row.event.team_ids),
       note: row.event.notice?.trim() || "",
       color,
       sourceEventId: row.event.id,
       sourceSessionId: row.sessionId,
-      sourceSlotId: row.slot.id,
+      sourceSlotId: MERGED_SLOT_ID,
     });
-    existingKeys.add(key);
+    existingSessionKeys.add(key);
     imported += 1;
   }
 
-  if (imported > 0) {
+  if (imported > 0 || cleaned > 0) {
     await writeAssignmentLog({
       weekStart: input.weekStart,
       actorUserId: uid,
       actorName: "",
       action: "import_events",
-      detail: `${imported}개 슬롯 가져옴 (중복 ${skipped})`,
+      detail: `가져옴 ${imported} · 중복스킵 ${skipped} · 정리 ${cleaned}`,
     });
   }
 
-  return { imported, skipped };
+  return { imported, skipped, cleaned };
 }
 
-/** 이번 주 스케줄에 아직 없는 이벤트 슬롯 개수 */
+/** DB에 세션당 2개 이상 문서가 남아 있는지 */
+export function hasDuplicateSessionSchedules(
+  existing: WorkforceSchedule[],
+): boolean {
+  const seen = new Map<string, number>();
+  for (const s of existing) {
+    if (!s.sourceEventId || !s.sourceSessionId) continue;
+    const key = sourceSessionKey(s.sourceEventId, s.sourceSessionId);
+    const n = (seen.get(key) ?? 0) + 1;
+    if (n > 1) return true;
+    seen.set(key, n);
+    if (s.sourceSlotId && s.sourceSlotId !== MERGED_SLOT_ID) return true;
+  }
+  return false;
+}
+
+/** 같은 이벤트 세션에 묶인 슬롯별 문서들을 1개로 병합·삭제 */
+export async function cleanupDuplicateSessionSchedules(
+  existing: WorkforceSchedule[],
+): Promise<number> {
+  await assertAdmin();
+  const groups = new Map<string, WorkforceSchedule[]>();
+  for (const s of existing) {
+    if (!s.sourceEventId || !s.sourceSessionId) continue;
+    const key = sourceSessionKey(s.sourceEventId, s.sourceSessionId);
+    const list = groups.get(key) ?? [];
+    list.push(s);
+    groups.set(key, list);
+  }
+
+  let cleaned = 0;
+  for (const [, list] of groups) {
+    if (list.length <= 1) {
+      // 슬롯 id만 옛 형식이면 MERGED 로 정규화
+      const only = list[0];
+      if (only && only.sourceSlotId !== MERGED_SLOT_ID) {
+        await updateDoc(doc(db, WORKFORCE_SCHEDULES, only.id), {
+          sourceSlotId: MERGED_SLOT_ID,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      continue;
+    }
+
+    const primary =
+      list.find((s) => s.sourceSlotId === MERGED_SLOT_ID) ?? list[0]!;
+    const assigneeSet = new Set<string>();
+    let required = 0;
+    let startTime = primary.startTime;
+    for (const s of list) {
+      for (const uid of s.assignedUserIds) assigneeSet.add(uid);
+      // 옛 슬롯별 문서는 정원 합산, 이미 병합된 문서는 합치지 않음
+      if (s.sourceSlotId === MERGED_SLOT_ID) {
+        required = Math.max(required, s.requiredCount);
+      } else {
+        required += Math.max(0, s.requiredCount);
+      }
+      if (s.startTime && (!startTime || s.startTime < startTime)) {
+        startTime = s.startTime;
+      }
+    }
+
+    await updateDoc(doc(db, WORKFORCE_SCHEDULES, primary.id), {
+      assignedUserIds: [...assigneeSet],
+      requiredCount: Math.max(1, required),
+      startTime,
+      sourceSlotId: MERGED_SLOT_ID,
+      updatedAt: serverTimestamp(),
+    });
+
+    for (const s of list) {
+      if (s.id === primary.id) continue;
+      await deleteDoc(doc(db, WORKFORCE_SCHEDULES, s.id));
+      cleaned += 1;
+    }
+  }
+  return cleaned;
+}
+
+/** 이번 주 스케줄에 아직 없는 이벤트 세션 개수 */
 export function countPendingEventImports(
   weekDates: string[],
   events: EventItem[],
@@ -884,18 +1032,12 @@ export function countPendingEventImports(
 ): number {
   const existingKeys = new Set(
     existing
-      .filter((s) => s.sourceEventId && s.sourceSessionId && s.sourceSlotId)
-      .map((s) =>
-        sourceSlotKey(s.sourceEventId!, s.sourceSessionId!, s.sourceSlotId!),
-      ),
+      .filter((s) => s.sourceEventId && s.sourceSessionId)
+      .map((s) => sourceSessionKey(s.sourceEventId!, s.sourceSessionId!)),
   );
   let n = 0;
-  for (const row of listEventSlotsInWeek(weekDates, events)) {
-    if (
-      !existingKeys.has(
-        sourceSlotKey(row.event.id, row.sessionId, row.slot.id),
-      )
-    ) {
+  for (const row of listEventSessionsInWeek(weekDates, events)) {
+    if (!existingKeys.has(sourceSessionKey(row.event.id, row.sessionId))) {
       n += 1;
     }
   }
@@ -918,6 +1060,6 @@ export async function ensureWorkforceSchedulePersisted(
     color: schedule.color,
     sourceEventId: schedule.sourceEventId,
     sourceSessionId: schedule.sourceSessionId,
-    sourceSlotId: schedule.sourceSlotId,
+    sourceSlotId: schedule.sourceSlotId ?? MERGED_SLOT_ID,
   });
 }

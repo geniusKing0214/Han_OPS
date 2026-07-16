@@ -50,6 +50,7 @@ import {
   exportWeekToMonthlySheet,
   importEventsForWeek,
   countPendingEventImports,
+  hasDuplicateSessionSchedules,
   mergeWeekSchedulesWithEvents,
   ensureWorkforceSchedulePersisted,
   resetWorkforceWeek,
@@ -139,13 +140,11 @@ function emptyForm(date: string): ScheduleFormState {
 export function WorkforceSchedulerPanel() {
   const { user, isAdmin } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const isWide = useMediaQuery("(min-width: 768px)");
   const { events, loading: eventsLoading } = useEvents();
   const [weekStart, setWeekStart] = useState(() => getWeekStartMonday());
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const [workersOpen, setWorkersOpen] = useState(false);
   const [mobileDay, setMobileDay] = useState(() => getWeekStartMonday());
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const autoSyncRef = useRef<string>("");
   const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
   const [search, setSearch] = useState("");
@@ -227,10 +226,6 @@ export function WorkforceSchedulerPanel() {
     }
   }, [weekDates, mobileDay]);
 
-  useEffect(() => {
-    setExpandedCardId(null);
-  }, [weekStart, mobileDay]);
-
   const displaySchedules = useMemo(
     () =>
       mergeWeekSchedulesWithEvents(weekStart, weekDates, events, schedules),
@@ -242,11 +237,16 @@ export function WorkforceSchedulerPanel() {
     [weekDates, events, schedules],
   );
 
-  /** 주 변경·스케줄 로드 시 이벤트 자동 동기화 */
+  const needsSessionCleanup = useMemo(
+    () => hasDuplicateSessionSchedules(schedules),
+    [schedules],
+  );
+
+  /** 주 변경·스케줄 로드 시 이벤트 자동 동기화 + 슬롯 중복 정리 */
   useEffect(() => {
     if (!isAdmin || eventsLoading) return;
-    if (pendingEventImports <= 0) return;
-    const syncKey = `${weekStart}:${pendingEventImports}`;
+    if (pendingEventImports <= 0 && !needsSessionCleanup) return;
+    const syncKey = `${weekStart}:i${pendingEventImports}:c${needsSessionCleanup ? 1 : 0}`;
     if (autoSyncRef.current === syncKey) return;
     autoSyncRef.current = syncKey;
     void (async () => {
@@ -266,6 +266,7 @@ export function WorkforceSchedulerPanel() {
     isAdmin,
     eventsLoading,
     pendingEventImports,
+    needsSessionCleanup,
     weekStart,
     weekDates,
     events,
@@ -644,16 +645,20 @@ export function WorkforceSchedulerPanel() {
                     setBusy(true);
                     setError("");
                     try {
-                      const { imported, skipped } = await importEventsForWeek({
-                        weekStart,
-                        weekDates,
-                        events,
-                        existing: schedules,
-                      });
+                      const { imported, skipped, cleaned } =
+                        await importEventsForWeek({
+                          weekStart,
+                          weekDates,
+                          events,
+                          existing: schedules,
+                        });
                       alert(
-                        `스케줄에서 ${imported}개 슬롯을 가져왔습니다.` +
+                        `스케줄에서 ${imported}개 일정을 가져왔습니다.` +
                           (skipped > 0
                             ? ` (이미 연결된 ${skipped}개는 건너뜀)`
+                            : "") +
+                          (cleaned > 0
+                            ? ` · 중복 카드 ${cleaned}개 정리`
                             : ""),
                       );
                     } catch (e) {
@@ -949,310 +954,154 @@ export function WorkforceSchedulerPanel() {
           ) : null}
         </div>
 
-        {/* Week calendar */}
+        {/* Day-focused board (모바일·PC 공통) */}
         <div className="min-w-0 space-y-3">
-          {!isWide ? (
-            <div className="space-y-3">
-              <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {weekDates.map((date) => {
-                  const daySchedules = displaySchedules.filter(
-                    (s) => s.date === date,
-                  );
-                  const dayRequired = daySchedules.reduce(
-                    (a, s) => a + s.requiredCount,
-                    0,
-                  );
-                  const dayAssigned = daySchedules.reduce(
-                    (a, s) => a + s.assignedUserIds.length,
-                    0,
-                  );
-                  const diff = dayAssigned - dayRequired;
-                  const { label, dow } = formatDayHeader(date);
-                  const active = mobileDay === date;
-                  return (
-                    <button
-                      key={date}
-                      type="button"
-                      onClick={() => setMobileDay(date)}
-                      className={cn(
-                        "shrink-0 rounded-xl border px-3 py-2 text-left transition-colors",
-                        active
-                          ? "border-accent bg-accent/15"
-                          : "border-border bg-card/60",
-                      )}
-                    >
-                      <p className="text-xs font-semibold">
-                        {dow}{" "}
-                        <span className="tabular-nums text-muted-foreground">
-                          {label}
-                        </span>
-                      </p>
-                      <p
+          <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {weekDates.map((date) => {
+              const daySchedules = displaySchedules.filter(
+                (s) => s.date === date,
+              );
+              const { label, dow } = formatDayHeader(date);
+              const active = mobileDay === date;
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => setMobileDay(date)}
+                  className={cn(
+                    "min-w-[4.5rem] shrink-0 rounded-2xl border px-3 py-2.5 text-center transition-colors",
+                    active
+                      ? "border-accent bg-accent/20 shadow-sm"
+                      : "border-border/80 bg-card/50 hover:bg-muted/40",
+                  )}
+                >
+                  <p className="text-[11px] font-semibold tracking-wide">
+                    {dow}
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                    {label}
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-1 text-[10px] tabular-nums",
+                      daySchedules.length === 0
+                        ? "text-muted-foreground"
+                        : "text-accent",
+                    )}
+                  >
+                    {daySchedules.length}건
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {(() => {
+            const date = mobileDay;
+            const daySchedules = displaySchedules.filter((s) => s.date === date);
+            const dayRequired = daySchedules.reduce(
+              (a, s) => a + s.requiredCount,
+              0,
+            );
+            const dayAssigned = daySchedules.reduce(
+              (a, s) => a + s.assignedUserIds.length,
+              0,
+            );
+            const { label, dow } = formatDayHeader(date);
+            return (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-end justify-between gap-2 px-0.5">
+                  <div>
+                    <h3 className="text-base font-semibold">
+                      {dow}요일 {label}
+                    </h3>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <span className="rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[11px] font-medium text-violet-300">
+                        일정 {daySchedules.length}건
+                      </span>
+                      <span
                         className={cn(
-                          "mt-0.5 text-[10px] tabular-nums",
-                          diff < 0
-                            ? "text-red-300"
-                            : diff > 0
-                              ? "text-sky-300"
-                              : "text-emerald-300",
+                          "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                          dayAssigned >= dayRequired && dayRequired > 0
+                            ? "bg-emerald-500/15 text-emerald-300"
+                            : "bg-amber-500/15 text-amber-200",
                         )}
                       >
-                        {daySchedules.length}건 · {dayAssigned}/{dayRequired}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-              {(() => {
-                const date = mobileDay;
-                const daySchedules = displaySchedules.filter(
-                  (s) => s.date === date,
-                );
-                const dayRequired = daySchedules.reduce(
-                  (a, s) => a + s.requiredCount,
-                  0,
-                );
-                const dayAssigned = daySchedules.reduce(
-                  (a, s) => a + s.assignedUserIds.length,
-                  0,
-                );
-                const diff = dayAssigned - dayRequired;
-                const { label, dow } = formatDayHeader(date);
-                return (
-                  <div className="rounded-xl border border-border bg-card/60">
-                    <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {dow}{" "}
-                          <span className="tabular-nums text-muted-foreground">
-                            {label}
-                          </span>
-                        </p>
-                        <p
-                          className={cn(
-                            "text-[11px]",
-                            diff < 0
-                              ? "text-red-300"
-                              : diff > 0
-                                ? "text-sky-300"
-                                : "text-emerald-300",
-                          )}
-                        >
-                          필요 {dayRequired} · 배정 {dayAssigned} ·{" "}
-                          {diff < 0
-                            ? `부족 ${-diff}`
-                            : diff > 0
-                              ? `초과 ${diff}`
-                              : "충족"}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1 text-[11px]"
-                        onClick={() => openCreate(date)}
-                      >
-                        <Plus className="size-3" /> 추가
-                      </Button>
-                    </div>
-                    <div className="max-h-[min(62dvh,560px)] space-y-1 overflow-y-auto overscroll-contain p-2">
-                      {daySchedules.length === 0 ? (
-                        <p className="py-8 text-center text-xs text-muted-foreground">
-                          이 날 일정이 없습니다.
-                        </p>
-                      ) : (
-                        daySchedules.map((s) => (
-                          <ScheduleCard
-                            key={s.id}
-                            schedule={s}
-                            nameByUid={nameByUid}
-                            compact
-                            expanded={expandedCardId === s.id}
-                            onToggleExpand={() =>
-                              setExpandedCardId((id) =>
-                                id === s.id ? null : s.id,
-                              )
-                            }
-                            menuOpen={menuScheduleId === s.id}
-                            onMenuToggle={() =>
-                              setMenuScheduleId((id) =>
-                                id === s.id ? null : s.id,
-                              )
-                            }
-                            onEdit={() => void openEdit(s)}
-                            onDuplicate={() =>
-                              void (async () => {
-                                const id =
-                                  await ensureWorkforceSchedulePersisted(s);
-                                await duplicateWorkforceSchedule(id);
-                              })()
-                            }
-                            onDelete={() =>
-                              void (async () => {
-                                if (s.id.startsWith("virtual:")) {
-                                  setError(
-                                    "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. Admin 일정에서 수정하세요.",
-                                  );
-                                  return;
-                                }
-                                if (!confirm("이 일정을 삭제할까요?")) return;
-                                await deleteWorkforceSchedule(s.id);
-                              })()
-                            }
-                            onDropWorker={() => {
-                              if (!dragUserId) return;
-                              void tryAssign(s, [dragUserId]);
-                              setDragUserId(null);
-                            }}
-                            onClickAssign={() => {
-                              if (selectedWorkerIds.length > 0) {
-                                void tryAssign(s, selectedWorkerIds);
-                                return;
-                              }
-                              setAssignTarget(s);
-                            }}
-                            onRemoveUser={(uid) => void removeAssignee(s, uid)}
-                            isDesktop={isDesktop}
-                          />
-                        ))
-                      )}
+                        배치 {dayAssigned}/{dayRequired}명
+                      </span>
                     </div>
                   </div>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="grid min-w-[900px] grid-cols-7 gap-2">
-                {weekDates.map((date) => {
-                  const daySchedules = displaySchedules.filter(
-                    (s) => s.date === date,
-                  );
-                  const dayRequired = daySchedules.reduce(
-                    (a, s) => a + s.requiredCount,
-                    0,
-                  );
-                  const dayAssigned = daySchedules.reduce(
-                    (a, s) => a + s.assignedUserIds.length,
-                    0,
-                  );
-                  const diff = dayAssigned - dayRequired;
-                  const { label, dow } = formatDayHeader(date);
-                  return (
-                    <div
-                      key={date}
-                      className="flex max-h-[min(68dvh,640px)] flex-col rounded-xl border border-border bg-card/60"
-                      onDragOver={(e) => {
-                        if (isDesktop) e.preventDefault();
-                      }}
-                    >
-                      <div className="shrink-0 border-b border-border px-2 py-1.5">
-                        <p className="text-center text-xs font-semibold">
-                          {dow}{" "}
-                          <span className="tabular-nums text-muted-foreground">
-                            {label}
-                          </span>
-                        </p>
-                        <p
-                          className={cn(
-                            "mt-0.5 text-center text-[10px]",
-                            diff < 0
-                              ? "text-red-300"
-                              : diff > 0
-                                ? "text-sky-300"
-                                : "text-emerald-300",
-                          )}
-                        >
-                          {daySchedules.length}건 · {dayAssigned}/{dayRequired}
-                          {diff < 0
-                            ? ` · 부족 ${-diff}`
-                            : diff > 0
-                              ? ` · 초과 ${diff}`
-                              : ""}
-                        </p>
-                      </div>
-                      <div className="shrink-0 p-1.5">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 w-full gap-1 text-[10px]"
-                          onClick={() => openCreate(date)}
-                        >
-                          <Plus className="size-3" /> 일정 추가
-                        </Button>
-                      </div>
-                      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-1.5 pb-1.5">
-                        {daySchedules.length === 0 ? (
-                          <p className="py-6 text-center text-[10px] text-muted-foreground">
-                            없음
-                          </p>
-                        ) : (
-                          daySchedules.map((s) => (
-                            <ScheduleCard
-                              key={s.id}
-                              schedule={s}
-                              nameByUid={nameByUid}
-                              compact
-                              expanded={expandedCardId === s.id}
-                              onToggleExpand={() =>
-                                setExpandedCardId((id) =>
-                                  id === s.id ? null : s.id,
-                                )
-                              }
-                              menuOpen={menuScheduleId === s.id}
-                              onMenuToggle={() =>
-                                setMenuScheduleId((id) =>
-                                  id === s.id ? null : s.id,
-                                )
-                              }
-                              onEdit={() => void openEdit(s)}
-                              onDuplicate={() =>
-                                void (async () => {
-                                  const id =
-                                    await ensureWorkforceSchedulePersisted(s);
-                                  await duplicateWorkforceSchedule(id);
-                                })()
-                              }
-                              onDelete={() =>
-                                void (async () => {
-                                  if (s.id.startsWith("virtual:")) {
-                                    setError(
-                                      "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. Admin 일정에서 수정하세요.",
-                                    );
-                                    return;
-                                  }
-                                  if (!confirm("이 일정을 삭제할까요?")) return;
-                                  await deleteWorkforceSchedule(s.id);
-                                })()
-                              }
-                              onDropWorker={() => {
-                                if (!dragUserId) return;
-                                void tryAssign(s, [dragUserId]);
-                                setDragUserId(null);
-                              }}
-                              onClickAssign={() => {
-                                if (selectedWorkerIds.length > 0) {
-                                  void tryAssign(s, selectedWorkerIds);
-                                  return;
-                                }
-                                setAssignTarget(s);
-                              }}
-                              onRemoveUser={(uid) =>
-                                void removeAssignee(s, uid)
-                              }
-                              isDesktop={isDesktop}
-                            />
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 gap-1 rounded-xl"
+                    onClick={() => openCreate(date)}
+                  >
+                    <Plus className="size-3.5" /> 일정 추가
+                  </Button>
+                </div>
+
+                {daySchedules.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-12 text-center text-sm text-muted-foreground">
+                    이 날 일정이 없습니다. 스케줄에 세션을 추가하거나 «일정
+                    추가»로 만드세요.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {daySchedules.map((s) => (
+                      <ScheduleCard
+                        key={s.id}
+                        schedule={s}
+                        nameByUid={nameByUid}
+                        defaultExpanded={daySchedules.length <= 5}
+                        menuOpen={menuScheduleId === s.id}
+                        onMenuToggle={() =>
+                          setMenuScheduleId((id) =>
+                            id === s.id ? null : s.id,
+                          )
+                        }
+                        onEdit={() => void openEdit(s)}
+                        onDuplicate={() =>
+                          void (async () => {
+                            const id =
+                              await ensureWorkforceSchedulePersisted(s);
+                            await duplicateWorkforceSchedule(id);
+                          })()
+                        }
+                        onDelete={() =>
+                          void (async () => {
+                            if (s.id.startsWith("virtual:")) {
+                              setError(
+                                "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. Admin 일정에서 수정하세요.",
+                              );
+                              return;
+                            }
+                            if (!confirm("이 일정을 삭제할까요?")) return;
+                            await deleteWorkforceSchedule(s.id);
+                          })()
+                        }
+                        onDropWorker={() => {
+                          if (!dragUserId) return;
+                          void tryAssign(s, [dragUserId]);
+                          setDragUserId(null);
+                        }}
+                        onClickAssign={() => {
+                          if (selectedWorkerIds.length > 0) {
+                            void tryAssign(s, selectedWorkerIds);
+                            return;
+                          }
+                          setAssignTarget(s);
+                        }}
+                        onRemoveUser={(uid) => void removeAssignee(s, uid)}
+                        isDesktop={isDesktop}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -1272,8 +1121,8 @@ export function WorkforceSchedulerPanel() {
           />
         </CardContent>
         <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          일정 카드는 한 줄로 압축됩니다. 탭하면 배정자·상세가 펼쳐집니다.
-          모바일은 요일 칩으로 하루만 봅니다.
+          스케줄 세션은 이벤트당 1장으로 취합됩니다. 요일 칩을 고른 뒤 카드에서
+          배정하세요.
         </p>
       </Card>
 
@@ -1545,9 +1394,7 @@ function Field({
 function ScheduleCard({
   schedule,
   nameByUid,
-  compact,
-  expanded,
-  onToggleExpand,
+  defaultExpanded = true,
   menuOpen,
   onMenuToggle,
   onEdit,
@@ -1560,9 +1407,7 @@ function ScheduleCard({
 }: {
   schedule: WorkforceSchedule;
   nameByUid: Map<string, string>;
-  compact?: boolean;
-  expanded?: boolean;
-  onToggleExpand?: () => void;
+  defaultExpanded?: boolean;
   menuOpen: boolean;
   onMenuToggle: () => void;
   onEdit: () => void;
@@ -1573,18 +1418,20 @@ function ScheduleCard({
   onRemoveUser: (uid: string) => void;
   isDesktop: boolean;
 }) {
+  const [open, setOpen] = useState(defaultExpanded);
+  useEffect(() => {
+    setOpen(defaultExpanded);
+  }, [schedule.id, defaultExpanded]);
+
   const filled = schedule.assignedUserIds.length;
-  const shown = schedule.assignedUserIds.slice(0, 4);
-  const more = schedule.assignedUserIds.length - shown.length;
-  const isOpen = compact ? !!expanded : true;
+  const need = schedule.requiredCount;
+  const full = need > 0 && filled >= need;
+  const short = Math.max(0, need - filled);
 
   return (
     <div
-      className={cn(
-        "relative rounded-lg border border-border bg-background/70",
-        compact ? "px-1.5 py-1" : "p-2.5 shadow-sm",
-      )}
-      style={{ borderLeftWidth: 3, borderLeftColor: schedule.color }}
+      className="overflow-hidden rounded-2xl border border-border/90 bg-card shadow-sm"
+      style={{ borderLeftWidth: 4, borderLeftColor: schedule.color }}
       onDragOver={(e) => {
         if (isDesktop) e.preventDefault();
       }}
@@ -1593,127 +1440,139 @@ function ScheduleCard({
         onDropWorker();
       }}
     >
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          className="min-w-0 flex-1 text-left"
-          onClick={() => onToggleExpand?.()}
-        >
-          <div className="flex items-center gap-1.5">
+      <div className="flex items-start gap-2 px-4 pt-3.5">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
             <span
-              className="inline-flex shrink-0 rounded px-1 py-0.5 text-[9px] font-semibold tabular-nums text-white"
+              className="inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold tabular-nums text-white shadow-sm"
               style={{ backgroundColor: schedule.color }}
             >
               {schedule.startTime}
             </span>
-            <p className="min-w-0 flex-1 truncate text-[11px] font-medium leading-tight">
-              {schedule.title}
-            </p>
-            <span
-              className={cn(
-                "shrink-0 text-[10px] tabular-nums",
-                filled < schedule.requiredCount
-                  ? "text-red-300"
-                  : "text-muted-foreground",
-              )}
-            >
-              {filled}/{schedule.requiredCount}
-            </span>
-            {compact ? (
-              isOpen ? (
-                <ChevronUp className="size-3 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-              )
+            <h4 className="min-w-0 truncate text-[15px] font-semibold tracking-tight">
+              {schedule.title || "근무"}
+            </h4>
+            {schedule.sourceEventId ? (
+              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                스케줄
+              </span>
             ) : null}
           </div>
-        </button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-6 shrink-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClickAssign();
-          }}
-          aria-label="배정"
-        >
-          <Users className="size-3" />
-        </Button>
-        <div className="relative shrink-0">
+          <p className="truncate text-sm text-muted-foreground">
+            {schedule.venue?.trim() || "근무 장소 미정"}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="size-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMenuToggle();
-            }}
+            size="sm"
+            className="h-8 gap-1 px-2 text-[11px] text-muted-foreground"
+            onClick={() => setOpen((v) => !v)}
           >
-            <MoreHorizontal className="size-3.5" />
+            {open ? "접기" : "펼치기"}
+            {open ? (
+              <ChevronUp className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
           </Button>
-          {menuOpen ? (
-            <div className="absolute right-0 z-20 mt-1 w-28 rounded-md border border-border bg-card py-1 shadow-lg">
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                onClick={onEdit}
-              >
-                <Pencil className="size-3" /> 수정
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                onClick={onDuplicate}
-              >
-                <Copy className="size-3" /> 복제
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-300 hover:bg-muted"
-                onClick={onDelete}
-              >
-                <Trash2 className="size-3" /> 삭제
-              </button>
-            </div>
-          ) : null}
+          <div className="relative">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={onMenuToggle}
+            >
+              <MoreHorizontal className="size-4" />
+            </Button>
+            {menuOpen ? (
+              <div className="absolute right-0 z-20 mt-1 w-28 rounded-xl border border-border bg-card py-1 shadow-lg">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={onEdit}
+                >
+                  <Pencil className="size-3" /> 수정
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                  onClick={onDuplicate}
+                >
+                  <Copy className="size-3" /> 복제
+                </button>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-300 hover:bg-muted"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="size-3" /> 삭제
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {isOpen ? (
-        <div className="mt-1 space-y-1 border-t border-border/60 pt-1">
-          <p className="truncate text-[10px] text-muted-foreground">
-            {schedule.venue || "장소 미정"}
-            {schedule.sourceEventId ? " · 스케줄 연동" : ""}
-          </p>
-          {shown.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {shown.map((uid) => (
-                <span
-                  key={uid}
-                  className="inline-flex items-center gap-0.5 rounded bg-muted/50 px-1.5 py-0.5 text-[10px]"
-                >
-                  {nameByUid.get(uid) || uid}
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-red-300"
-                    onClick={() => onRemoveUser(uid)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {more > 0 ? (
-                <span className="text-[10px] text-muted-foreground">
-                  +{more}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-[10px] text-muted-foreground">배정자 없음</p>
+      <div className="px-4 pb-2 pt-2">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
+            full
+              ? "bg-emerald-500/15 text-emerald-300"
+              : "bg-amber-500/15 text-amber-200",
           )}
+        >
+          {full ? "✓ " : ""}
+          {filled}/{need}명
+          {full ? " · 충원 완료" : short > 0 ? ` · 부족 ${short}` : ""}
+        </span>
+      </div>
+
+      {open ? (
+        <div className="space-y-3 border-t border-border/60 px-4 py-3">
+          {schedule.note ? (
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {schedule.note}
+            </p>
+          ) : null}
+          <div className="rounded-xl border border-dashed border-border bg-muted/25 p-3">
+            {schedule.assignedUserIds.length === 0 ? (
+              <p className="py-2.5 text-center text-xs text-muted-foreground">
+                아직 배정된 근무자가 없습니다
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {schedule.assignedUserIds.map((uid) => (
+                  <span
+                    key={uid}
+                    className="inline-flex items-center gap-1 rounded-lg bg-sky-500/20 px-2.5 py-1.5 text-xs font-medium text-sky-100"
+                  >
+                    {nameByUid.get(uid) || uid}
+                    <button
+                      type="button"
+                      className="ml-0.5 text-sky-200/80 hover:text-white"
+                      onClick={() => onRemoveUser(uid)}
+                      aria-label="배정 해제"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="accent"
+            size="sm"
+            className="h-10 w-full gap-1.5 rounded-xl text-sm"
+            onClick={onClickAssign}
+          >
+            <Users className="size-4" /> 근무자 배정
+          </Button>
         </div>
       ) : null}
     </div>
