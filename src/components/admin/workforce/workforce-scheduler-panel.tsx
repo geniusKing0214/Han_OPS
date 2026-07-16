@@ -215,9 +215,7 @@ export function WorkforceSchedulerPanel({
     return subscribeAllUsersForAdmin(
       (rows) =>
         setMembers(
-          rows.filter(
-            (r) => r.accountStatus === "approved" && r.role === "member",
-          ),
+          rows.filter((r) => r.accountStatus === "approved"),
         ),
       (e) => setError(e.message),
     );
