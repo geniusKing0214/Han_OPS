@@ -6,12 +6,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  Copy,
-  MoreHorizontal,
-  Pencil,
+  Minus,
   Plus,
-  Trash2,
+  Search,
   Users,
+  X,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -23,9 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -45,7 +41,6 @@ import {
   confirmWorkforceWeek,
   createWorkforceSchedule,
   deleteWorkforceSchedule,
-  duplicateWorkforceSchedule,
   ensureWeekMeta,
   exportWeekToMonthlySheet,
   importEventsForWeek,
@@ -143,8 +138,7 @@ export function WorkforceSchedulerPanel() {
   const { events, loading: eventsLoading } = useEvents();
   const [weekStart, setWeekStart] = useState(() => getWeekStartMonday());
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
-  const [workersOpen, setWorkersOpen] = useState(false);
-  const [mobileDay, setMobileDay] = useState(() => getWeekStartMonday());
+  const [workersOpen, setWorkersOpen] = useState(true);
   const autoSyncRef = useRef<string>("");
   const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
   const [search, setSearch] = useState("");
@@ -178,7 +172,6 @@ export function WorkforceSchedulerPanel() {
     reasonRequired: boolean;
   } | null>(null);
   const [availEditUser, setAvailEditUser] = useState<ListedUserRow | null>(null);
-  const [menuScheduleId, setMenuScheduleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -218,13 +211,6 @@ export function WorkforceSchedulerPanel() {
     if (!isAdmin || !user) return;
     void ensureWeekMeta(weekStart, user.uid).catch(() => {});
   }, [isAdmin, user, weekStart]);
-
-  useEffect(() => {
-    if (!weekDates.includes(mobileDay)) {
-      const today = toYmd(new Date());
-      setMobileDay(weekDates.includes(today) ? today : weekDates[0]!);
-    }
-  }, [weekDates, mobileDay]);
 
   const displaySchedules = useMemo(
     () =>
@@ -338,6 +324,37 @@ export function WorkforceSchedulerPanel() {
       ).length,
     [members, displaySchedules, teamFilter],
   );
+
+  const workerGroups = useMemo(() => {
+    const placed: typeof workers = [];
+    const available: typeof workers = [];
+    const unapplied: typeof workers = [];
+    const blocked: typeof workers = [];
+    for (const w of workers) {
+      if (w.status === "full") placed.push(w);
+      else if (w.status === "unavailable" || w.status === "leave") blocked.push(w);
+      else if (w.count === 0) unapplied.push(w);
+      else available.push(w);
+    }
+    return [
+      { key: "available", label: "배치 가능", items: available },
+      { key: "unapplied", label: "미신청", items: unapplied },
+      { key: "placed", label: "배치 완료", items: placed },
+      { key: "blocked", label: "배치 불가", items: blocked },
+    ].filter((g) => g.items.length > 0);
+  }, [workers]);
+
+  const patchScheduleFields = async (
+    schedule: WorkforceSchedule,
+    patch: Partial<{ venue: string; requiredCount: number; title: string }>,
+  ) => {
+    try {
+      const id = await ensureWorkforceSchedulePersisted(schedule);
+      await updateWorkforceSchedule(id, patch);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "일정 수정에 실패했습니다.");
+    }
+  };
 
   const tryAssign = async (
     schedule: WorkforceSchedule,
@@ -502,7 +519,6 @@ export function WorkforceSchedulerPanel() {
       color: target.color,
     });
     setFormOpen(true);
-    setMenuScheduleId(null);
   };
 
   const submitForm = async () => {
@@ -570,18 +586,14 @@ export function WorkforceSchedulerPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <Card>
-        <CardHeader className="space-y-3 pb-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <CardTitle className="text-base">인력 배정 스케줄러</CardTitle>
-              <CardDescription>
-                Admin 일정(events)과 실시간 연동됩니다. 해당 주 세션이 자동으로
-                표시·동기화됩니다.
-              </CardDescription>
-            </div>
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-base font-semibold tracking-tight sm:text-lg">
+              인력 배치 스케줄러
+            </h1>
             <Badge
               variant={
                 weekMeta?.status === "confirmed" ? "success" : "warning"
@@ -589,24 +601,45 @@ export function WorkforceSchedulerPanel() {
             >
               {weekMeta?.status === "confirmed" ? "확정" : "임시"}
             </Badge>
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {formatWeekRangeLabel(weekStart)}
+            </span>
           </div>
-          <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
-            <div className="flex items-center gap-1">
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-border bg-muted/30 p-0.5">
+              <span className="rounded-lg bg-sky-500/20 px-3 py-1.5 text-xs font-semibold text-sky-200">
+                1주
+              </span>
+              <span
+                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground"
+                title="곧 지원 예정"
+              >
+                2주
+              </span>
+              <span
+                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground"
+                title="곧 지원 예정"
+              >
+                1달
+              </span>
+            </div>
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-background/60 p-0.5">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 className="size-8"
                 onClick={() => setWeekStart((w) => shiftWeek(w, -1))}
               >
                 <ChevronLeft className="size-4" />
               </Button>
-              <span className="min-w-[220px] text-center text-sm tabular-nums">
-                {formatWeekRangeLabel(weekStart)}
+              <span className="min-w-[7.5rem] text-center text-sm font-medium tabular-nums">
+                {weekStart.replaceAll("-", ". ")}.
               </span>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 className="size-8"
                 onClick={() => setWeekStart((w) => shiftWeek(w, 1))}
@@ -614,8 +647,17 @@ export function WorkforceSchedulerPanel() {
                 <ChevronRight className="size-4" />
               </Button>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl"
+              onClick={() => setWeekStart(getWeekStartMonday())}
+            >
+              오늘
+            </Button>
             <select
-              className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+              className="h-8 rounded-xl border border-border bg-background px-2 text-xs"
               value={teamFilter}
               onChange={(e) =>
                 setTeamFilter(e.target.value as TeamFilterValue)
@@ -628,233 +670,224 @@ export function WorkforceSchedulerPanel() {
                 </option>
               ))}
             </select>
-            <Input
-              placeholder="근무자·일정 검색"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-            />
-            <div className="flex flex-wrap gap-2 lg:ml-auto">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy || pendingEventImports === 0}
-                onClick={() =>
-                  void (async () => {
-                    setBusy(true);
-                    setError("");
-                    try {
-                      const { imported, skipped, cleaned } =
-                        await importEventsForWeek({
-                          weekStart,
-                          weekDates,
-                          events,
-                          existing: schedules,
-                        });
-                      alert(
-                        `스케줄에서 ${imported}개 일정을 가져왔습니다.` +
-                          (skipped > 0
-                            ? ` (이미 연결된 ${skipped}개는 건너뜀)`
-                            : "") +
-                          (cleaned > 0
-                            ? ` · 중복 카드 ${cleaned}개 정리`
-                            : ""),
-                      );
-                    } catch (e) {
-                      setError(
-                        e instanceof Error
-                          ? e.message
-                          : "스케줄 불러오기에 실패했습니다.",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  })()
-                }
-              >
-                스케줄에서 불러오기
-                {pendingEventImports > 0 ? ` (${pendingEventImports})` : ""}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  void (async () => {
-                    setBusy(true);
-                    try {
-                      await saveWeekDraft(weekStart);
-                    } catch (e) {
-                      setError(
-                        e instanceof Error ? e.message : "임시저장 실패",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  })()
-                }
-              >
-                임시저장
-              </Button>
-              <Button
-                type="button"
-                variant="accent"
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  void (async () => {
-                    if (
-                      !confirm(
-                        "주간 배정을 확정하면 배정된 유저에게 공개·알림됩니다. 계속할까요?",
-                      )
-                    )
-                      return;
-                    setBusy(true);
-                    try {
-                      for (const s of displaySchedules) {
-                        if (s.id.startsWith("virtual:")) {
-                          await ensureWorkforceSchedulePersisted(s);
-                        }
-                      }
-                      const { schedules: confirmed } =
-                        await confirmWorkforceWeek(weekStart);
-                      if (user) {
-                        await notifyWorkforceWeekConfirmed({
-                          createdByUserId: user.uid,
-                          schedules: confirmed,
-                        });
-                      }
-                    } catch (e) {
-                      setError(
-                        e instanceof Error ? e.message : "확정에 실패했습니다.",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  })()
-                }
-              >
-                주간 배정 확정
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  void (async () => {
-                    if (
-                      !confirm(
-                        "이번 주 일정·배정을 모두 삭제합니다. 계속할까요?",
-                      )
-                    )
-                      return;
-                    setBusy(true);
-                    try {
-                      await resetWorkforceWeek(weekStart);
-                    } catch (e) {
-                      setError(
-                        e instanceof Error ? e.message : "초기화 실패",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  })()
-                }
-              >
-                전체 초기화
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy || schedules.length === 0}
-                onClick={() =>
-                  void (async () => {
-                    setBusy(true);
-                    try {
-                      const id = await exportWeekToMonthlySheet({
-                        weekStart,
-                        schedules,
-                        nameByUid,
-                        teamByUid,
-                        yearMonth: yearMonthFromYmd(weekStart),
-                      });
-                      alert(
-                        `취합표 전달 데이터를 저장했습니다. (export: ${id.slice(0, 8)}…)`,
-                      );
-                    } catch (e) {
-                      setError(
-                        e instanceof Error ? e.message : "취합표 전달 실패",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  })()
-                }
-              >
-                취합표로 보내기
-              </Button>
-            </div>
           </div>
-        </CardHeader>
-      </Card>
+        </div>
 
-      {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
-        </p>
-      ) : null}
-
-      <div
-        className={cn(
-          "grid gap-4",
-          workersOpen
-            ? "lg:grid-cols-[280px_minmax(0,1fr)]"
-            : "lg:grid-cols-1",
-        )}
-      >
-        {/* Worker list — 기본 접힘 */}
-        <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="w-full justify-between gap-2 lg:w-auto"
-            onClick={() => setWorkersOpen((o) => !o)}
+            className="h-8 rounded-xl"
+            disabled={busy || pendingEventImports === 0}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  const { imported, skipped, cleaned } =
+                    await importEventsForWeek({
+                      weekStart,
+                      weekDates,
+                      events,
+                      existing: schedules,
+                    });
+                  alert(
+                    `스케줄에서 ${imported}개 일정을 가져왔습니다.` +
+                      (skipped > 0
+                        ? ` (이미 연결된 ${skipped}개는 건너뜀)`
+                        : "") +
+                      (cleaned > 0
+                        ? ` · 중복 카드 ${cleaned}개 정리`
+                        : ""),
+                  );
+                } catch (e) {
+                  setError(
+                    e instanceof Error
+                      ? e.message
+                      : "스케줄 불러오기에 실패했습니다.",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
           >
-            <span className="inline-flex items-center gap-2">
-              <Users className="size-3.5" />
-              근무자 목록
-              {selectedWorkerIds.length > 0
-                ? ` (선택 ${selectedWorkerIds.length})`
-                : ""}
-            </span>
-            {workersOpen ? (
-              <ChevronUp className="size-4" />
-            ) : (
-              <ChevronDown className="size-4" />
-            )}
+            스케줄에서 불러오기
+            {pendingEventImports > 0 ? ` (${pendingEventImports})` : ""}
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                try {
+                  await saveWeekDraft(weekStart);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "임시저장 실패");
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            임시저장
+          </Button>
+          <Button
+            type="button"
+            variant="accent"
+            size="sm"
+            className="h-8 rounded-xl"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                if (
+                  !confirm(
+                    "주간 배정을 확정하면 배정된 유저에게 공개·알림됩니다. 계속할까요?",
+                  )
+                )
+                  return;
+                setBusy(true);
+                try {
+                  for (const s of displaySchedules) {
+                    if (s.id.startsWith("virtual:")) {
+                      await ensureWorkforceSchedulePersisted(s);
+                    }
+                  }
+                  const { schedules: confirmed } =
+                    await confirmWorkforceWeek(weekStart);
+                  if (user) {
+                    await notifyWorkforceWeekConfirmed({
+                      createdByUserId: user.uid,
+                      schedules: confirmed,
+                    });
+                  }
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "확정에 실패했습니다.",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            주간 배정 확정
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl text-red-300 hover:text-red-200"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                if (
+                  !confirm(
+                    "이번 주 일정·배정을 모두 삭제합니다. 계속할까요?",
+                  )
+                )
+                  return;
+                setBusy(true);
+                try {
+                  await resetWorkforceWeek(weekStart);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "초기화 실패");
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            전체 초기화
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl"
+            disabled={busy || schedules.length === 0}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                try {
+                  const id = await exportWeekToMonthlySheet({
+                    weekStart,
+                    schedules,
+                    nameByUid,
+                    teamByUid,
+                    yearMonth: yearMonthFromYmd(weekStart),
+                  });
+                  alert(
+                    `취합표 전달 데이터를 저장했습니다. (export: ${id.slice(0, 8)}…)`,
+                  );
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "취합표 전달 실패",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            취합표로 보내기
+          </Button>
+        </div>
+      </div>
 
-          {workersOpen ? (
-        <Card className="lg:max-h-[calc(100dvh-220px)] lg:overflow-hidden">
-          <CardHeader className="space-y-2 pb-2">
-            <CardTitle className="text-sm">근무자 목록</CardTitle>
-            <div className="flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
-              {(
-                Object.keys(WORKFORCE_WORKER_STATUS_LABELS) as WorkforceWorkerStatus[]
-              ).map((k) => (
-                <span key={k} className="inline-flex items-center gap-1">
-                  <span className={cn("size-1.5 rounded-full", STATUS_DOT[k])} />
-                  {WORKFORCE_WORKER_STATUS_LABELS[k]}
+      {error ? (
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Worker sidebar */}
+        <aside className="rounded-2xl border border-border bg-card/80 lg:max-h-[calc(100dvh-200px)] lg:overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <Users className="size-4 text-sky-300" />
+              <p className="text-sm font-semibold">근무자 목록</p>
+              {selectedWorkerIds.length > 0 ? (
+                <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-200">
+                  선택 {selectedWorkerIds.length}
                 </span>
-              ))}
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[11px] lg:hidden"
+              onClick={() => setWorkersOpen((o) => !o)}
+            >
+              {workersOpen ? "접기" : "펼치기"}
+            </Button>
+          </div>
+
+          <div
+            className={cn(
+              "space-y-3 p-3",
+              !workersOpen && "hidden lg:block",
+              "lg:max-h-[calc(100dvh-260px)] lg:overflow-y-auto",
+            )}
+          >
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="이름 검색"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 rounded-xl pl-8 text-sm"
+              />
             </div>
             <select
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+              className="h-8 w-full rounded-xl border border-border bg-background px-2 text-xs"
               value={statusFilter}
               onChange={(e) =>
                 setStatusFilter(e.target.value as typeof statusFilter)
@@ -862,213 +895,187 @@ export function WorkforceSchedulerPanel() {
             >
               <option value="all">상태 전체</option>
               {(
-                Object.keys(WORKFORCE_WORKER_STATUS_LABELS) as WorkforceWorkerStatus[]
+                Object.keys(
+                  WORKFORCE_WORKER_STATUS_LABELS,
+                ) as WorkforceWorkerStatus[]
               ).map((k) => (
                 <option key={k} value={k}>
                   {WORKFORCE_WORKER_STATUS_LABELS[k]}
                 </option>
               ))}
             </select>
-          </CardHeader>
-          <CardContent className="space-y-2 overflow-y-auto pb-4 lg:max-h-[calc(100dvh-340px)]">
-            {workers.map(({ member, avail, count, status }) => {
-              const selected = selectedWorkerIds.includes(member.uid);
-              return (
-                <div
-                  key={member.uid}
-                  draggable={isDesktop}
-                  onDragStart={() => setDragUserId(member.uid)}
-                  onDragEnd={() => setDragUserId(null)}
-                  className={cn(
-                    "rounded-xl border border-border bg-muted/30 p-3 transition-colors",
-                    selected && "border-accent/50 bg-accent/10",
-                    isDesktop && "cursor-grab active:cursor-grabbing",
-                  )}
-                  onClick={() => {
-                    setSelectedWorkerIds((prev) =>
-                      prev.includes(member.uid)
-                        ? prev.filter((id) => id !== member.uid)
-                        : [...prev, member.uid],
-                    );
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {nameByUid.get(member.uid)}
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          | {TEAM_LABELS[normalizeTeamId(member.team_id)]}
-                        </span>
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        이번주 {count}회 / 최대 {avail.weeklyMaxAssignments}회
-                      </p>
-                    </div>
-                    <span
-                      className={cn("mt-1 size-2 shrink-0 rounded-full", STATUS_DOT[status])}
-                      title={WORKFORCE_WORKER_STATUS_LABELS[status]}
-                    />
-                  </div>
-                  <div className="mt-2 flex gap-1">
-                    {WEEKDAY_KEYS.map((k, i) => {
-                      const date = weekDates[i]!;
-                      const on = isUserAvailableOnDate(avail, date);
-                      return (
-                        <span
-                          key={k}
-                          className={cn(
-                            "flex size-6 items-center justify-center rounded text-[10px] font-medium",
-                            on
-                              ? "bg-sky-500/20 text-sky-300"
-                              : "bg-muted text-muted-foreground",
-                          )}
-                          title={`${WEEKDAY_LABELS[k]} ${date}`}
-                        >
-                          {WEEKDAY_SHORT[k]}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="mt-1 h-7 px-0 text-[11px] text-muted-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setAvailEditUser(member);
-                    }}
-                  >
-                    가능일·최대횟수 설정
-                  </Button>
-                </div>
-              );
-            })}
-            {workers.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
+
+            {workerGroups.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">
                 조건에 맞는 근무자가 없습니다.
               </p>
-            ) : null}
-          </CardContent>
-        </Card>
-          ) : null}
-        </div>
+            ) : (
+              workerGroups.map((group) => (
+                <div key={group.key} className="space-y-2">
+                  <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.label}
+                    <span className="ml-1 font-normal normal-case">
+                      ({group.items.length})
+                    </span>
+                  </p>
+                  {group.items.map(({ member, avail, count, status }) => {
+                    const selected = selectedWorkerIds.includes(member.uid);
+                    return (
+                      <div
+                        key={member.uid}
+                        draggable={isDesktop}
+                        onDragStart={() => setDragUserId(member.uid)}
+                        onDragEnd={() => setDragUserId(null)}
+                        className={cn(
+                          "rounded-xl border border-border/80 bg-background/50 p-2.5 transition-colors",
+                          selected && "border-sky-400/50 bg-sky-500/10",
+                          isDesktop && "cursor-grab active:cursor-grabbing",
+                        )}
+                        onClick={() => {
+                          setSelectedWorkerIds((prev) =>
+                            prev.includes(member.uid)
+                              ? prev.filter((id) => id !== member.uid)
+                              : [...prev, member.uid],
+                          );
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {nameByUid.get(member.uid)}
+                            </p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {member.email}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              이번주 {count}/{avail.weeklyMaxAssignments}회 ·{" "}
+                              {TEAM_LABELS[normalizeTeamId(member.team_id)]}
+                            </p>
+                          </div>
+                          <span
+                            className={cn(
+                              "mt-1 size-2 shrink-0 rounded-full",
+                              STATUS_DOT[status],
+                            )}
+                            title={WORKFORCE_WORKER_STATUS_LABELS[status]}
+                          />
+                        </div>
+                        <div className="mt-2 flex gap-1">
+                          {WEEKDAY_KEYS.map((k, i) => {
+                            const date = weekDates[i]!;
+                            const on = isUserAvailableOnDate(avail, date);
+                            return (
+                              <span
+                                key={k}
+                                className={cn(
+                                  "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
+                                  on
+                                    ? "bg-sky-500/25 text-sky-200"
+                                    : "bg-muted/60 text-muted-foreground",
+                                )}
+                                title={`${WEEKDAY_LABELS[k]} ${date}`}
+                              >
+                                {WEEKDAY_LABELS[k]}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-1.5 flex gap-2">
+                          <button
+                            type="button"
+                            className="text-[11px] text-sky-300 hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAvailEditUser(member);
+                            }}
+                          >
+                            수정
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
 
-        {/* Day-focused board (모바일·PC 공통) */}
-        <div className="min-w-0 space-y-3">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {weekDates.map((date) => {
+        {/* 7-day board */}
+        <div className="min-w-0 overflow-x-auto rounded-2xl border border-border bg-muted/20 p-2 sm:p-3">
+          <div className="grid min-w-[980px] grid-cols-7 gap-2">
+            {weekDates.map((date, dayIdx) => {
               const daySchedules = displaySchedules.filter(
                 (s) => s.date === date,
               );
-              const { label, dow } = formatDayHeader(date);
-              const active = mobileDay === date;
+              const dayRequired = daySchedules.reduce(
+                (a, s) => a + s.requiredCount,
+                0,
+              );
+              const dayAssigned = daySchedules.reduce(
+                (a, s) => a + s.assignedUserIds.length,
+                0,
+              );
+              const shortage = Math.max(0, dayRequired - dayAssigned);
+              const hasShortage = shortage > 0 && dayRequired > 0;
+              const emptyDay = daySchedules.length === 0;
+              const { label } = formatDayHeader(date);
+              const weekdayKey = WEEKDAY_KEYS[dayIdx]!;
+
               return (
-                <button
+                <section
                   key={date}
-                  type="button"
-                  onClick={() => setMobileDay(date)}
                   className={cn(
-                    "min-w-[4.5rem] shrink-0 rounded-2xl border px-3 py-2.5 text-center transition-colors",
-                    active
-                      ? "border-accent bg-accent/20 shadow-sm"
-                      : "border-border/80 bg-card/50 hover:bg-muted/40",
+                    "flex min-h-[420px] flex-col rounded-2xl border border-border/70",
+                    hasShortage || emptyDay
+                      ? "bg-[repeating-linear-gradient(-45deg,rgba(24,24,27,0.92),rgba(24,24,27,0.92)_7px,rgba(148,163,184,0.08)_7px,rgba(148,163,184,0.08)_14px)]"
+                      : "bg-card/90",
                   )}
                 >
-                  <p className="text-[11px] font-semibold tracking-wide">
-                    {dow}
-                  </p>
-                  <p className="mt-0.5 text-sm font-semibold tabular-nums">
-                    {label}
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-1 text-[10px] tabular-nums",
-                      daySchedules.length === 0
-                        ? "text-muted-foreground"
-                        : "text-accent",
-                    )}
-                  >
-                    {daySchedules.length}건
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-
-          {(() => {
-            const date = mobileDay;
-            const daySchedules = displaySchedules.filter((s) => s.date === date);
-            const dayRequired = daySchedules.reduce(
-              (a, s) => a + s.requiredCount,
-              0,
-            );
-            const dayAssigned = daySchedules.reduce(
-              (a, s) => a + s.assignedUserIds.length,
-              0,
-            );
-            const { label, dow } = formatDayHeader(date);
-            return (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-end justify-between gap-2 px-0.5">
-                  <div>
-                    <h3 className="text-base font-semibold">
-                      {dow}요일 {label}
-                    </h3>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      <span className="rounded-full bg-violet-500/15 px-2.5 py-0.5 text-[11px] font-medium text-violet-300">
-                        일정 {daySchedules.length}건
+                  <header className="space-y-1.5 border-b border-border/60 px-2.5 py-2.5">
+                    <div className="flex items-baseline justify-between gap-1">
+                      <p className="text-sm font-semibold">
+                        {WEEKDAY_LABELS[weekdayKey]}요일
+                      </p>
+                      <p className="text-xs tabular-nums text-muted-foreground">
+                        {label}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-200">
+                        일정 {daySchedules.length}
                       </span>
                       <span
                         className={cn(
-                          "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
                           dayAssigned >= dayRequired && dayRequired > 0
                             ? "bg-emerald-500/15 text-emerald-300"
-                            : "bg-amber-500/15 text-amber-200",
+                            : "bg-violet-500/15 text-violet-200",
                         )}
                       >
-                        배치 {dayAssigned}/{dayRequired}명
+                        배치 {dayAssigned}/{dayRequired || 0}
                       </span>
+                      {hasShortage ? (
+                        <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                          부족 {shortage}
+                        </span>
+                      ) : null}
+                      {emptyDay ? (
+                        <span className="rounded-full bg-zinc-500/20 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
+                          일정 없음
+                        </span>
+                      ) : null}
                     </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 gap-1 rounded-xl"
-                    onClick={() => openCreate(date)}
-                  >
-                    <Plus className="size-3.5" /> 일정 추가
-                  </Button>
-                </div>
+                  </header>
 
-                {daySchedules.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-12 text-center text-sm text-muted-foreground">
-                    이 날 일정이 없습니다. 스케줄에 세션을 추가하거나 «일정
-                    추가»로 만드세요.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
+                  <div className="flex flex-1 flex-col gap-2 p-2">
                     {daySchedules.map((s) => (
                       <ScheduleCard
                         key={s.id}
                         schedule={s}
                         nameByUid={nameByUid}
-                        defaultExpanded={daySchedules.length <= 5}
-                        menuOpen={menuScheduleId === s.id}
-                        onMenuToggle={() =>
-                          setMenuScheduleId((id) =>
-                            id === s.id ? null : s.id,
-                          )
-                        }
+                        defaultExpanded={daySchedules.length <= 3}
                         onEdit={() => void openEdit(s)}
-                        onDuplicate={() =>
-                          void (async () => {
-                            const id =
-                              await ensureWorkforceSchedulePersisted(s);
-                            await duplicateWorkforceSchedule(id);
-                          })()
-                        }
                         onDelete={() =>
                           void (async () => {
                             if (s.id.startsWith("virtual:")) {
@@ -1094,14 +1101,25 @@ export function WorkforceSchedulerPanel() {
                           setAssignTarget(s);
                         }}
                         onRemoveUser={(uid) => void removeAssignee(s, uid)}
+                        onPatch={(patch) =>
+                          void patchScheduleFields(s, patch)
+                        }
                         isDesktop={isDesktop}
                       />
                     ))}
+
+                    <button
+                      type="button"
+                      onClick={() => openCreate(date)}
+                      className="mt-auto flex h-10 items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-background/40 text-xs font-medium text-muted-foreground transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-sky-200"
+                    >
+                      <Plus className="size-3.5" /> 일정 추가
+                    </button>
                   </div>
-                )}
-              </div>
-            );
-          })()}
+                </section>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -1120,10 +1138,6 @@ export function WorkforceSchedulerPanel() {
             danger
           />
         </CardContent>
-        <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          스케줄 세션은 이벤트당 1장으로 취합됩니다. 요일 칩을 고른 뒤 카드에서
-          배정하세요.
-        </p>
       </Card>
 
       {/* Schedule form dialog */}
@@ -1395,33 +1409,33 @@ function ScheduleCard({
   schedule,
   nameByUid,
   defaultExpanded = true,
-  menuOpen,
-  onMenuToggle,
   onEdit,
-  onDuplicate,
   onDelete,
   onDropWorker,
   onClickAssign,
   onRemoveUser,
+  onPatch,
   isDesktop,
 }: {
   schedule: WorkforceSchedule;
   nameByUid: Map<string, string>;
   defaultExpanded?: boolean;
-  menuOpen: boolean;
-  onMenuToggle: () => void;
   onEdit: () => void;
-  onDuplicate: () => void;
   onDelete: () => void;
   onDropWorker: () => void;
   onClickAssign: () => void;
   onRemoveUser: (uid: string) => void;
+  onPatch: (patch: Partial<{ venue: string; requiredCount: number }>) => void;
   isDesktop: boolean;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
+  const [venueDraft, setVenueDraft] = useState(schedule.venue);
   useEffect(() => {
     setOpen(defaultExpanded);
   }, [schedule.id, defaultExpanded]);
+  useEffect(() => {
+    setVenueDraft(schedule.venue);
+  }, [schedule.id, schedule.venue]);
 
   const filled = schedule.assignedUserIds.length;
   const need = schedule.requiredCount;
@@ -1430,8 +1444,8 @@ function ScheduleCard({
 
   return (
     <div
-      className="overflow-hidden rounded-2xl border border-border/90 bg-card shadow-sm"
-      style={{ borderLeftWidth: 4, borderLeftColor: schedule.color }}
+      className="overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
+      style={{ borderTopColor: schedule.color, borderTopWidth: 3 }}
       onDragOver={(e) => {
         if (isDesktop) e.preventDefault();
       }}
@@ -1440,144 +1454,142 @@ function ScheduleCard({
         onDropWorker();
       }}
     >
-      <div className="flex items-start gap-2 px-4 pt-3.5">
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className="inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold tabular-nums text-white shadow-sm"
-              style={{ backgroundColor: schedule.color }}
-            >
-              {schedule.startTime}
-            </span>
-            <h4 className="min-w-0 truncate text-[15px] font-semibold tracking-tight">
-              {schedule.title || "근무"}
-            </h4>
-            {schedule.sourceEventId ? (
-              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-300">
-                스케줄
-              </span>
-            ) : null}
-          </div>
-          <p className="truncate text-sm text-muted-foreground">
-            {schedule.venue?.trim() || "근무 장소 미정"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Button
+      <div className="flex items-center justify-between gap-1 px-2.5 pt-2">
+        <button
+          type="button"
+          className="min-w-0 truncate text-left text-sm font-semibold hover:text-sky-200"
+          onClick={onEdit}
+          title="일정 수정"
+        >
+          {schedule.title || "근무"}
+        </button>
+        <div className="flex shrink-0 items-center">
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1 px-2 text-[11px] text-muted-foreground"
+            className="inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-[10px] text-muted-foreground hover:bg-muted"
             onClick={() => setOpen((v) => !v)}
           >
             {open ? "접기" : "펼치기"}
             {open ? (
-              <ChevronUp className="size-3.5" />
+              <ChevronUp className="size-3" />
             ) : (
-              <ChevronDown className="size-3.5" />
+              <ChevronDown className="size-3" />
             )}
-          </Button>
-          <div className="relative">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={onMenuToggle}
-            >
-              <MoreHorizontal className="size-4" />
-            </Button>
-            {menuOpen ? (
-              <div className="absolute right-0 z-20 mt-1 w-28 rounded-xl border border-border bg-card py-1 shadow-lg">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                  onClick={onEdit}
-                >
-                  <Pencil className="size-3" /> 수정
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                  onClick={onDuplicate}
-                >
-                  <Copy className="size-3" /> 복제
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-red-300 hover:bg-muted"
-                  onClick={onDelete}
-                >
-                  <Trash2 className="size-3" /> 삭제
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 pb-2 pt-2">
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
-            full
-              ? "bg-emerald-500/15 text-emerald-300"
-              : "bg-amber-500/15 text-amber-200",
-          )}
-        >
-          {full ? "✓ " : ""}
-          {filled}/{need}명
-          {full ? " · 충원 완료" : short > 0 ? ` · 부족 ${short}` : ""}
-        </span>
-      </div>
-
-      {open ? (
-        <div className="space-y-3 border-t border-border/60 px-4 py-3">
-          {schedule.note ? (
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              {schedule.note}
-            </p>
-          ) : null}
-          <div className="rounded-xl border border-dashed border-border bg-muted/25 p-3">
-            {schedule.assignedUserIds.length === 0 ? (
-              <p className="py-2.5 text-center text-xs text-muted-foreground">
-                아직 배정된 근무자가 없습니다
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {schedule.assignedUserIds.map((uid) => (
-                  <span
-                    key={uid}
-                    className="inline-flex items-center gap-1 rounded-lg bg-sky-500/20 px-2.5 py-1.5 text-xs font-medium text-sky-100"
-                  >
-                    {nameByUid.get(uid) || uid}
-                    <button
-                      type="button"
-                      className="ml-0.5 text-sky-200/80 hover:text-white"
-                      onClick={() => onRemoveUser(uid)}
-                      aria-label="배정 해제"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="accent"
-            size="sm"
-            className="h-10 w-full gap-1.5 rounded-xl text-sm"
-            onClick={onClickAssign}
+            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-red-300"
+            onClick={onDelete}
+            aria-label="삭제"
           >
-            <Users className="size-4" /> 근무자 배정
-          </Button>
+            <X className="size-3.5" />
+          </button>
         </div>
-      ) : null}
+      </div>
+
+      <div className="space-y-1.5 px-2.5 pb-2 pt-1.5">
+        <div className="flex items-center gap-1">
+          <Input
+            value={venueDraft}
+            placeholder="근무 장소"
+            className="h-8 rounded-lg text-xs"
+            onChange={(e) => setVenueDraft(e.target.value)}
+            onBlur={() => {
+              if (venueDraft.trim() !== schedule.venue.trim()) {
+                onPatch({ venue: venueDraft.trim() });
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="flex h-8 shrink-0 items-center rounded-lg border border-border bg-muted/30">
+            <button
+              type="button"
+              className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+              onClick={() =>
+                onPatch({
+                  requiredCount: Math.max(0, schedule.requiredCount - 1),
+                })
+              }
+            >
+              <Minus className="size-3" />
+            </button>
+            <span className="min-w-[1.25rem] text-center text-xs font-semibold tabular-nums">
+              {need}
+            </span>
+            <button
+              type="button"
+              className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+              onClick={() =>
+                onPatch({ requiredCount: schedule.requiredCount + 1 })
+              }
+            >
+              <Plus className="size-3" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {schedule.startTime}
+          </span>
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+              full
+                ? "bg-emerald-500/15 text-emerald-300"
+                : "bg-amber-500/15 text-amber-200",
+            )}
+          >
+            {full ? "✓ " : ""}
+            {filled}/{need}명
+            {full ? " · 충원 완료" : short > 0 ? ` · 부족 ${short}` : ""}
+          </span>
+        </div>
+
+        {open ? (
+          <div className="space-y-2 pt-0.5">
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 p-2">
+              {schedule.assignedUserIds.length === 0 ? (
+                <p className="py-1.5 text-center text-[10px] text-muted-foreground">
+                  배정된 근무자 없음
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {schedule.assignedUserIds.map((uid) => (
+                    <span
+                      key={uid}
+                      className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-100"
+                    >
+                      <span className="truncate">
+                        {nameByUid.get(uid) || uid}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 opacity-70 hover:opacity-100"
+                        onClick={() => onRemoveUser(uid)}
+                        aria-label="배정 해제"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onClickAssign}
+              className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-sky-500/20 text-[11px] font-medium text-sky-100 hover:bg-sky-500/30"
+            >
+              <Users className="size-3" /> 근무자 배정
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
+
 
 function AvailabilityDialog({
   member,
