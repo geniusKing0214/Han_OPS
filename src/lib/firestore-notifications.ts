@@ -182,6 +182,10 @@ async function createNotificationDoc(payload: NotificationPayload) {
         | "attendance_approved"
         | "attendance_rejected",
       notificationId: ref.id,
+      eventId: payload.eventId,
+      eventDate: payload.eventDate || undefined,
+      slotTime: payload.slotTime || undefined,
+      applicationId: payload.applicationId,
     }).catch((err) => {
       console.warn("[push-relay]", err);
     });

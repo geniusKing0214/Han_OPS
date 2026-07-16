@@ -147,7 +147,10 @@ export function NotificationDetail({
       <div className="shrink-0 border-t border-border pt-4">
         <Button variant="accent" className="w-full" asChild>
           <Link href={scheduleHref} onClick={onBack}>
-            관련 일정 보기
+            {item.type === "application_submitted" ||
+            item.type === "application_cancelled"
+              ? "신청 인원 관리로 이동"
+              : "관련 일정 보기"}
           </Link>
         </Button>
       </div>

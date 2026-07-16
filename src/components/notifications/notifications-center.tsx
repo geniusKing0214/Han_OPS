@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 
 import { NotificationDetail } from "@/components/notifications/notification-detail";
@@ -16,7 +17,10 @@ import {
   syncAdminUidsConfig,
 } from "@/lib/firestore-notifications";
 import { listUsersForAdmin } from "@/lib/firestore-users";
-import { withBasePath } from "@/lib/base-path";
+import {
+  adminRosterHrefFromNotification,
+  notificationHrefFor,
+} from "@/lib/notification-navigation";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -27,32 +31,15 @@ import {
 import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types/notification";
 
-function scheduleHrefFor(item: NotificationItem, _isAdmin: boolean) {
-  if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
-    return withBasePath("/schedule");
-  }
-  if (item.type === "application_submitted" || item.type === "application_cancelled") {
-    return withBasePath("/admin/applications");
-  }
-  if (item.type === "application_approved") {
-    return withBasePath("/applications");
-  }
-  if (item.type === "notice_posted") {
-    return withBasePath("/notices");
-  }
-  if (item.type === "attendance_submitted") {
-    return withBasePath("/admin/attendance");
-  }
-  if (
-    item.type === "attendance_approved" ||
-    item.type === "attendance_rejected"
-  ) {
-    return withBasePath("/applications");
-  }
-  return withBasePath("/applications");
+function isAdminApplicationNotification(item: NotificationItem): boolean {
+  return (
+    item.type === "application_submitted" ||
+    item.type === "application_cancelled"
+  );
 }
 
 export function NotificationsCenter({ className }: { className?: string }) {
+  const router = useRouter();
   const { user, isAdmin } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const { items, loading, unreadCount } = useNotifications();
@@ -102,6 +89,17 @@ export function NotificationsCenter({ className }: { className?: string }) {
         // ignore
       }
     }
+
+    if (isAdmin && isAdminApplicationNotification(item)) {
+      const href = adminRosterHrefFromNotification(item);
+      if (href) {
+        setOpen(false);
+        setDetail(null);
+        router.push(href);
+        return;
+      }
+    }
+
     if (isDesktop) return;
     setDetail(item);
   };
@@ -204,7 +202,7 @@ export function NotificationsCenter({ className }: { className?: string }) {
                   item={detail}
                   onBack={() => setDetail(null)}
                   onDelete={() => void handleDelete(detail)}
-                  scheduleHref={scheduleHrefFor(detail, isAdmin)}
+                  scheduleHref={notificationHrefFor(detail)}
                 />
               </div>
             ) : (

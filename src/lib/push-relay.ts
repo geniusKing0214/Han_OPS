@@ -27,6 +27,10 @@ export type PushRelayInput = {
   title: string;
   message: string;
   notificationId?: string;
+  eventId?: string;
+  eventDate?: string;
+  slotTime?: string;
+  applicationId?: string;
   type:
     | "schedule_created"
     | "schedule_cancelled"

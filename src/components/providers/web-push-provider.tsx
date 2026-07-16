@@ -12,7 +12,7 @@ import {
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { useNotifications } from "@/hooks/use-notifications";
-import { withBasePath } from "@/lib/base-path";
+import { notificationHrefFor } from "@/lib/notification-navigation";
 import {
   isWebPushConfigured,
   isWebPushSupported,
@@ -37,25 +37,6 @@ function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
     return !isAdmin;
   }
   return false;
-}
-
-function openUrlForNotification(item: NotificationItem): string {
-  if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
-    return withBasePath("/schedule");
-  }
-  if (item.type === "application_submitted" || item.type === "application_cancelled") {
-    return withBasePath("/admin/applications");
-  }
-  if (item.type === "application_approved") return withBasePath("/applications");
-  if (item.type === "notice_posted") return withBasePath("/notices");
-  if (item.type === "attendance_submitted") return withBasePath("/admin/attendance");
-  if (
-    item.type === "attendance_approved" ||
-    item.type === "attendance_rejected"
-  ) {
-    return withBasePath("/applications");
-  }
-  return withBasePath("/dashboard");
 }
 
 function tokenPreview(token: string): string {
@@ -284,13 +265,26 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
       const body = payload.notification?.body ?? "";
       const url = payload.data?.url
         ? String(payload.data.url)
-        : type === "application_submitted" || type === "application_cancelled"
-          ? withBasePath("/admin/applications")
-          : type === "application_approved"
-            ? withBasePath("/applications")
-            : type === "notice_posted"
-              ? withBasePath("/notices")
-              : withBasePath("/schedule");
+        : notificationHrefFor({
+            id: "",
+            targetUserId: "",
+            targetRole: "admin",
+            type: type as NotificationItem["type"],
+            title: "",
+            message: "",
+            eventTitle: "",
+            eventDate: String(payload.data?.eventDate ?? ""),
+            slotTime: String(payload.data?.slotTime ?? ""),
+            location: "",
+            isRead: false,
+            createdAt: "",
+            eventId: payload.data?.eventId
+              ? String(payload.data.eventId)
+              : undefined,
+            applicationId: payload.data?.applicationId
+              ? String(payload.data.applicationId)
+              : undefined,
+          });
       showBrowserNotification(title, { body, url });
     });
 
@@ -314,7 +308,7 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
       seenNotificationIds.current.add(item.id);
       showBrowserNotification(item.title, {
         body: item.message,
-        url: openUrlForNotification(item),
+        url: notificationHrefFor(item),
         tag: item.id,
       });
     }

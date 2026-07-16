@@ -9,6 +9,7 @@ const PUSH_NOTIFICATION_TYPES = new Set([
   "schedule_created",
   "schedule_cancelled",
   "application_submitted",
+  "application_cancelled",
   "application_approved",
   "notice_posted",
   "attendance_submitted",
@@ -21,6 +22,10 @@ type NotificationDoc = {
   title?: string;
   message?: string;
   type?: string;
+  eventId?: string;
+  eventDate?: string;
+  slotTime?: string;
+  applicationId?: string;
 };
 
 function appOrigin(): string {
@@ -35,14 +40,36 @@ function appBasePath(): string {
   return raw.startsWith("/") ? raw.replace(/\/$/, "") : `/${raw.replace(/\/$/, "")}`;
 }
 
-function resolveOpenUrl(type: string | undefined): string {
+function buildAdminRosterPath(fields?: {
+  date?: string;
+  eventId?: string;
+  slotTime?: string;
+  applicationId?: string;
+}): string {
+  const search = new URLSearchParams();
+  if (fields?.date) search.set("date", fields.date);
+  if (fields?.eventId) search.set("event", fields.eventId);
+  if (fields?.slotTime) search.set("slot", fields.slotTime);
+  if (fields?.applicationId) search.set("app", fields.applicationId);
+  const q = search.toString();
+  return `/admin/roster${q ? `?${q}` : ""}`;
+}
+
+function resolveOpenUrl(data: NotificationDoc): string {
   const origin = appOrigin();
   const base = appBasePath();
+  const type = data.type;
   if (type === "schedule_created" || type === "schedule_cancelled") {
     return `${origin}${base}/schedule/`;
   }
-  if (type === "application_submitted") {
-    return `${origin}${base}/admin/applications/`;
+  if (type === "application_submitted" || type === "application_cancelled") {
+    const path = buildAdminRosterPath({
+      date: data.eventDate,
+      eventId: data.eventId,
+      slotTime: data.slotTime,
+      applicationId: data.applicationId,
+    });
+    return `${origin}${base}${path}/`;
   }
   if (type === "application_approved") {
     return `${origin}${base}/applications/`;
@@ -95,7 +122,7 @@ export const sendPushOnNotification = onDocumentCreated(
 
     const title = data.title?.trim() || "HAN OPS";
     const body = data.message?.trim() || "";
-    const url = resolveOpenUrl(data.type);
+    const url = resolveOpenUrl(data);
     const icon = `${appOrigin()}${appBasePath()}/icons/icon-192.png`;
 
     logger.info("sending push", {

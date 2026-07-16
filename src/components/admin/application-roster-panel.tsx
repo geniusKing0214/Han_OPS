@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, ChevronUp, Users } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -51,6 +52,7 @@ import {
   type AttendanceRecord,
 } from "@/types/attendance";
 import { formatAttendanceDateTime } from "@/lib/attendance-window";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 function toYmd(date: Date): string {
@@ -107,6 +109,7 @@ type SlotRosterProps = {
   onReject: (app: ApplicationItem) => void;
   onWorkStatus: (id: string, status: WorkStatus) => void;
   onMemoBlur: (id: string, memo: string) => void;
+  highlightApplicationId?: string | null;
 };
 
 function SlotRosterRow({
@@ -123,6 +126,7 @@ function SlotRosterRow({
   onReject,
   onWorkStatus,
   onMemoBlur,
+  highlightApplicationId,
 }: SlotRosterProps) {
   const slotApps = useMemo(
     () => applicationsForSlot(applications, event.id, session.id, slot.id),
@@ -170,7 +174,12 @@ function SlotRosterRow({
               {slotApps.map((a) => (
                 <div
                   key={a.id}
-                  className="rounded-md border border-border bg-background/60 px-3 py-2.5"
+                  id={`roster-app-${a.id}`}
+                  className={cn(
+                    "rounded-md border border-border bg-background/60 px-3 py-2.5",
+                    highlightApplicationId === a.id &&
+                      "border-accent/50 bg-accent/10 ring-1 ring-accent/30",
+                  )}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0 space-y-1">
@@ -257,7 +266,15 @@ function SlotRosterRow({
 
 export function ApplicationRosterPanel() {
   const { isAdmin, user } = useAuth();
-  const [date, setDate] = useState(() => toYmd(new Date()));
+  const searchParams = useSearchParams();
+  const focusAppId = searchParams.get("app");
+  const focusEventId = searchParams.get("event");
+  const focusSlotTime = searchParams.get("slot");
+  const dateParam = searchParams.get("date");
+  const [date, setDate] = useState(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam;
+    return toYmd(new Date());
+  });
   const { events, loading: eventsLoading, error: eventsError } = useEvents();
   const { items: applications, loading: appsLoading, error: appsError } =
     useAdminApplicationsByDate(date);
@@ -272,6 +289,18 @@ export function ApplicationRosterPanel() {
   const [rejectTarget, setRejectTarget] = useState<ApplicationItem | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+  const scrolledToApp = useRef(false);
+
+  useEffect(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      setDate(dateParam);
+    }
+  }, [dateParam]);
+
+  useEffect(() => {
+    if (!focusEventId) return;
+    setExpandedEvents((prev) => ({ ...prev, [focusEventId]: true }));
+  }, [focusEventId]);
 
   useEffect(() => {
     return subscribeAttendancesByWorkDate(date, setAttendances);
@@ -316,6 +345,35 @@ export function ApplicationRosterPanel() {
 
   const loading = eventsLoading || appsLoading;
   const error = eventsError || appsError;
+
+  useEffect(() => {
+    if (!focusEventId || !focusSlotTime || eventRows.length === 0) return;
+    for (const { event, sessions } of eventRows) {
+      if (event.id !== focusEventId) continue;
+      for (const session of sessions) {
+        for (const slot of session.slots) {
+          const label = formatSlotTimeLabel(slot);
+          if (
+            label === focusSlotTime ||
+            slot.start_time.trim() === focusSlotTime
+          ) {
+            const key = slotKey(event.id, session.id, slot.id);
+            setExpandedSlots((prev) => ({ ...prev, [key]: true }));
+          }
+        }
+      }
+    }
+  }, [focusEventId, focusSlotTime, eventRows]);
+
+  useEffect(() => {
+    if (!focusAppId || scrolledToApp.current || loading) return;
+    const el = document.getElementById(`roster-app-${focusAppId}`);
+    if (!el) return;
+    scrolledToApp.current = true;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [focusAppId, loading, applications, expandedSlots]);
 
   const setStatus = async (
     id: string,
@@ -501,6 +559,7 @@ export function ApplicationRosterPanel() {
                                     onMemoBlur={(id, memo) =>
                                       void handleMemoBlur(id, memo)
                                     }
+                                    highlightApplicationId={focusAppId}
                                   />
                                 );
                               })}

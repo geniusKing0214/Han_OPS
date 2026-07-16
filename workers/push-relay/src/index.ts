@@ -20,6 +20,10 @@ type PushBody = {
   message?: string;
   type?: string;
   notificationId?: string;
+  eventId?: string;
+  eventDate?: string;
+  slotTime?: string;
+  applicationId?: string;
 };
 
 const PUSH_TYPES = new Set([
@@ -54,14 +58,36 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-function resolveOpenUrl(env: Env, type: string | undefined): string {
+function buildAdminRosterPath(fields?: {
+  date?: string;
+  eventId?: string;
+  slotTime?: string;
+  applicationId?: string;
+}): string {
+  const search = new URLSearchParams();
+  if (fields?.date) search.set("date", fields.date);
+  if (fields?.eventId) search.set("event", fields.eventId);
+  if (fields?.slotTime) search.set("slot", fields.slotTime);
+  if (fields?.applicationId) search.set("app", fields.applicationId);
+  const q = search.toString();
+  return `/admin/roster${q ? `?${q}` : ""}`;
+}
+
+function resolveOpenUrl(env: Env, body: PushBody): string {
   const origin = env.APP_ORIGIN.replace(/\/$/, "");
   const base = env.APP_BASE_PATH.replace(/\/$/, "");
+  const type = body.type;
   if (type === "schedule_created" || type === "schedule_cancelled") {
     return `${origin}${base}/schedule/`;
   }
   if (type === "application_submitted" || type === "application_cancelled") {
-    return `${origin}${base}/admin/applications/`;
+    const path = buildAdminRosterPath({
+      date: body.eventDate,
+      eventId: body.eventId,
+      slotTime: body.slotTime,
+      applicationId: body.applicationId,
+    });
+    return `${origin}${base}${path}/`;
   }
   if (type === "application_approved") {
     return `${origin}${base}/applications/`;
@@ -238,7 +264,7 @@ export default {
         return json({ ok: true, sent: 0, reason: "no_tokens" });
       }
 
-      const url = resolveOpenUrl(env, type);
+      const url = resolveOpenUrl(env, body);
       let sent = 0;
       const errors: string[] = [];
       for (const token of tokens) {
