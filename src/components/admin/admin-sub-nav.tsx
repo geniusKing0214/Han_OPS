@@ -36,11 +36,12 @@ const items = [
       p === "/admin/users" || p.startsWith("/admin/users/"),
   },
   {
-    href: "/admin/workforce-scheduler",
+    href: "/workforce-scheduler",
     label: "인력 배정 스케줄러",
     isActive: (p: string) =>
-      p === "/admin/workforce-scheduler" ||
-      p.startsWith("/admin/workforce-scheduler/"),
+      p === "/workforce-scheduler" ||
+      p.startsWith("/workforce-scheduler/") ||
+      p.startsWith("/admin/workforce-scheduler"),
   },
   {
     href: "/admin/applications",

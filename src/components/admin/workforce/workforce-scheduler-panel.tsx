@@ -132,7 +132,11 @@ function emptyForm(date: string): ScheduleFormState {
   };
 }
 
-export function WorkforceSchedulerPanel() {
+export function WorkforceSchedulerPanel({
+  standalone = false,
+}: {
+  standalone?: boolean;
+}) {
   const { user, isAdmin } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { events, loading: eventsLoading } = useEvents();
@@ -586,14 +590,16 @@ export function WorkforceSchedulerPanel() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", standalone && "pb-6")}>
       {/* Toolbar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-3 shadow-sm sm:p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-base font-semibold tracking-tight sm:text-lg">
-              인력 배치 스케줄러
-            </h1>
+            {standalone ? null : (
+              <h1 className="text-base font-semibold tracking-tight sm:text-lg">
+                인력 배치 스케줄러
+              </h1>
+            )}
             <Badge
               variant={
                 weekMeta?.status === "confirmed" ? "success" : "warning"
@@ -1026,9 +1032,11 @@ export function WorkforceSchedulerPanel() {
                 <section
                   key={date}
                   className={cn(
-                    "flex min-h-[420px] flex-col rounded-2xl border border-border/70",
+                    "flex min-h-[420px] flex-col rounded-2xl border border-border/70 shadow-sm",
                     hasShortage || emptyDay
-                      ? "bg-[repeating-linear-gradient(-45deg,rgba(24,24,27,0.92),rgba(24,24,27,0.92)_7px,rgba(148,163,184,0.08)_7px,rgba(148,163,184,0.08)_14px)]"
+                      ? standalone
+                        ? "bg-[repeating-linear-gradient(-45deg,#f8fafc,#f8fafc_8px,#eef2f7_8px,#eef2f7_16px)]"
+                        : "bg-[repeating-linear-gradient(-45deg,rgba(24,24,27,0.92),rgba(24,24,27,0.92)_7px,rgba(148,163,184,0.08)_7px,rgba(148,163,184,0.08)_14px)]"
                       : "bg-card/90",
                   )}
                 >
