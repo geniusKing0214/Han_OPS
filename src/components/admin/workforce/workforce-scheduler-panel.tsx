@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -50,6 +50,8 @@ import {
   exportWeekToMonthlySheet,
   importEventsForWeek,
   countPendingEventImports,
+  mergeWeekSchedulesWithEvents,
+  ensureWorkforceSchedulePersisted,
   resetWorkforceWeek,
   saveWeekDraft,
   setScheduleAssignees,
@@ -136,10 +138,11 @@ function emptyForm(date: string): ScheduleFormState {
 export function WorkforceSchedulerPanel() {
   const { user, isAdmin } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const { events } = useEvents();
+  const { events, loading: eventsLoading } = useEvents();
   const [weekStart, setWeekStart] = useState(() => getWeekStartMonday());
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const [workersOpen, setWorkersOpen] = useState(false);
+  const autoSyncRef = useRef<string>("");
   const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | WorkforceWorkerStatus>(
@@ -213,6 +216,47 @@ export function WorkforceSchedulerPanel() {
     void ensureWeekMeta(weekStart, user.uid).catch(() => {});
   }, [isAdmin, user, weekStart]);
 
+  const displaySchedules = useMemo(
+    () =>
+      mergeWeekSchedulesWithEvents(weekStart, weekDates, events, schedules),
+    [weekStart, weekDates, events, schedules],
+  );
+
+  const pendingEventImports = useMemo(
+    () => countPendingEventImports(weekDates, events, schedules),
+    [weekDates, events, schedules],
+  );
+
+  /** 주 변경·스케줄 로드 시 이벤트 자동 동기화 */
+  useEffect(() => {
+    if (!isAdmin || eventsLoading) return;
+    if (pendingEventImports <= 0) return;
+    const syncKey = `${weekStart}:${pendingEventImports}`;
+    if (autoSyncRef.current === syncKey) return;
+    autoSyncRef.current = syncKey;
+    void (async () => {
+      try {
+        await importEventsForWeek({
+          weekStart,
+          weekDates,
+          events,
+          existing: schedules,
+        });
+      } catch (e) {
+        console.warn("[workforce] auto import", e);
+        autoSyncRef.current = "";
+      }
+    })();
+  }, [
+    isAdmin,
+    eventsLoading,
+    pendingEventImports,
+    weekStart,
+    weekDates,
+    events,
+    schedules,
+  ]);
+
   const nameByUid = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of members) {
@@ -236,14 +280,14 @@ export function WorkforceSchedulerPanel() {
         if (search.trim() && !name.includes(search.trim().toLowerCase()))
           return false;
         const avail = resolveAvailability(availMap, m.uid);
-        const count = countAssignmentsInWeek(schedules, m.uid);
+        const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, weekDates, count);
         if (statusFilter !== "all" && status !== statusFilter) return false;
         return true;
       })
       .map((m) => {
         const avail = resolveAvailability(availMap, m.uid);
-        const count = countAssignmentsInWeek(schedules, m.uid);
+        const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, weekDates, count);
         return { member: m, avail, count, status };
       });
@@ -253,31 +297,30 @@ export function WorkforceSchedulerPanel() {
     search,
     statusFilter,
     availMap,
-    schedules,
+    displaySchedules,
     weekDates,
   ]);
 
-  const summary = useMemo(() => summarizeWeek(schedules), [schedules]);
+  const summary = useMemo(
+    () => summarizeWeek(displaySchedules),
+    [displaySchedules],
+  );
   const duplicates = useMemo(
-    () => findDuplicateSameDayPairs(schedules),
-    [schedules],
+    () => findDuplicateSameDayPairs(displaySchedules),
+    [displaySchedules],
   );
   const unavailableHits = useMemo(
-    () => findUnavailableAssignments(schedules, availMap),
-    [schedules, availMap],
-  );
-  const pendingEventImports = useMemo(
-    () => countPendingEventImports(weekDates, events, schedules),
-    [weekDates, events, schedules],
+    () => findUnavailableAssignments(displaySchedules, availMap),
+    [displaySchedules, availMap],
   );
   const unassignedWorkers = useMemo(
     () =>
       members.filter(
         (m) =>
           (teamFilter === "all" || normalizeTeamId(m.team_id) === teamFilter) &&
-          countAssignmentsInWeek(schedules, m.uid) === 0,
+          countAssignmentsInWeek(displaySchedules, m.uid) === 0,
       ).length,
-    [members, schedules, teamFilter],
+    [members, displaySchedules, teamFilter],
   );
 
   const tryAssign = async (
@@ -293,7 +336,7 @@ export function WorkforceSchedulerPanel() {
       const name = nameByUid.get(uid) || uid;
       const avail = resolveAvailability(availMap, uid);
       const sameDay = findSameDayAssignment(
-        schedules,
+        displaySchedules,
         uid,
         schedule.date,
         schedule.id,
@@ -308,7 +351,7 @@ export function WorkforceSchedulerPanel() {
         warnings.push(`${name}: 근무 불가일로 설정된 날입니다.`);
         reasonRequired = true;
       }
-      const count = countAssignmentsInWeek(schedules, uid);
+      const count = countAssignmentsInWeek(displaySchedules, uid);
       const alreadyHere = schedule.assignedUserIds.includes(uid);
       const nextCount = alreadyHere ? count : count + 1;
       if (nextCount > avail.weeklyMaxAssignments) {
@@ -339,7 +382,12 @@ export function WorkforceSchedulerPanel() {
     const next = [...new Set([...schedule.assignedUserIds, ...userIds])];
     setBusy(true);
     try {
-      await setScheduleAssignees(schedule.id, next, {
+      const scheduleId = await ensureWorkforceSchedulePersisted(schedule);
+      const baseIds = schedule.id.startsWith("virtual:")
+        ? []
+        : schedule.assignedUserIds;
+      const assignees = [...new Set([...baseIds, ...userIds])];
+      await setScheduleAssignees(scheduleId, assignees, {
         action: "assign",
         targetUserId: userIds[0],
         targetUserName: nameByUid.get(userIds[0]!),
@@ -358,7 +406,7 @@ export function WorkforceSchedulerPanel() {
             eventDate: schedule.date,
             slotTime: schedule.startTime,
             location: schedule.venue,
-            scheduleId: schedule.id,
+            scheduleId,
           });
         }
       }
@@ -371,6 +419,7 @@ export function WorkforceSchedulerPanel() {
   };
 
   const removeAssignee = async (schedule: WorkforceSchedule, uid: string) => {
+    if (schedule.id.startsWith("virtual:")) return;
     setBusy(true);
     try {
       await setScheduleAssignees(
@@ -410,17 +459,31 @@ export function WorkforceSchedulerPanel() {
     setFormOpen(true);
   };
 
-  const openEdit = (s: WorkforceSchedule) => {
-    setEditingId(s.id);
+  const openEdit = async (s: WorkforceSchedule) => {
+    let target = s;
+    if (s.id.startsWith("virtual:")) {
+      setBusy(true);
+      try {
+        const id = await ensureWorkforceSchedulePersisted(s);
+        target = { ...s, id };
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "일정 저장에 실패했습니다.");
+        setBusy(false);
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+    setEditingId(target.id);
     setForm({
-      title: s.title,
-      date: s.date,
-      startTime: s.startTime,
-      venue: s.venue,
-      requiredCount: s.requiredCount,
-      teamIds: s.teamIds,
-      note: s.note,
-      color: s.color,
+      title: target.title,
+      date: target.date,
+      startTime: target.startTime,
+      venue: target.venue,
+      requiredCount: target.requiredCount,
+      teamIds: target.teamIds,
+      note: target.note,
+      color: target.color,
     });
     setFormOpen(true);
     setMenuScheduleId(null);
@@ -499,8 +562,8 @@ export function WorkforceSchedulerPanel() {
             <div>
               <CardTitle className="text-base">인력 배정 스케줄러</CardTitle>
               <CardDescription>
-                관리자가 주간 단위로 근무자를 직접 배정합니다. (신청 시스템과
-                별도)
+                Admin 일정(events)과 실시간 연동됩니다. 해당 주 세션이 자동으로
+                표시·동기화됩니다.
               </CardDescription>
             </div>
             <Badge
@@ -630,6 +693,11 @@ export function WorkforceSchedulerPanel() {
                       return;
                     setBusy(true);
                     try {
+                      for (const s of displaySchedules) {
+                        if (s.id.startsWith("virtual:")) {
+                          await ensureWorkforceSchedulePersisted(s);
+                        }
+                      }
                       const { schedules: confirmed } =
                         await confirmWorkforceWeek(weekStart);
                       if (user) {
@@ -870,7 +938,7 @@ export function WorkforceSchedulerPanel() {
         <div className="min-w-0 space-y-3 overflow-x-auto">
           <div className="grid min-w-[900px] grid-cols-7 gap-2">
             {weekDates.map((date) => {
-              const daySchedules = schedules.filter((s) => s.date === date);
+              const daySchedules = displaySchedules.filter((s) => s.date === date);
               const dayRequired = daySchedules.reduce(
                 (a, s) => a + s.requiredCount,
                 0,
@@ -935,12 +1003,21 @@ export function WorkforceSchedulerPanel() {
                             id === s.id ? null : s.id,
                           )
                         }
-                        onEdit={() => openEdit(s)}
+                        onEdit={() => void openEdit(s)}
                         onDuplicate={() =>
-                          void duplicateWorkforceSchedule(s.id)
+                          void (async () => {
+                            const id = await ensureWorkforceSchedulePersisted(s);
+                            await duplicateWorkforceSchedule(id);
+                          })()
                         }
                         onDelete={() =>
                           void (async () => {
+                            if (s.id.startsWith("virtual:")) {
+                              setError(
+                                "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. Admin 일정에서 수정하세요.",
+                              );
+                              return;
+                            }
                             if (!confirm("이 일정을 삭제할까요?")) return;
                             await deleteWorkforceSchedule(s.id);
                           })()
@@ -985,9 +1062,8 @@ export function WorkforceSchedulerPanel() {
           />
         </CardContent>
         <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          근무자 목록은 기본 접힘 — 상단 «근무자 목록»으로 펼칩니다. «스케줄에서
-          불러오기»로 Admin 일정의 이벤트·슬롯을 가져올 수 있습니다. PC: 드래그
-          배정 · 클릭 선택 후 일정 탭.
+          스케줄 일정이 주간 달력에 자동 표시됩니다. 근무자 목록은 «근무자
+          목록»으로 펼칩니다. PC: 드래그 배정 · 클릭 선택 후 일정 탭.
         </p>
       </Card>
 
@@ -1139,7 +1215,7 @@ export function WorkforceSchedulerPanel() {
               onClick={() =>
                 void (async () => {
                   if (!pendingAssign) return;
-                  const s = schedules.find(
+                  const s = displaySchedules.find(
                     (x) => x.id === pendingAssign.scheduleId,
                   );
                   if (!s) return;

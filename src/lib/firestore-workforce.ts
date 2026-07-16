@@ -670,6 +670,139 @@ export function sourceSlotKey(
   return `${eventId}:${sessionId}:${slotId}`;
 }
 
+function normalizeSessionDate(raw: string): string {
+  return raw.trim().slice(0, 10);
+}
+
+/** 세션에 슬롯이 없으면 일정 1개로 취급 (달력 점과 동일 기준) */
+function slotsForSession(session: {
+  id: string;
+  date: string;
+  slots: { id: string; start_time: string; capacity: number }[];
+}) {
+  if (session.slots.length > 0) return session.slots;
+  return [
+    {
+      id: `${session.id}__default`,
+      start_time: "10:00",
+      capacity: 1,
+    },
+  ];
+}
+
+export function listEventSlotsInWeek(
+  weekDates: string[],
+  events: EventItem[],
+): {
+  event: EventItem;
+  sessionId: string;
+  date: string;
+  slot: { id: string; start_time: string; capacity: number };
+}[] {
+  const dateSet = new Set(weekDates.map((d) => d.trim()));
+  const out: {
+    event: EventItem;
+    sessionId: string;
+    date: string;
+    slot: { id: string; start_time: string; capacity: number };
+  }[] = [];
+  for (const event of events) {
+    for (const session of event.sessions) {
+      const date = normalizeSessionDate(session.date || "");
+      if (!date || !dateSet.has(date)) continue;
+      for (const slot of slotsForSession(session)) {
+        out.push({
+          event,
+          sessionId: session.id,
+          date,
+          slot,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** 스케줄 events + 인력배정 문서를 한 주 달력용으로 합칩니다. */
+export function mergeWeekSchedulesWithEvents(
+  weekStart: string,
+  weekDates: string[],
+  events: EventItem[],
+  existing: WorkforceSchedule[],
+): WorkforceSchedule[] {
+  const existingBySource = new Map<string, WorkforceSchedule>();
+  for (const s of existing) {
+    if (s.sourceEventId && s.sourceSessionId && s.sourceSlotId) {
+      existingBySource.set(
+        sourceSlotKey(s.sourceEventId, s.sourceSessionId, s.sourceSlotId),
+        s,
+      );
+    }
+  }
+
+  const merged: WorkforceSchedule[] = [];
+  const usedIds = new Set<string>();
+  let colorIdx = 0;
+
+  for (const row of listEventSlotsInWeek(weekDates, events)) {
+    const key = sourceSlotKey(row.event.id, row.sessionId, row.slot.id);
+    const linked = existingBySource.get(key);
+    const color =
+      row.event.color?.trim() ||
+      linked?.color ||
+      WORKFORCE_COLORS[colorIdx % WORKFORCE_COLORS.length];
+    colorIdx += 1;
+
+    if (linked) {
+      usedIds.add(linked.id);
+      merged.push({
+        ...linked,
+        title: row.event.title || linked.title,
+        venue: row.event.venue || linked.venue,
+        startTime: row.slot.start_time.trim() || linked.startTime,
+        requiredCount:
+          row.slot.capacity > 0 ? row.slot.capacity : linked.requiredCount,
+        teamIds: normalizeTeamIds(row.event.team_ids),
+        note: row.event.notice?.trim() || linked.note,
+        color,
+        date: row.date,
+      });
+    } else {
+      merged.push({
+        id: `virtual:${key}`,
+        weekStart,
+        date: row.date,
+        title: row.event.title,
+        startTime: row.slot.start_time.trim() || "10:00",
+        venue: row.event.venue,
+        requiredCount: Math.max(0, row.slot.capacity || 0),
+        teamIds: normalizeTeamIds(row.event.team_ids),
+        note: row.event.notice?.trim() || "",
+        color,
+        assignedUserIds: [],
+        status: "draft",
+        sourceEventId: row.event.id,
+        sourceSessionId: row.sessionId,
+        sourceSlotId: row.slot.id,
+        createdAt: "",
+        updatedAt: "",
+        createdBy: "",
+      });
+    }
+  }
+
+  for (const s of existing) {
+    if (usedIds.has(s.id)) continue;
+    merged.push(s);
+  }
+
+  return merged.sort((a, b) =>
+    a.date === b.date
+      ? a.startTime.localeCompare(b.startTime)
+      : a.date.localeCompare(b.date),
+  );
+}
+
 /** 해당 주에 있는 events 슬롯 중, 아직 인력배정에 없는 항목만 가져옵니다. */
 export async function importEventsForWeek(input: {
   weekStart: string;
@@ -688,42 +821,36 @@ export async function importEventsForWeek(input: {
       ),
   );
 
-  const dateSet = new Set(input.weekDates);
   let imported = 0;
   let skipped = 0;
   let colorIdx = 0;
 
-  for (const event of input.events) {
-    for (const session of event.sessions) {
-      if (!dateSet.has(session.date)) continue;
-      for (const slot of session.slots) {
-        const key = sourceSlotKey(event.id, session.id, slot.id);
-        if (existingKeys.has(key)) {
-          skipped += 1;
-          continue;
-        }
-        const color =
-          event.color?.trim() ||
-          WORKFORCE_COLORS[colorIdx % WORKFORCE_COLORS.length];
-        colorIdx += 1;
-        await createWorkforceSchedule({
-          weekStart: input.weekStart,
-          date: session.date,
-          title: event.title,
-          startTime: slot.start_time.trim() || "00:00",
-          venue: event.venue,
-          requiredCount: Math.max(0, slot.capacity || 0),
-          teamIds: normalizeTeamIds(event.team_ids),
-          note: event.notice?.trim() || "",
-          color,
-          sourceEventId: event.id,
-          sourceSessionId: session.id,
-          sourceSlotId: slot.id,
-        });
-        existingKeys.add(key);
-        imported += 1;
-      }
+  for (const row of listEventSlotsInWeek(input.weekDates, input.events)) {
+    const key = sourceSlotKey(row.event.id, row.sessionId, row.slot.id);
+    if (existingKeys.has(key)) {
+      skipped += 1;
+      continue;
     }
+    const color =
+      row.event.color?.trim() ||
+      WORKFORCE_COLORS[colorIdx % WORKFORCE_COLORS.length];
+    colorIdx += 1;
+    await createWorkforceSchedule({
+      weekStart: input.weekStart,
+      date: row.date,
+      title: row.event.title,
+      startTime: row.slot.start_time.trim() || "10:00",
+      venue: row.event.venue,
+      requiredCount: Math.max(0, row.slot.capacity || 0),
+      teamIds: normalizeTeamIds(row.event.team_ids),
+      note: row.event.notice?.trim() || "",
+      color,
+      sourceEventId: row.event.id,
+      sourceSessionId: row.sessionId,
+      sourceSlotId: row.slot.id,
+    });
+    existingKeys.add(key);
+    imported += 1;
   }
 
   if (imported > 0) {
@@ -752,19 +879,35 @@ export function countPendingEventImports(
         sourceSlotKey(s.sourceEventId!, s.sourceSessionId!, s.sourceSlotId!),
       ),
   );
-  const dateSet = new Set(weekDates);
   let n = 0;
-  for (const event of events) {
-    for (const session of event.sessions) {
-      if (!dateSet.has(session.date)) continue;
-      for (const slot of session.slots) {
-        if (
-          !existingKeys.has(sourceSlotKey(event.id, session.id, slot.id))
-        ) {
-          n += 1;
-        }
-      }
+  for (const row of listEventSlotsInWeek(weekDates, events)) {
+    if (
+      !existingKeys.has(
+        sourceSlotKey(row.event.id, row.sessionId, row.slot.id),
+      )
+    ) {
+      n += 1;
     }
   }
   return n;
+}
+
+export async function ensureWorkforceSchedulePersisted(
+  schedule: WorkforceSchedule,
+): Promise<string> {
+  if (!schedule.id.startsWith("virtual:")) return schedule.id;
+  return createWorkforceSchedule({
+    weekStart: schedule.weekStart,
+    date: schedule.date,
+    title: schedule.title,
+    startTime: schedule.startTime,
+    venue: schedule.venue,
+    requiredCount: schedule.requiredCount,
+    teamIds: schedule.teamIds,
+    note: schedule.note,
+    color: schedule.color,
+    sourceEventId: schedule.sourceEventId,
+    sourceSessionId: schedule.sourceSessionId,
+    sourceSlotId: schedule.sourceSlotId,
+  });
 }
