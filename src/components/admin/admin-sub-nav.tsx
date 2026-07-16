@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -36,14 +37,6 @@ const items = [
       p === "/admin/users" || p.startsWith("/admin/users/"),
   },
   {
-    href: "/workforce-scheduler",
-    label: "인력 배정 스케줄러",
-    isActive: (p: string) =>
-      p === "/workforce-scheduler" ||
-      p.startsWith("/workforce-scheduler/") ||
-      p.startsWith("/admin/workforce-scheduler"),
-  },
-  {
     href: "/admin/applications",
     label: "신청",
     isActive: (p: string) =>
@@ -68,14 +61,14 @@ export function AdminSubNav() {
 
   return (
     <nav
-      className="border-b border-border pb-px"
+      className="space-y-3 border-b border-border pb-3"
       aria-label="Admin 하위 메뉴"
     >
       <div
         className={cn(
           "items-stretch gap-0",
           "flex min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:overflow-visible lg:grid lg:grid-cols-9",
+          "md:overflow-visible lg:grid lg:grid-cols-8",
         )}
       >
         {items.map(({ href, label, isActive }) => {
@@ -97,6 +90,14 @@ export function AdminSubNav() {
           );
         })}
       </div>
+
+      <Link
+        href="/workforce-scheduler"
+        className="inline-flex w-full items-center justify-between gap-2 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent/20 sm:w-auto"
+      >
+        <span>인력 배치 스케줄러 열기</span>
+        <ExternalLink className="size-3.5 shrink-0 text-accent" />
+      </Link>
     </nav>
   );
 }

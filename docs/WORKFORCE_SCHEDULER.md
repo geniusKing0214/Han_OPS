@@ -7,7 +7,7 @@
 
 | 역할 | 경로 |
 |------|------|
-| 관리자 | `/workforce-scheduler` (독립 풀페이지, Admin 메뉴에서 진입) |
+| 관리자 | `/workforce-scheduler` (독립 풀페이지) · Admin에서 «인력 배치 스케줄러 열기»로 진입 |
 | 멤버 | `/my-assignments` (확정분만 조회) |
 
 ## Firestore 컬렉션
