@@ -338,6 +338,11 @@ export function WorkforceSchedulerPanel({
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, chipWeekDates, count);
         return { member: m, avail, count, status };
+      })
+      .sort((a, b) => {
+        const nameA = (a.member.displayName || a.member.email || "").trim();
+        const nameB = (b.member.displayName || b.member.email || "").trim();
+        return nameA.localeCompare(nameB, "ko", { sensitivity: "base" });
       });
   }, [
     members,
