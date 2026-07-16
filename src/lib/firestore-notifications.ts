@@ -101,7 +101,10 @@ function normalizeNotificationType(value: unknown): NotificationType {
     value === "notice_posted" ||
     value === "attendance_submitted" ||
     value === "attendance_approved" ||
-    value === "attendance_rejected"
+    value === "attendance_rejected" ||
+    value === "workforce_confirmed" ||
+    value === "workforce_updated" ||
+    value === "workforce_cancelled"
   ) {
     return value;
   }
@@ -165,7 +168,10 @@ async function createNotificationDoc(payload: NotificationPayload) {
     payload.type === "notice_posted" ||
     payload.type === "attendance_submitted" ||
     payload.type === "attendance_approved" ||
-    payload.type === "attendance_rejected"
+    payload.type === "attendance_rejected" ||
+    payload.type === "workforce_confirmed" ||
+    payload.type === "workforce_updated" ||
+    payload.type === "workforce_cancelled"
   ) {
     void dispatchPushRelay({
       targetUserId: payload.targetUserId,
@@ -180,7 +186,10 @@ async function createNotificationDoc(payload: NotificationPayload) {
         | "notice_posted"
         | "attendance_submitted"
         | "attendance_approved"
-        | "attendance_rejected",
+        | "attendance_rejected"
+        | "workforce_confirmed"
+        | "workforce_updated"
+        | "workforce_cancelled",
       notificationId: ref.id,
       eventId: payload.eventId,
       eventDate: payload.eventDate || undefined,
@@ -605,4 +614,82 @@ export async function markAllNotificationsRead(
 
 export async function deleteNotification(notificationId: string) {
   await deleteDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId));
+}
+
+export type NotifyWorkforceInput = {
+  targetUserId: string;
+  createdByUserId: string;
+  type: "workforce_confirmed" | "workforce_updated" | "workforce_cancelled";
+  title: string;
+  message: string;
+  eventTitle: string;
+  eventDate: string;
+  slotTime: string;
+  location: string;
+  scheduleId?: string;
+};
+
+export async function notifyMemberWorkforce(input: NotifyWorkforceInput) {
+  await createNotificationDoc({
+    targetUserId: input.targetUserId,
+    targetRole: "member",
+    type: input.type,
+    title: input.title,
+    message: input.message,
+    eventId: input.scheduleId,
+    eventTitle: input.eventTitle,
+    eventDate: input.eventDate,
+    slotTime: input.slotTime,
+    location: input.location,
+    createdByUserId: input.createdByUserId,
+  });
+}
+
+export async function notifyWorkforceWeekConfirmed(input: {
+  createdByUserId: string;
+  schedules: {
+    id: string;
+    title: string;
+    date: string;
+    startTime: string;
+    venue: string;
+    assignedUserIds: string[];
+  }[];
+}) {
+  const byUser = new Map<
+    string,
+    { id: string; title: string; date: string; startTime: string; venue: string }[]
+  >();
+  for (const s of input.schedules) {
+    for (const uid of s.assignedUserIds) {
+      const list = byUser.get(uid) ?? [];
+      list.push({
+        id: s.id,
+        title: s.title,
+        date: s.date,
+        startTime: s.startTime,
+        venue: s.venue,
+      });
+      byUser.set(uid, list);
+    }
+  }
+  await Promise.all(
+    [...byUser.entries()].map(async ([uid, items]) => {
+      const first = items[0]!;
+      const more =
+        items.length > 1 ? ` 외 ${items.length - 1}건` : "";
+      await notifyMemberWorkforce({
+        targetUserId: uid,
+        createdByUserId: input.createdByUserId,
+        type: "workforce_confirmed",
+        title: "주간 근무 배정이 확정되었습니다",
+        message: `${first.date} ${first.title}${more} 일정이 확정되었습니다. 내 주간 배정표에서 확인하세요.`,
+        eventTitle: first.title,
+        eventDate: first.date,
+        slotTime: first.startTime,
+        location: first.venue,
+        scheduleId: first.id,
+      });
+    }),
+  );
 }

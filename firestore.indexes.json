@@ -33,6 +33,22 @@
         { "fieldPath": "workDate", "order": "ASCENDING" },
         { "fieldPath": "teamId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "workforceSchedules",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "weekStart", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "workforceLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "weekStart", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -36,6 +36,13 @@ const items = [
       p === "/admin/users" || p.startsWith("/admin/users/"),
   },
   {
+    href: "/admin/workforce-scheduler",
+    label: "인력 배정 스케줄러",
+    isActive: (p: string) =>
+      p === "/admin/workforce-scheduler" ||
+      p.startsWith("/admin/workforce-scheduler/"),
+  },
+  {
     href: "/admin/applications",
     label: "신청",
     isActive: (p: string) =>
@@ -67,7 +74,7 @@ export function AdminSubNav() {
         className={cn(
           "items-stretch gap-0",
           "flex min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:overflow-visible lg:grid lg:grid-cols-8",
+          "md:overflow-visible lg:grid lg:grid-cols-9",
         )}
       >
         {items.map(({ href, label, isActive }) => {

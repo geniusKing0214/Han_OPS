@@ -62,6 +62,13 @@ export function notificationAppPath(item: NotificationItem): string {
   ) {
     return "/applications/";
   }
+  if (
+    item.type === "workforce_confirmed" ||
+    item.type === "workforce_updated" ||
+    item.type === "workforce_cancelled"
+  ) {
+    return "/my-assignments/";
+  }
   return "/applications/";
 }
 
@@ -104,6 +111,13 @@ export function resolveNotificationOpenUrl(
   }
   if (type === "attendance_approved" || type === "attendance_rejected") {
     return `${origin}${base}/applications/`;
+  }
+  if (
+    type === "workforce_confirmed" ||
+    type === "workforce_updated" ||
+    type === "workforce_cancelled"
+  ) {
+    return `${origin}${base}/my-assignments/`;
   }
   return `${origin}${base}/dashboard/`;
 }

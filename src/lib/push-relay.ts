@@ -20,6 +20,9 @@ const RELAY_PUSH_TYPES = new Set([
   "attendance_submitted",
   "attendance_approved",
   "attendance_rejected",
+  "workforce_confirmed",
+  "workforce_updated",
+  "workforce_cancelled",
 ]);
 
 export type PushRelayInput = {
@@ -40,7 +43,10 @@ export type PushRelayInput = {
     | "notice_posted"
     | "attendance_submitted"
     | "attendance_approved"
-    | "attendance_rejected";
+    | "attendance_rejected"
+    | "workforce_confirmed"
+    | "workforce_updated"
+    | "workforce_cancelled";
 };
 
 export type PushRelayResult = {

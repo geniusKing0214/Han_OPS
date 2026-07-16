@@ -2,6 +2,7 @@
 
 import {
   Calendar,
+  CalendarCheck2,
   CheckCircle2,
   Megaphone,
   Trash2,
@@ -37,6 +38,10 @@ function iconForType(type: NotificationItem["type"]): LucideIcon {
       return Calendar;
     case "notice_posted":
       return Megaphone;
+    case "workforce_confirmed":
+    case "workforce_updated":
+    case "workforce_cancelled":
+      return CalendarCheck2;
     default:
       return Calendar;
   }

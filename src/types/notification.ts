@@ -8,7 +8,10 @@ export type NotificationType =
   | "notice_posted"
   | "attendance_submitted"
   | "attendance_approved"
-  | "attendance_rejected";
+  | "attendance_rejected"
+  | "workforce_confirmed"
+  | "workforce_updated"
+  | "workforce_cancelled";
 
 export type NotificationTargetRole = "admin" | "member";
 
@@ -48,6 +51,9 @@ export const notificationTypeLabels: Record<NotificationType, string> = {
   attendance_submitted: "출근 인증",
   attendance_approved: "인증 확인",
   attendance_rejected: "재인증",
+  workforce_confirmed: "배정 확정",
+  workforce_updated: "배정 변경",
+  workforce_cancelled: "배정 취소",
 };
 
 export const notificationStatusBadgeVariant: Record<
@@ -64,4 +70,7 @@ export const notificationStatusBadgeVariant: Record<
   attendance_submitted: "accent",
   attendance_approved: "success",
   attendance_rejected: "destructive",
+  workforce_confirmed: "success",
+  workforce_updated: "warning",
+  workforce_cancelled: "destructive",
 };

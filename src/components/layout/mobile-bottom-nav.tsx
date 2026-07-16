@@ -82,6 +82,15 @@ export function MobileBottomNav({ className }: { className?: string }) {
             <div className="mt-4 flex flex-col gap-2">
               <SheetClose asChild>
                 <Link
+                  href="/my-assignments"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
+                >
+                  <Calendar className="size-4" />
+                  내 주간 배정표
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link
                   href="/monthly-sheet"
                   className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
                 >

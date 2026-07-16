@@ -11,6 +11,7 @@ import {
   Settings,
   Shield,
   Table2,
+  CalendarCheck2,
 } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -30,6 +31,7 @@ const baseNav: SidebarLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/applications", label: "Applications", icon: ClipboardList },
+  { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
   { href: "/monthly-sheet", label: "취합표", icon: Table2 },
   { href: "/notices", label: "Notices", icon: Bell },
 ];

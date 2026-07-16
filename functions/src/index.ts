@@ -15,6 +15,9 @@ const PUSH_NOTIFICATION_TYPES = new Set([
   "attendance_submitted",
   "attendance_approved",
   "attendance_rejected",
+  "workforce_confirmed",
+  "workforce_updated",
+  "workforce_cancelled",
 ]);
 
 type NotificationDoc = {
@@ -85,6 +88,13 @@ function resolveOpenUrl(data: NotificationDoc): string {
     return type === "attendance_submitted"
       ? `${origin}${base}/admin/attendance/`
       : `${origin}${base}/applications/`;
+  }
+  if (
+    type === "workforce_confirmed" ||
+    type === "workforce_updated" ||
+    type === "workforce_cancelled"
+  ) {
+    return `${origin}${base}/my-assignments/`;
   }
   return `${origin}${base}/dashboard/`;
 }

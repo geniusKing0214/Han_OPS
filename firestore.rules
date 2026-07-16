@@ -132,6 +132,16 @@ service cloud.firestore {
           && request.resource.data.targetUserId is string
           && request.resource.data.createdByUserId == request.auth.uid
         )
+        ||
+        (
+          isAdmin()
+          && (request.resource.data.type == 'workforce_confirmed'
+            || request.resource.data.type == 'workforce_updated'
+            || request.resource.data.type == 'workforce_cancelled')
+          && request.resource.data.targetRole == 'member'
+          && request.resource.data.targetUserId is string
+          && request.resource.data.createdByUserId == request.auth.uid
+        )
       );
 
       allow update: if isSignedIn()
@@ -240,6 +250,33 @@ service cloud.firestore {
       );
 
       allow delete: if false;
+    }
+
+    // 인력 배정 스케줄러 (기존 events/applications 와 분리)
+    match /workforceWeeks/{weekId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /workforceSchedules/{scheduleId} {
+      allow read: if isSignedIn() && (
+        isAdmin()
+        || resource.data.status == 'confirmed'
+      );
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /workforceAvailability/{userId} {
+      allow read: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /workforceLogs/{logId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /workforceMonthlyExports/{exportId} {
+      allow read, create, update, delete: if isAdmin();
     }
 
     match /{document=**} {

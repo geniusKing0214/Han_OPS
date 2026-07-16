@@ -36,6 +36,9 @@ const PUSH_TYPES = new Set([
   "attendance_submitted",
   "attendance_approved",
   "attendance_rejected",
+  "workforce_confirmed",
+  "workforce_updated",
+  "workforce_cancelled",
 ]);
 
 const corsOrigin = "https://geniusking0214.github.io";
@@ -100,6 +103,13 @@ function resolveOpenUrl(env: Env, body: PushBody): string {
   }
   if (type === "attendance_approved" || type === "attendance_rejected") {
     return `${origin}${base}/applications/`;
+  }
+  if (
+    type === "workforce_confirmed" ||
+    type === "workforce_updated" ||
+    type === "workforce_cancelled"
+  ) {
+    return `${origin}${base}/my-assignments/`;
   }
   return `${origin}${base}/dashboard/`;
 }

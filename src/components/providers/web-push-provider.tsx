@@ -36,6 +36,13 @@ function shouldPushNotify(item: NotificationItem, isAdmin: boolean): boolean {
   if (item.type === "attendance_approved" || item.type === "attendance_rejected") {
     return !isAdmin;
   }
+  if (
+    item.type === "workforce_confirmed" ||
+    item.type === "workforce_updated" ||
+    item.type === "workforce_cancelled"
+  ) {
+    return !isAdmin;
+  }
   return false;
 }
 
