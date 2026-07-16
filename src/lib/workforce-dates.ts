@@ -37,6 +37,110 @@ export function shiftWeek(weekStart: string, weeks: number): string {
   return toYmd(d);
 }
 
+export type WorkforceRangeSpan = "1w" | "2w" | "1m";
+
+export function getMonthDates(yearMonth: string): string[] {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const last = new Date(y!, m!, 0).getDate();
+  return Array.from({ length: last }, (_, i) => {
+    const day = `${i + 1}`.padStart(2, "0");
+    return `${yearMonth}-${day}`;
+  });
+}
+
+/** 커서(월요일 또는 월 시작일) + 범위 → 표시할 날짜 목록 */
+export function getRangeDates(
+  cursor: string,
+  span: WorkforceRangeSpan,
+): string[] {
+  if (span === "1w") {
+    return getWeekDates(getWeekStartMonday(parseYmd(cursor)));
+  }
+  if (span === "2w") {
+    const mon = getWeekStartMonday(parseYmd(cursor));
+    return [...getWeekDates(mon), ...getWeekDates(shiftWeek(mon, 1))];
+  }
+  return getMonthDates(yearMonthFromYmd(cursor));
+}
+
+/** 날짜들에 걸친 주(월요일) 목록 */
+export function getWeekStartsCoveringDates(dates: string[]): string[] {
+  const set = new Set<string>();
+  for (const d of dates) {
+    if (!d) continue;
+    set.add(getWeekStartMonday(parseYmd(d)));
+  }
+  return [...set].sort();
+}
+
+export function shiftRangeCursor(
+  cursor: string,
+  span: WorkforceRangeSpan,
+  dir: -1 | 1,
+): string {
+  if (span === "1w") {
+    return shiftWeek(getWeekStartMonday(parseYmd(cursor)), dir);
+  }
+  if (span === "2w") {
+    return shiftWeek(getWeekStartMonday(parseYmd(cursor)), dir * 2);
+  }
+  const d = parseYmd(`${yearMonthFromYmd(cursor)}-01`);
+  d.setMonth(d.getMonth() + dir);
+  return toYmd(d);
+}
+
+export function normalizeRangeCursor(
+  cursor: string,
+  span: WorkforceRangeSpan,
+): string {
+  if (span === "1m") {
+    return `${yearMonthFromYmd(cursor)}-01`;
+  }
+  return getWeekStartMonday(parseYmd(cursor));
+}
+
+export function formatRangeLabel(
+  cursor: string,
+  span: WorkforceRangeSpan,
+): string {
+  const dates = getRangeDates(cursor, span);
+  if (dates.length === 0) return "";
+  const start = parseYmd(dates[0]!);
+  const end = parseYmd(dates[dates.length - 1]!);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}.${`${d.getMonth() + 1}`.padStart(2, "0")}.${`${d.getDate()}`.padStart(2, "0")}`;
+  if (span === "1m") {
+    return `${start.getFullYear()}.${`${start.getMonth() + 1}`.padStart(2, "0")}`;
+  }
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+/** 달력 그리드용: 월요일 시작 주 단위로 패딩된 셀 (빈칸은 null) */
+export function buildCalendarWeeks(dates: string[]): (string | null)[][] {
+  if (dates.length === 0) return [];
+  const first = dates[0]!;
+  const last = dates[dates.length - 1]!;
+  const startMon = getWeekStartMonday(parseYmd(first));
+  const endSun = (() => {
+    const mon = getWeekStartMonday(parseYmd(last));
+    return getWeekDates(mon)[6]!;
+  })();
+  const dateSet = new Set(dates);
+  const cells: (string | null)[] = [];
+  let cur = startMon;
+  while (cur <= endSun) {
+    cells.push(dateSet.has(cur) ? cur : null);
+    const d = parseYmd(cur);
+    d.setDate(d.getDate() + 1);
+    cur = toYmd(d);
+  }
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+  return weeks;
+}
+
 export function weekdayKeyFromYmd(ymd: string): WeekdayKey {
   const day = parseYmd(ymd).getDay(); // 0=Sun
   const map: WeekdayKey[] = [

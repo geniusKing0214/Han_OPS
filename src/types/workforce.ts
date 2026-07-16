@@ -68,8 +68,8 @@ export const DEFAULT_AVAILABLE_WEEKDAYS: Record<WeekdayKey, boolean> = {
   wed: true,
   thu: true,
   fri: true,
-  sat: false,
-  sun: false,
+  sat: true,
+  sun: true,
 };
 
 export const WORKFORCE_COLORS = [

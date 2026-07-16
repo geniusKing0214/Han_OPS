@@ -32,6 +32,7 @@ import {
 } from "@/types/workforce";
 import { normalizeTeamIds, type TeamId } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
+import { getWeekStartMonday, parseYmd } from "@/lib/workforce-dates";
 
 export const WORKFORCE_WEEKS = "workforceWeeks";
 export const WORKFORCE_SCHEDULES = "workforceSchedules";
@@ -199,6 +200,42 @@ export function subscribeWorkforceSchedules(
     },
     (err) => onError?.(err),
   );
+}
+
+/** 여러 주의 일정을 합쳐 구독 */
+export function subscribeWorkforceSchedulesMulti(
+  weekStarts: string[],
+  onData: (rows: WorkforceSchedule[]) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  const unique = [...new Set(weekStarts.filter(Boolean))];
+  if (unique.length === 0) {
+    onData([]);
+    return () => {};
+  }
+  if (unique.length === 1) {
+    return subscribeWorkforceSchedules(unique[0]!, onData, onError);
+  }
+
+  const byWeek = new Map<string, WorkforceSchedule[]>();
+  const unsubs = unique.map((ws) =>
+    subscribeWorkforceSchedules(
+      ws,
+      (rows) => {
+        byWeek.set(ws, rows);
+        const merged = [...byWeek.values()].flat().sort((a, b) =>
+          a.date === b.date
+            ? a.startTime.localeCompare(b.startTime)
+            : a.date.localeCompare(b.date),
+        );
+        onData(merged);
+      },
+      onError,
+    ),
+  );
+  return () => {
+    for (const u of unsubs) u();
+  };
 }
 
 export function subscribeAllAvailability(
@@ -830,7 +867,7 @@ export function mergeWeekSchedulesWithEvents(
     } else {
       merged.push({
         id: `virtual:${key}`,
-        weekStart,
+        weekStart: getWeekStartMonday(parseYmd(row.date)),
         date: row.date,
         title: row.event.title,
         startTime: row.startTime,

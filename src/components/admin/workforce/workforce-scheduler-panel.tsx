@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  LayoutGrid,
   Minus,
   Plus,
   Search,
@@ -52,19 +54,26 @@ import {
   saveWeekDraft,
   setScheduleAssignees,
   subscribeAllAvailability,
-  subscribeWorkforceSchedules,
+  subscribeWorkforceSchedulesMulti,
   subscribeWorkforceWeek,
   updateWorkforceSchedule,
   upsertAvailability,
 } from "@/lib/firestore-workforce";
 import {
+  buildCalendarWeeks,
   formatDayHeader,
-  formatWeekRangeLabel,
+  formatRangeLabel,
+  getRangeDates,
   getWeekDates,
   getWeekStartMonday,
-  shiftWeek,
+  getWeekStartsCoveringDates,
+  normalizeRangeCursor,
+  parseYmd,
+  shiftRangeCursor,
   toYmd,
+  weekdayKeyFromYmd,
   yearMonthFromYmd,
+  type WorkforceRangeSpan,
 } from "@/lib/workforce-dates";
 import {
   computeWorkerStatus,
@@ -140,8 +149,28 @@ export function WorkforceSchedulerPanel({
   const { user, isAdmin } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { events, loading: eventsLoading } = useEvents();
-  const [weekStart, setWeekStart] = useState(() => getWeekStartMonday());
-  const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const [cursor, setCursor] = useState(() => getWeekStartMonday());
+  const [rangeSpan, setRangeSpan] = useState<WorkforceRangeSpan>("1w");
+  const [boardLayout, setBoardLayout] = useState<"columns" | "calendar">(
+    "columns",
+  );
+  const weekDates = useMemo(
+    () => getRangeDates(cursor, rangeSpan),
+    [cursor, rangeSpan],
+  );
+  const chipWeekDates = useMemo(
+    () => getWeekDates(getWeekStartMonday(parseYmd(cursor))),
+    [cursor],
+  );
+  const weekStarts = useMemo(
+    () => getWeekStartsCoveringDates(weekDates),
+    [weekDates],
+  );
+  const primaryWeekStart = weekStarts[0] ?? getWeekStartMonday(parseYmd(cursor));
+  const calendarWeeks = useMemo(
+    () => buildCalendarWeeks(weekDates),
+    [weekDates],
+  );
   const [workersOpen, setWorkersOpen] = useState(true);
   const autoSyncRef = useRef<string>("");
   const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
@@ -197,29 +226,36 @@ export function WorkforceSchedulerPanel({
 
   useEffect(() => {
     if (!isAdmin) return;
-    return subscribeWorkforceSchedules(
-      weekStart,
+    return subscribeWorkforceSchedulesMulti(
+      weekStarts,
       setSchedules,
       (e) => setError(e.message),
     );
-  }, [isAdmin, weekStart]);
+  }, [isAdmin, weekStarts]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    return subscribeWorkforceWeek(weekStart, setWeekMeta, (e) =>
+    return subscribeWorkforceWeek(primaryWeekStart, setWeekMeta, (e) =>
       setError(e.message),
     );
-  }, [isAdmin, weekStart]);
+  }, [isAdmin, primaryWeekStart]);
 
   useEffect(() => {
     if (!isAdmin || !user) return;
-    void ensureWeekMeta(weekStart, user.uid).catch(() => {});
-  }, [isAdmin, user, weekStart]);
+    for (const ws of weekStarts) {
+      void ensureWeekMeta(ws, user.uid).catch(() => {});
+    }
+  }, [isAdmin, user, weekStarts]);
 
   const displaySchedules = useMemo(
     () =>
-      mergeWeekSchedulesWithEvents(weekStart, weekDates, events, schedules),
-    [weekStart, weekDates, events, schedules],
+      mergeWeekSchedulesWithEvents(
+        primaryWeekStart,
+        weekDates,
+        events,
+        schedules,
+      ),
+    [primaryWeekStart, weekDates, events, schedules],
   );
 
   const pendingEventImports = useMemo(
@@ -232,21 +268,25 @@ export function WorkforceSchedulerPanel({
     [schedules],
   );
 
-  /** 주 변경·스케줄 로드 시 이벤트 자동 동기화 + 슬롯 중복 정리 */
+  /** 범위 변경·스케줄 로드 시 이벤트 자동 동기화 + 슬롯 중복 정리 */
   useEffect(() => {
     if (!isAdmin || eventsLoading) return;
     if (pendingEventImports <= 0 && !needsSessionCleanup) return;
-    const syncKey = `${weekStart}:i${pendingEventImports}:c${needsSessionCleanup ? 1 : 0}`;
+    const syncKey = `${weekStarts.join(",")}:i${pendingEventImports}:c${needsSessionCleanup ? 1 : 0}`;
     if (autoSyncRef.current === syncKey) return;
     autoSyncRef.current = syncKey;
     void (async () => {
       try {
-        await importEventsForWeek({
-          weekStart,
-          weekDates,
-          events,
-          existing: schedules,
-        });
+        for (const ws of weekStarts) {
+          const dates = getWeekDates(ws).filter((d) => weekDates.includes(d));
+          if (dates.length === 0) continue;
+          await importEventsForWeek({
+            weekStart: ws,
+            weekDates: getWeekDates(ws),
+            events,
+            existing: schedules.filter((s) => s.weekStart === ws),
+          });
+        }
       } catch (e) {
         console.warn("[workforce] auto import", e);
         autoSyncRef.current = "";
@@ -257,7 +297,7 @@ export function WorkforceSchedulerPanel({
     eventsLoading,
     pendingEventImports,
     needsSessionCleanup,
-    weekStart,
+    weekStarts,
     weekDates,
     events,
     schedules,
@@ -287,14 +327,14 @@ export function WorkforceSchedulerPanel({
           return false;
         const avail = resolveAvailability(availMap, m.uid);
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
-        const status = computeWorkerStatus(avail, weekDates, count);
+        const status = computeWorkerStatus(avail, chipWeekDates, count);
         if (statusFilter !== "all" && status !== statusFilter) return false;
         return true;
       })
       .map((m) => {
         const avail = resolveAvailability(availMap, m.uid);
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
-        const status = computeWorkerStatus(avail, weekDates, count);
+        const status = computeWorkerStatus(avail, chipWeekDates, count);
         return { member: m, avail, count, status };
       });
   }, [
@@ -304,7 +344,7 @@ export function WorkforceSchedulerPanel({
     statusFilter,
     availMap,
     displaySchedules,
-    weekDates,
+    chipWeekDates,
   ]);
 
   const summary = useMemo(
@@ -569,7 +609,7 @@ export function WorkforceSchedulerPanel({
         }
       } else {
         await createWorkforceSchedule({
-          weekStart,
+          weekStart: getWeekStartMonday(parseYmd(form.date)),
           ...form,
         });
       }
@@ -608,27 +648,63 @@ export function WorkforceSchedulerPanel({
               {weekMeta?.status === "confirmed" ? "확정" : "임시"}
             </Badge>
             <span className="text-sm tabular-nums text-muted-foreground">
-              {formatWeekRangeLabel(weekStart)}
+              {formatRangeLabel(cursor, rangeSpan)}
             </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-xl border border-border bg-muted/30 p-0.5">
-              <span className="rounded-lg bg-sky-500/20 px-3 py-1.5 text-xs font-semibold text-sky-200">
-                1주
-              </span>
-              <span
-                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground"
-                title="곧 지원 예정"
+              {(
+                [
+                  ["1w", "1주"],
+                  ["2w", "2주"],
+                  ["1m", "1달"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                    rangeSpan === key
+                      ? "bg-sky-500/20 text-sky-200"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => {
+                    setRangeSpan(key);
+                    setCursor((c) => normalizeRangeCursor(c, key));
+                    if (key === "1m") setBoardLayout("calendar");
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-xl border border-border bg-muted/30 p-0.5">
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                  boardLayout === "columns"
+                    ? "bg-sky-500/20 text-sky-200"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setBoardLayout("columns")}
               >
-                2주
-              </span>
-              <span
-                className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground"
-                title="곧 지원 예정"
+                <LayoutGrid className="size-3.5" /> 보드
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                  boardLayout === "calendar"
+                    ? "bg-sky-500/20 text-sky-200"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setBoardLayout("calendar")}
               >
-                1달
-              </span>
+                <CalendarDays className="size-3.5" /> 달력
+              </button>
             </div>
             <div className="flex items-center gap-1 rounded-xl border border-border bg-background/60 p-0.5">
               <Button
@@ -636,19 +712,23 @@ export function WorkforceSchedulerPanel({
                 variant="ghost"
                 size="icon"
                 className="size-8"
-                onClick={() => setWeekStart((w) => shiftWeek(w, -1))}
+                onClick={() =>
+                  setCursor((c) => shiftRangeCursor(c, rangeSpan, -1))
+                }
               >
                 <ChevronLeft className="size-4" />
               </Button>
               <span className="min-w-[7.5rem] text-center text-sm font-medium tabular-nums">
-                {weekStart.replaceAll("-", ". ")}.
+                {formatRangeLabel(cursor, rangeSpan)}
               </span>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="size-8"
-                onClick={() => setWeekStart((w) => shiftWeek(w, 1))}
+                onClick={() =>
+                  setCursor((c) => shiftRangeCursor(c, rangeSpan, 1))
+                }
               >
                 <ChevronRight className="size-4" />
               </Button>
@@ -658,7 +738,10 @@ export function WorkforceSchedulerPanel({
               variant="outline"
               size="sm"
               className="h-8 rounded-xl"
-              onClick={() => setWeekStart(getWeekStartMonday())}
+              onClick={() => {
+                const today = toYmd(new Date());
+                setCursor(normalizeRangeCursor(today, rangeSpan));
+              }}
             >
               오늘
             </Button>
@@ -691,13 +774,20 @@ export function WorkforceSchedulerPanel({
                 setBusy(true);
                 setError("");
                 try {
-                  const { imported, skipped, cleaned } =
-                    await importEventsForWeek({
-                      weekStart,
-                      weekDates,
+                  let imported = 0;
+                  let skipped = 0;
+                  let cleaned = 0;
+                  for (const ws of weekStarts) {
+                    const result = await importEventsForWeek({
+                      weekStart: ws,
+                      weekDates: getWeekDates(ws),
                       events,
-                      existing: schedules,
+                      existing: schedules.filter((s) => s.weekStart === ws),
                     });
+                    imported += result.imported;
+                    skipped += result.skipped;
+                    cleaned += result.cleaned;
+                  }
                   alert(
                     `스케줄에서 ${imported}개 일정을 가져왔습니다.` +
                       (skipped > 0
@@ -732,7 +822,9 @@ export function WorkforceSchedulerPanel({
               void (async () => {
                 setBusy(true);
                 try {
-                  await saveWeekDraft(weekStart);
+                  for (const ws of weekStarts) {
+                    await saveWeekDraft(ws);
+                  }
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "임시저장 실패");
                 } finally {
@@ -753,7 +845,7 @@ export function WorkforceSchedulerPanel({
               void (async () => {
                 if (
                   !confirm(
-                    "주간 배정을 확정하면 배정된 유저에게 공개·알림됩니다. 계속할까요?",
+                    "표시 중인 기간의 배정을 확정하면 배정된 유저에게 공개·알림됩니다. 계속할까요?",
                   )
                 )
                   return;
@@ -764,12 +856,16 @@ export function WorkforceSchedulerPanel({
                       await ensureWorkforceSchedulePersisted(s);
                     }
                   }
-                  const { schedules: confirmed } =
-                    await confirmWorkforceWeek(weekStart);
+                  const allConfirmed: WorkforceSchedule[] = [];
+                  for (const ws of weekStarts) {
+                    const { schedules: confirmed } =
+                      await confirmWorkforceWeek(ws);
+                    allConfirmed.push(...confirmed);
+                  }
                   if (user) {
                     await notifyWorkforceWeekConfirmed({
                       createdByUserId: user.uid,
-                      schedules: confirmed,
+                      schedules: allConfirmed,
                     });
                   }
                 } catch (e) {
@@ -794,13 +890,15 @@ export function WorkforceSchedulerPanel({
               void (async () => {
                 if (
                   !confirm(
-                    "이번 주 일정·배정을 모두 삭제합니다. 계속할까요?",
+                    "표시 중인 기간의 일정·배정을 모두 삭제합니다. 계속할까요?",
                   )
                 )
                   return;
                 setBusy(true);
                 try {
-                  await resetWorkforceWeek(weekStart);
+                  for (const ws of weekStarts) {
+                    await resetWorkforceWeek(ws);
+                  }
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "초기화 실패");
                 } finally {
@@ -822,11 +920,11 @@ export function WorkforceSchedulerPanel({
                 setBusy(true);
                 try {
                   const id = await exportWeekToMonthlySheet({
-                    weekStart,
+                    weekStart: primaryWeekStart,
                     schedules,
                     nameByUid,
                     teamByUid,
-                    yearMonth: yearMonthFromYmd(weekStart),
+                    yearMonth: yearMonthFromYmd(cursor),
                   });
                   alert(
                     `취합표 전달 데이터를 저장했습니다. (export: ${id.slice(0, 8)}…)`,
@@ -968,7 +1066,7 @@ export function WorkforceSchedulerPanel({
                         </div>
                         <div className="mt-2 flex gap-1">
                           {WEEKDAY_KEYS.map((k, i) => {
-                            const date = weekDates[i]!;
+                            const date = chipWeekDates[i]!;
                             const on = isUserAvailableOnDate(avail, date);
                             return (
                               <span
@@ -1007,127 +1105,231 @@ export function WorkforceSchedulerPanel({
           </div>
         </aside>
 
-        {/* 7-day board */}
+        {/* Board / Calendar */}
         <div className="min-w-0 overflow-x-auto rounded-2xl border border-border bg-muted/20 p-2 sm:p-3">
-          <div className="grid min-w-[980px] grid-cols-7 gap-2">
-            {weekDates.map((date, dayIdx) => {
-              const daySchedules = displaySchedules.filter(
-                (s) => s.date === date,
-              );
-              const dayRequired = daySchedules.reduce(
-                (a, s) => a + s.requiredCount,
-                0,
-              );
-              const dayAssigned = daySchedules.reduce(
-                (a, s) => a + s.assignedUserIds.length,
-                0,
-              );
-              const shortage = Math.max(0, dayRequired - dayAssigned);
-              const hasShortage = shortage > 0 && dayRequired > 0;
-              const emptyDay = daySchedules.length === 0;
-              const { label } = formatDayHeader(date);
-              const weekdayKey = WEEKDAY_KEYS[dayIdx]!;
-
-              return (
-                <section
-                  key={date}
-                  className={cn(
-                    "flex min-h-[420px] flex-col rounded-2xl border border-border/70 shadow-sm",
-                    hasShortage || emptyDay
-                      ? standalone
-                        ? "bg-[repeating-linear-gradient(-45deg,#f8fafc,#f8fafc_8px,#eef2f7_8px,#eef2f7_16px)]"
-                        : "bg-[repeating-linear-gradient(-45deg,rgba(24,24,27,0.92),rgba(24,24,27,0.92)_7px,rgba(148,163,184,0.08)_7px,rgba(148,163,184,0.08)_14px)]"
-                      : "bg-card/90",
-                  )}
-                >
-                  <header className="space-y-1.5 border-b border-border/60 px-2.5 py-2.5">
-                    <div className="flex items-baseline justify-between gap-1">
-                      <p className="text-sm font-semibold">
-                        {WEEKDAY_LABELS[weekdayKey]}요일
-                      </p>
-                      <p className="text-xs tabular-nums text-muted-foreground">
-                        {label}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-200">
-                        일정 {daySchedules.length}
-                      </span>
-                      <span
+          {boardLayout === "calendar" ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-7 gap-1.5">
+                {WEEKDAY_KEYS.map((k) => (
+                  <div
+                    key={k}
+                    className="py-1 text-center text-[11px] font-semibold text-muted-foreground"
+                  >
+                    {WEEKDAY_LABELS[k]}
+                  </div>
+                ))}
+              </div>
+              {calendarWeeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-1.5">
+                  {week.map((date, di) => {
+                    if (!date) {
+                      return (
+                        <div
+                          key={`empty-${wi}-${di}`}
+                          className="min-h-[110px] rounded-xl bg-transparent"
+                        />
+                      );
+                    }
+                    const daySchedules = displaySchedules.filter(
+                      (s) => s.date === date,
+                    );
+                    const dayRequired = daySchedules.reduce(
+                      (a, s) => a + s.requiredCount,
+                      0,
+                    );
+                    const dayAssigned = daySchedules.reduce(
+                      (a, s) => a + s.assignedUserIds.length,
+                      0,
+                    );
+                    const shortage = Math.max(0, dayRequired - dayAssigned);
+                    const { label } = formatDayHeader(date);
+                    const isToday = date === toYmd(new Date());
+                    return (
+                      <div
+                        key={date}
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                          dayAssigned >= dayRequired && dayRequired > 0
-                            ? "bg-emerald-500/15 text-emerald-300"
-                            : "bg-violet-500/15 text-violet-200",
+                          "flex min-h-[120px] flex-col rounded-xl border border-border/70 bg-card/90 p-1.5 shadow-sm",
+                          shortage > 0 && "border-red-300/50",
+                          isToday && "ring-2 ring-sky-400/50",
                         )}
+                        onDragOver={(e) => {
+                          if (isDesktop) e.preventDefault();
+                        }}
                       >
-                        배치 {dayAssigned}/{dayRequired || 0}
-                      </span>
-                      {hasShortage ? (
-                        <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium text-red-300">
-                          부족 {shortage}
-                        </span>
-                      ) : null}
-                      {emptyDay ? (
-                        <span className="rounded-full bg-zinc-500/20 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
-                          일정 없음
-                        </span>
-                      ) : null}
-                    </div>
-                  </header>
+                        <div className="mb-1 flex items-center justify-between gap-1 px-0.5">
+                          <span
+                            className={cn(
+                              "text-xs font-semibold tabular-nums",
+                              isToday ? "text-sky-300" : "text-foreground",
+                            )}
+                          >
+                            {label}
+                          </span>
+                          <button
+                            type="button"
+                            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-sky-300"
+                            onClick={() => openCreate(date)}
+                            aria-label="일정 추가"
+                          >
+                            <Plus className="size-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
+                          {daySchedules.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              className="rounded-md px-1.5 py-1 text-left text-[10px] font-medium text-white"
+                              style={{ backgroundColor: s.color }}
+                              onClick={() => void openEdit(s)}
+                              onDragOver={(e) => {
+                                if (isDesktop) e.preventDefault();
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (!dragUserId) return;
+                                void tryAssign(s, [dragUserId]);
+                                setDragUserId(null);
+                              }}
+                            >
+                              <span className="block truncate">
+                                {s.startTime} {s.title}
+                              </span>
+                              <span className="opacity-90">
+                                {s.assignedUserIds.length}/{s.requiredCount}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                "grid gap-2",
+                rangeSpan === "2w"
+                  ? "min-w-[980px] grid-cols-7"
+                  : "min-w-[980px] grid-cols-7",
+              )}
+            >
+              {weekDates.map((date) => {
+                const daySchedules = displaySchedules.filter(
+                  (s) => s.date === date,
+                );
+                const dayRequired = daySchedules.reduce(
+                  (a, s) => a + s.requiredCount,
+                  0,
+                );
+                const dayAssigned = daySchedules.reduce(
+                  (a, s) => a + s.assignedUserIds.length,
+                  0,
+                );
+                const shortage = Math.max(0, dayRequired - dayAssigned);
+                const hasShortage = shortage > 0 && dayRequired > 0;
+                const emptyDay = daySchedules.length === 0;
+                const { label } = formatDayHeader(date);
+                const weekdayKey = weekdayKeyFromYmd(date);
 
-                  <div className="flex flex-1 flex-col gap-2 p-2">
-                    {daySchedules.map((s) => (
-                      <ScheduleCard
-                        key={s.id}
-                        schedule={s}
-                        nameByUid={nameByUid}
-                        defaultExpanded={daySchedules.length <= 3}
-                        onEdit={() => void openEdit(s)}
-                        onDelete={() =>
-                          void (async () => {
-                            if (s.id.startsWith("virtual:")) {
-                              setError(
-                                "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. Admin 일정에서 수정하세요.",
-                              );
+                return (
+                  <section
+                    key={date}
+                    className={cn(
+                      "flex min-h-[380px] flex-col rounded-2xl border border-border/70 shadow-sm",
+                      hasShortage || emptyDay
+                        ? standalone
+                          ? "bg-[repeating-linear-gradient(-45deg,#f8fafc,#f8fafc_8px,#eef2f7_8px,#eef2f7_16px)]"
+                          : "bg-[repeating-linear-gradient(-45deg,rgba(24,24,27,0.92),rgba(24,24,27,0.92)_7px,rgba(148,163,184,0.08)_7px,rgba(148,163,184,0.08)_14px)]"
+                        : "bg-card/90",
+                    )}
+                  >
+                    <header className="space-y-1.5 border-b border-border/60 px-2.5 py-2.5">
+                      <div className="flex items-baseline justify-between gap-1">
+                        <p className="text-sm font-semibold">
+                          {WEEKDAY_LABELS[weekdayKey]}요일
+                        </p>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          {label}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-200">
+                          일정 {daySchedules.length}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            dayAssigned >= dayRequired && dayRequired > 0
+                              ? "bg-emerald-500/15 text-emerald-300"
+                              : "bg-violet-500/15 text-violet-200",
+                          )}
+                        >
+                          배치 {dayAssigned}/{dayRequired || 0}
+                        </span>
+                        {hasShortage ? (
+                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                            부족 {shortage}
+                          </span>
+                        ) : null}
+                      </div>
+                    </header>
+
+                    <div className="flex flex-1 flex-col gap-2 p-2">
+                      {daySchedules.map((s) => (
+                        <ScheduleCard
+                          key={s.id}
+                          schedule={s}
+                          nameByUid={nameByUid}
+                          defaultExpanded={daySchedules.length <= 2}
+                          onEdit={() => void openEdit(s)}
+                          onDelete={() =>
+                            void (async () => {
+                              if (s.id.startsWith("virtual:")) {
+                                setError(
+                                  "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. Admin 일정에서 수정하세요.",
+                                );
+                                return;
+                              }
+                              if (!confirm("이 일정을 삭제할까요?")) return;
+                              await deleteWorkforceSchedule(s.id);
+                            })()
+                          }
+                          onDropWorker={() => {
+                            if (!dragUserId) return;
+                            void tryAssign(s, [dragUserId]);
+                            setDragUserId(null);
+                          }}
+                          onClickAssign={() => {
+                            if (selectedWorkerIds.length > 0) {
+                              void tryAssign(s, selectedWorkerIds);
                               return;
                             }
-                            if (!confirm("이 일정을 삭제할까요?")) return;
-                            await deleteWorkforceSchedule(s.id);
-                          })()
-                        }
-                        onDropWorker={() => {
-                          if (!dragUserId) return;
-                          void tryAssign(s, [dragUserId]);
-                          setDragUserId(null);
-                        }}
-                        onClickAssign={() => {
-                          if (selectedWorkerIds.length > 0) {
-                            void tryAssign(s, selectedWorkerIds);
-                            return;
+                            setAssignTarget(s);
+                          }}
+                          onRemoveUser={(uid) => void removeAssignee(s, uid)}
+                          onPatch={(patch) =>
+                            void patchScheduleFields(s, patch)
                           }
-                          setAssignTarget(s);
-                        }}
-                        onRemoveUser={(uid) => void removeAssignee(s, uid)}
-                        onPatch={(patch) =>
-                          void patchScheduleFields(s, patch)
-                        }
-                        isDesktop={isDesktop}
-                      />
-                    ))}
+                          isDesktop={isDesktop}
+                        />
+                      ))}
 
-                    <button
-                      type="button"
-                      onClick={() => openCreate(date)}
-                      className="mt-auto flex h-10 items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-background/40 text-xs font-medium text-muted-foreground transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-sky-200"
-                    >
-                      <Plus className="size-3.5" /> 일정 추가
-                    </button>
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+                      <button
+                        type="button"
+                        onClick={() => openCreate(date)}
+                        className="mt-auto flex h-10 items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-background/40 text-xs font-medium text-muted-foreground transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-sky-200"
+                      >
+                        <Plus className="size-3.5" /> 일정 추가
+                      </button>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1623,8 +1825,8 @@ function AvailabilityDialog({
     wed: true,
     thu: true,
     fri: true,
-    sat: false,
-    sun: false,
+    sat: true,
+    sun: true,
   });
   const [exceptions, setExceptions] = useState<
     Record<string, "available" | "unavailable">
