@@ -268,7 +268,10 @@ service cloud.firestore {
 
     match /workforceAvailability/{userId} {
       allow read: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        || (isSignedIn() && request.auth.uid == userId
+            && request.resource.data.userId == userId);
+      allow delete: if isAdmin();
     }
 
     match /workforceLogs/{logId} {

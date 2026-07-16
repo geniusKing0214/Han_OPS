@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
@@ -45,8 +46,15 @@ export default function MyAssignmentsPage() {
         <CardHeader className="space-y-3">
           <div>
             <CardTitle className="text-base">내 주간 배정표</CardTitle>
-            <CardDescription>
-              관리자가 확정한 나의 근무 일정만 표시됩니다. 수정은 불가합니다.
+              <CardDescription>
+              관리자가 확정한 나의 근무 일정만 표시됩니다.{" "}
+              <Link
+                href="/my-availability"
+                className="text-accent underline-offset-2 hover:underline"
+              >
+                근무 가능일 선택
+              </Link>
+              에서 가능한 날을 알려 주세요.
             </CardDescription>
           </div>
           <div className="flex items-center gap-1">

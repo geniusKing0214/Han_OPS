@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   Calendar,
+  CalendarDays,
   ClipboardList,
   LayoutDashboard,
   Settings,
@@ -32,6 +33,7 @@ const baseNav: SidebarLink[] = [
   { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/applications", label: "Applications", icon: ClipboardList },
   { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
+  { href: "/my-availability", label: "근무 가능일", icon: CalendarDays },
   { href: "/monthly-sheet", label: "취합표", icon: Table2 },
   { href: "/notices", label: "Notices", icon: Bell },
 ];

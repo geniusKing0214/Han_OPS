@@ -17,6 +17,13 @@ import {
 
 import { assertAdmin } from "@/lib/admin-access";
 import { db } from "@/lib/firebase";
+import { getClientAuth } from "@/lib/firebase-auth";
+import {
+  getMonthDates,
+  getWeekStartMonday,
+  getWeekStartsCoveringDates,
+  parseYmd,
+} from "@/lib/workforce-dates";
 import {
   DEFAULT_AVAILABLE_WEEKDAYS,
   DEFAULT_WEEKLY_MAX,
@@ -32,7 +39,6 @@ import {
 } from "@/types/workforce";
 import { normalizeTeamIds, type TeamId } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
-import { getWeekStartMonday, parseYmd } from "@/lib/workforce-dates";
 
 export const WORKFORCE_WEEKS = "workforceWeeks";
 export const WORKFORCE_SCHEDULES = "workforceSchedules";
@@ -562,6 +568,7 @@ export async function upsertAvailability(
     availableWeekdays: Record<WeekdayKey, boolean>;
     dateExceptions: Record<string, "available" | "unavailable">;
   }>,
+  opts?: { mergeExceptions?: boolean },
 ): Promise<void> {
   const uid = await assertAdmin();
   const ref = doc(db, WORKFORCE_AVAILABILITY, userId);
@@ -569,6 +576,13 @@ export async function upsertAvailability(
   const prev = snap.exists()
     ? docToAvailability(userId, snap.data() as Record<string, unknown>)
     : defaultAvailability(userId);
+  const mergeExceptions = opts?.mergeExceptions !== false;
+  const nextExceptions =
+    patch.dateExceptions === undefined
+      ? prev.dateExceptions
+      : mergeExceptions
+        ? { ...prev.dateExceptions, ...patch.dateExceptions }
+        : patch.dateExceptions;
   await setDoc(
     ref,
     {
@@ -576,7 +590,7 @@ export async function upsertAvailability(
       weeklyMaxAssignments:
         patch.weeklyMaxAssignments ?? prev.weeklyMaxAssignments,
       availableWeekdays: patch.availableWeekdays ?? prev.availableWeekdays,
-      dateExceptions: patch.dateExceptions ?? prev.dateExceptions,
+      dateExceptions: nextExceptions,
       updatedAt: serverTimestamp(),
       updatedBy: uid,
     },
@@ -589,6 +603,99 @@ export async function upsertAvailability(
     action: "update_availability",
     targetUserId: userId,
   });
+}
+
+/** 멤버 본인 근무 가능일 저장 (주 단위 dateExceptions 병합) */
+export async function upsertMyAvailability(
+  patch: Partial<{
+    weeklyMaxAssignments: number;
+    availableWeekdays: Record<WeekdayKey, boolean>;
+    dateExceptions: Record<string, "available" | "unavailable">;
+  }>,
+): Promise<void> {
+  const uid = getClientAuth().currentUser?.uid;
+  if (!uid) throw new Error("로그인이 필요합니다.");
+  const ref = doc(db, WORKFORCE_AVAILABILITY, uid);
+  const snap = await getDoc(ref);
+  const prev = snap.exists()
+    ? docToAvailability(uid, snap.data() as Record<string, unknown>)
+    : defaultAvailability(uid);
+  const nextExceptions =
+    patch.dateExceptions === undefined
+      ? prev.dateExceptions
+      : { ...prev.dateExceptions, ...patch.dateExceptions };
+  await setDoc(
+    ref,
+    {
+      userId: uid,
+      weeklyMaxAssignments:
+        patch.weeklyMaxAssignments ?? prev.weeklyMaxAssignments,
+      availableWeekdays: patch.availableWeekdays ?? prev.availableWeekdays,
+      dateExceptions: nextExceptions,
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+    },
+    { merge: true },
+  );
+}
+
+export function subscribeMyAvailability(
+  userId: string,
+  onData: (row: WorkforceAvailability) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  return onSnapshot(
+    doc(db, WORKFORCE_AVAILABILITY, userId),
+    (snap) => {
+      if (!snap.exists()) {
+        onData(defaultAvailability(userId));
+        return;
+      }
+      onData(
+        docToAvailability(userId, snap.data() as Record<string, unknown>),
+      );
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** 해당 월(YYYY-MM)에 속한 일정만 삭제 */
+export async function deleteSchedulesInMonth(
+  yearMonth: string,
+): Promise<number> {
+  const uid = await assertAdmin();
+  const monthDates = new Set(getMonthDates(yearMonth));
+  const weekStarts = getWeekStartsCoveringDates([...monthDates]);
+  let deleted = 0;
+
+  for (const ws of weekStarts) {
+    const snap = await getDocs(
+      query(
+        collection(db, WORKFORCE_SCHEDULES),
+        where("weekStart", "==", ws),
+      ),
+    );
+    const toDelete = snap.docs.filter((d) => {
+      const date = (d.data() as { date?: string }).date;
+      return typeof date === "string" && monthDates.has(date);
+    });
+    for (let i = 0; i < toDelete.length; i += 400) {
+      const chunk = toDelete.slice(i, i + 400);
+      const batch = writeBatch(db);
+      for (const d of chunk) batch.delete(d.ref);
+      await batch.commit();
+      deleted += chunk.length;
+    }
+  }
+
+  await writeAssignmentLog({
+    weekStart: weekStarts[0] ?? "",
+    actorUserId: uid,
+    actorName: "",
+    action: "reset_week",
+    detail: `${yearMonth} 월 일정 ${deleted}건 삭제`,
+  });
+  return deleted;
 }
 
 export async function exportWeekToMonthlySheet(input: {

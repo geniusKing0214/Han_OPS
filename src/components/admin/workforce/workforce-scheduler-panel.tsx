@@ -43,6 +43,7 @@ import {
   confirmWorkforceWeek,
   createWorkforceSchedule,
   deleteWorkforceSchedule,
+  deleteSchedulesInMonth,
   ensureWeekMeta,
   exportWeekToMonthlySheet,
   importEventsForWeek,
@@ -888,6 +889,37 @@ export function WorkforceSchedulerPanel({
             disabled={busy}
             onClick={() =>
               void (async () => {
+                const ym = yearMonthFromYmd(cursor);
+                if (
+                  !confirm(
+                    `${ym} 월에 속한 인력 배정 일정을 모두 삭제합니다. 가능일 설정은 유지됩니다. 계속할까요?`,
+                  )
+                )
+                  return;
+                setBusy(true);
+                try {
+                  const n = await deleteSchedulesInMonth(ym);
+                  alert(`${ym} 월 일정 ${n}건을 삭제했습니다.`);
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "월 일정 삭제 실패",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            이번 달 일정 삭제
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl text-red-300 hover:text-red-200"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
                 if (
                   !confirm(
                     "표시 중인 기간의 일정·배정을 모두 삭제합니다. 계속할까요?",
@@ -1014,7 +1046,11 @@ export function WorkforceSchedulerPanel({
                 조건에 맞는 근무자가 없습니다.
               </p>
             ) : (
-              workerGroups.map((group) => (
+              <>
+              <p className="px-0.5 text-[10px] text-muted-foreground">
+                요일 칩: 파랑=가능 · 빨강=불가 (멤버 «근무 가능일» 반영)
+              </p>
+              {workerGroups.map((group) => (
                 <div key={group.key} className="space-y-2">
                   <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {group.label}
@@ -1100,7 +1136,8 @@ export function WorkforceSchedulerPanel({
                     );
                   })}
                 </div>
-              ))
+              ))}
+              </>
             )}
           </div>
         </aside>

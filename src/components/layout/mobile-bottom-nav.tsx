@@ -91,6 +91,15 @@ export function MobileBottomNav({ className }: { className?: string }) {
               </SheetClose>
               <SheetClose asChild>
                 <Link
+                  href="/my-availability"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
+                >
+                  <Calendar className="size-4" />
+                  근무 가능일
+                </Link>
+              </SheetClose>
+              <SheetClose asChild>
+                <Link
                   href="/monthly-sheet"
                   className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
                 >
