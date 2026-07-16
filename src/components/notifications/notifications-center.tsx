@@ -18,8 +18,8 @@ import {
 } from "@/lib/firestore-notifications";
 import { listUsersForAdmin } from "@/lib/firestore-users";
 import {
-  adminRosterHrefFromNotification,
-  notificationHrefFor,
+  adminRosterPathFromNotification,
+  notificationAppPath,
 } from "@/lib/notification-navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,7 +91,7 @@ export function NotificationsCenter({ className }: { className?: string }) {
     }
 
     if (isAdmin && isAdminApplicationNotification(item)) {
-      const href = adminRosterHrefFromNotification(item);
+      const href = adminRosterPathFromNotification(item);
       if (href) {
         setOpen(false);
         setDetail(null);
@@ -202,7 +202,7 @@ export function NotificationsCenter({ className }: { className?: string }) {
                   item={detail}
                   onBack={() => setDetail(null)}
                   onDelete={() => void handleDelete(detail)}
-                  scheduleHref={notificationHrefFor(detail)}
+                  scheduleHref={notificationAppPath(detail)}
                 />
               </div>
             ) : (

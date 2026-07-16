@@ -52,7 +52,7 @@ function buildAdminRosterPath(fields?: {
   if (fields?.slotTime) search.set("slot", fields.slotTime);
   if (fields?.applicationId) search.set("app", fields.applicationId);
   const q = search.toString();
-  return `/admin/roster${q ? `?${q}` : ""}`;
+  return q ? `/admin/roster/?${q}` : "/admin/roster/";
 }
 
 function resolveOpenUrl(data: NotificationDoc): string {
@@ -69,7 +69,7 @@ function resolveOpenUrl(data: NotificationDoc): string {
       slotTime: data.slotTime,
       applicationId: data.applicationId,
     });
-    return `${origin}${base}${path}/`;
+    return `${origin}${base}${path}`;
   }
   if (type === "application_approved") {
     return `${origin}${base}/applications/`;

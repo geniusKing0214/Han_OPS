@@ -8,6 +8,7 @@ export type AdminRosterLinkParams = {
   applicationId?: string;
 };
 
+/** Next.js Link / router.push 용 (basePath 미포함 — Next가 자동 처리) */
 export function buildAdminRosterPath(params?: AdminRosterLinkParams): string {
   const search = new URLSearchParams();
   if (params?.date) search.set("date", params.date);
@@ -15,14 +16,10 @@ export function buildAdminRosterPath(params?: AdminRosterLinkParams): string {
   if (params?.slotTime) search.set("slot", params.slotTime);
   if (params?.applicationId) search.set("app", params.applicationId);
   const q = search.toString();
-  return `/admin/roster${q ? `?${q}` : ""}`;
+  return q ? `/admin/roster/?${q}` : "/admin/roster/";
 }
 
-export function adminRosterHref(params?: AdminRosterLinkParams): string {
-  return withBasePath(buildAdminRosterPath(params));
-}
-
-export function adminRosterHrefFromNotification(
+export function adminRosterPathFromNotification(
   item: Pick<
     NotificationItem,
     "type" | "eventDate" | "eventId" | "slotTime" | "applicationId"
@@ -34,7 +31,7 @@ export function adminRosterHrefFromNotification(
   ) {
     return null;
   }
-  return adminRosterHref({
+  return buildAdminRosterPath({
     date: item.eventDate || undefined,
     eventId: item.eventId || undefined,
     slotTime: item.slotTime || undefined,
@@ -42,29 +39,35 @@ export function adminRosterHrefFromNotification(
   });
 }
 
-export function notificationHrefFor(item: NotificationItem): string {
-  const roster = adminRosterHrefFromNotification(item);
+/** 앱 내 네비게이션용 경로 (basePath 없음) */
+export function notificationAppPath(item: NotificationItem): string {
+  const roster = adminRosterPathFromNotification(item);
   if (roster) return roster;
 
   if (item.type === "schedule_created" || item.type === "schedule_cancelled") {
-    return withBasePath("/schedule");
+    return "/schedule/";
   }
   if (item.type === "application_approved") {
-    return withBasePath("/applications");
+    return "/applications/";
   }
   if (item.type === "notice_posted") {
-    return withBasePath("/notices");
+    return "/notices/";
   }
   if (item.type === "attendance_submitted") {
-    return withBasePath("/admin/attendance");
+    return "/admin/attendance/";
   }
   if (
     item.type === "attendance_approved" ||
     item.type === "attendance_rejected"
   ) {
-    return withBasePath("/applications");
+    return "/applications/";
   }
-  return withBasePath("/applications");
+  return "/applications/";
+}
+
+/** 브라우저/푸시 알림 openWindow 용 (basePath 포함) */
+export function notificationHrefFor(item: NotificationItem): string {
+  return withBasePath(notificationAppPath(item));
 }
 
 /** Cloud Functions / push relay 용 절대 URL */
@@ -88,8 +91,7 @@ export function resolveNotificationOpenUrl(
     return `${origin}${base}/schedule/`;
   }
   if (type === "application_submitted" || type === "application_cancelled") {
-    const path = buildAdminRosterPath(fields);
-    return `${origin}${base}${path}/`;
+    return `${origin}${base}${buildAdminRosterPath(fields)}`;
   }
   if (type === "application_approved") {
     return `${origin}${base}/applications/`;
