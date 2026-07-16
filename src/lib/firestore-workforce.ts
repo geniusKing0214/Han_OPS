@@ -248,10 +248,20 @@ export async function writeAssignmentLog(input: {
   detail?: string;
   reason?: string;
 }) {
-  await addDoc(collection(db, WORKFORCE_LOGS), {
-    ...input,
+  const payload: Record<string, unknown> = {
+    weekStart: input.weekStart,
+    actorUserId: input.actorUserId,
+    actorName: input.actorName,
+    action: input.action,
     createdAt: serverTimestamp(),
-  });
+  };
+  if (input.scheduleId) payload.scheduleId = input.scheduleId;
+  if (input.targetUserId) payload.targetUserId = input.targetUserId;
+  if (input.targetUserName) payload.targetUserName = input.targetUserName;
+  if (input.detail) payload.detail = input.detail;
+  if (input.reason?.trim()) payload.reason = input.reason.trim();
+
+  await addDoc(collection(db, WORKFORCE_LOGS), payload);
 }
 
 export async function createWorkforceSchedule(input: {
