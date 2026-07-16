@@ -37,6 +37,11 @@ export function shiftWeek(weekStart: string, weeks: number): string {
   return toYmd(d);
 }
 
+/** 오늘 기준 익주(다음 주) 월요일 */
+export function getNextWeekStart(date: Date = new Date()): string {
+  return shiftWeek(getWeekStartMonday(date), 1);
+}
+
 export type WorkforceRangeSpan = "1w" | "2w" | "1m";
 
 export function getMonthDates(yearMonth: string): string[] {

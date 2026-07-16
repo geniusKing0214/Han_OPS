@@ -1602,12 +1602,21 @@ export function WorkforceSchedulerPanel({
             ? resolveAvailability(availMap, availEditUser.uid)
             : null
         }
-        weekDates={weekDates}
+        weekDates={chipWeekDates}
         onClose={() => setAvailEditUser(null)}
         onSave={async (patch) => {
           if (!availEditUser) return;
           await upsertAvailability(availEditUser.uid, patch);
           setAvailEditUser(null);
+        }}
+        onUnlockWeek={async (weekStart) => {
+          if (!availEditUser) return;
+          const current = resolveAvailability(availMap, availEditUser.uid);
+          await upsertAvailability(availEditUser.uid, {
+            memberSubmittedWeeks: current.memberSubmittedWeeks.filter(
+              (w) => w !== weekStart,
+            ),
+          });
         }}
       />
     </div>
@@ -1845,6 +1854,7 @@ function AvailabilityDialog({
   weekDates,
   onClose,
   onSave,
+  onUnlockWeek,
 }: {
   member: ListedUserRow | null;
   avail: WorkforceAvailability | null;
@@ -1855,6 +1865,7 @@ function AvailabilityDialog({
     availableWeekdays: Record<WeekdayKey, boolean>;
     dateExceptions: Record<string, "available" | "unavailable">;
   }) => Promise<void>;
+  onUnlockWeek: (weekStart: string) => Promise<void>;
 }) {
   const [max, setMax] = useState(5);
   const [weekdays, setWeekdays] = useState<Record<WeekdayKey, boolean>>({
@@ -1870,6 +1881,13 @@ function AvailabilityDialog({
     Record<string, "available" | "unavailable">
   >({});
   const [busy, setBusy] = useState(false);
+
+  const dialogWeekStart =
+    weekDates[0] != null ? getWeekStartMonday(parseYmd(weekDates[0])) : "";
+  const memberLocked =
+    !!avail &&
+    !!dialogWeekStart &&
+    avail.memberSubmittedWeeks.includes(dialogWeekStart);
 
   useEffect(() => {
     if (!avail) return;
@@ -1890,10 +1908,38 @@ function AvailabilityDialog({
           <DialogTitle>근무 가능 설정</DialogTitle>
           <DialogDescription>
             {member
-              ? `${member.displayName || member.email} · 기본 요일 + 이번 주 예외`
+              ? `${member.displayName || member.email} · 기본 요일 + 날짜 예외`
               : ""}
           </DialogDescription>
         </DialogHeader>
+        {memberLocked ? (
+          <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            <p>
+              멤버가 이 주 가능일을 신청해 잠긴 상태입니다. 관리자는 아래에서
+              바로 수정할 수 있고, 잠금을 해제하면 멤버가 다시 신청할 수
+              있습니다.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              disabled={busy}
+              onClick={() =>
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    await onUnlockWeek(dialogWeekStart);
+                  } finally {
+                    setBusy(false);
+                  }
+                })()
+              }
+            >
+              멤버 신청 잠금 해제
+            </Button>
+          </div>
+        ) : null}
         <Field label="주간 최대 배정">
           <Input
             type="number"
@@ -1920,7 +1966,7 @@ function AvailabilityDialog({
           ))}
         </div>
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">이번 주 날짜 예외</p>
+          <p className="text-xs text-muted-foreground">표시 주 날짜 예외</p>
           {weekDates.map((d) => (
             <div
               key={d}

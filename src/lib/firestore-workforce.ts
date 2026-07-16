@@ -20,6 +20,8 @@ import { db } from "@/lib/firebase";
 import { getClientAuth } from "@/lib/firebase-auth";
 import {
   getMonthDates,
+  getNextWeekStart,
+  getWeekDates,
   getWeekStartMonday,
   getWeekStartsCoveringDates,
   parseYmd,
@@ -119,6 +121,13 @@ export function docToSchedule(
   };
 }
 
+function parseSubmittedWeeks(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (x): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x),
+  );
+}
+
 export function docToAvailability(
   userId: string,
   data: Record<string, unknown>,
@@ -131,6 +140,7 @@ export function docToAvailability(
         : DEFAULT_WEEKLY_MAX,
     availableWeekdays: parseWeekdays(data.availableWeekdays),
     dateExceptions: parseExceptions(data.dateExceptions),
+    memberSubmittedWeeks: parseSubmittedWeeks(data.memberSubmittedWeeks),
     updatedAt: timestampToIso(data.updatedAt),
   };
 }
@@ -141,6 +151,7 @@ export function defaultAvailability(userId: string): WorkforceAvailability {
     weeklyMaxAssignments: DEFAULT_WEEKLY_MAX,
     availableWeekdays: { ...DEFAULT_AVAILABLE_WEEKDAYS },
     dateExceptions: {},
+    memberSubmittedWeeks: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -567,6 +578,7 @@ export async function upsertAvailability(
     weeklyMaxAssignments: number;
     availableWeekdays: Record<WeekdayKey, boolean>;
     dateExceptions: Record<string, "available" | "unavailable">;
+    memberSubmittedWeeks: string[];
   }>,
   opts?: { mergeExceptions?: boolean },
 ): Promise<void> {
@@ -591,6 +603,8 @@ export async function upsertAvailability(
         patch.weeklyMaxAssignments ?? prev.weeklyMaxAssignments,
       availableWeekdays: patch.availableWeekdays ?? prev.availableWeekdays,
       dateExceptions: nextExceptions,
+      memberSubmittedWeeks:
+        patch.memberSubmittedWeeks ?? prev.memberSubmittedWeeks,
       updatedAt: serverTimestamp(),
       updatedBy: uid,
     },
@@ -605,33 +619,54 @@ export async function upsertAvailability(
   });
 }
 
-/** 멤버 본인 근무 가능일 저장 (주 단위 dateExceptions 병합) */
-export async function upsertMyAvailability(
-  patch: Partial<{
-    weeklyMaxAssignments: number;
-    availableWeekdays: Record<WeekdayKey, boolean>;
-    dateExceptions: Record<string, "available" | "unavailable">;
-  }>,
-): Promise<void> {
+/** 멤버 본인 — 익주 가능일만 신청. 이미 제출한 주는 수정 불가. */
+export async function upsertMyAvailability(input: {
+  weekStart: string;
+  dateExceptions: Record<string, "available" | "unavailable">;
+}): Promise<void> {
   const uid = getClientAuth().currentUser?.uid;
   if (!uid) throw new Error("로그인이 필요합니다.");
+
+  const allowedWeek = getNextWeekStart();
+  if (input.weekStart !== allowedWeek) {
+    throw new Error("근무 가능일은 익주만 신청할 수 있습니다.");
+  }
+
+  const allowedDates = new Set(getWeekDates(allowedWeek));
+  for (const date of Object.keys(input.dateExceptions)) {
+    if (!allowedDates.has(date)) {
+      throw new Error("익주 날짜만 저장할 수 있습니다.");
+    }
+  }
+
   const ref = doc(db, WORKFORCE_AVAILABILITY, uid);
   const snap = await getDoc(ref);
   const prev = snap.exists()
     ? docToAvailability(uid, snap.data() as Record<string, unknown>)
     : defaultAvailability(uid);
-  const nextExceptions =
-    patch.dateExceptions === undefined
-      ? prev.dateExceptions
-      : { ...prev.dateExceptions, ...patch.dateExceptions };
+
+  if (prev.memberSubmittedWeeks.includes(allowedWeek)) {
+    throw new Error(
+      "이미 익주 가능일을 신청했습니다. 변경은 관리자에게 요청해 주세요.",
+    );
+  }
+
+  const nextExceptions = {
+    ...prev.dateExceptions,
+    ...input.dateExceptions,
+  };
+  const memberSubmittedWeeks = [
+    ...new Set([...prev.memberSubmittedWeeks, allowedWeek]),
+  ].sort();
+
   await setDoc(
     ref,
     {
       userId: uid,
-      weeklyMaxAssignments:
-        patch.weeklyMaxAssignments ?? prev.weeklyMaxAssignments,
-      availableWeekdays: patch.availableWeekdays ?? prev.availableWeekdays,
+      weeklyMaxAssignments: prev.weeklyMaxAssignments,
+      availableWeekdays: prev.availableWeekdays,
       dateExceptions: nextExceptions,
+      memberSubmittedWeeks,
       updatedAt: serverTimestamp(),
       updatedBy: uid,
     },
