@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
-  Calendar,
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
@@ -34,7 +33,6 @@ type SidebarGroup = {
 
 const overviewGroup: SidebarLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/my-availability", label: "근무 가능일", icon: CalendarDays },
   { href: "/notices", label: "Notices", icon: Bell },
 ];
