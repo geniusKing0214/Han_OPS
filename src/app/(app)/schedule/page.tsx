@@ -6,6 +6,7 @@ import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { TeamFilter } from "@/components/team/team-filter";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 import { ScheduleBoard } from "@/components/schedule/schedule-board";
 import { useEvents } from "@/hooks/use-events";
 import type { EventItem } from "@/types/schedule";
@@ -55,26 +56,24 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {isAdmin
-              ? "팀별 일정을 확인하고 관리합니다."
-              : "소속 팀 일정만 표시됩니다."}
-          </p>
-        </div>
-        {isAdmin ? (
-          <Button
-            type="button"
-            variant="accent"
-            onClick={() => setCreateOpen(true)}
-            disabled={saving}
-          >
-            스케줄 생성
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Schedule"
+        description={
+          isAdmin ? "팀별 일정을 확인하고 관리합니다." : "소속 팀 일정만 표시됩니다."
+        }
+        actions={
+          isAdmin ? (
+            <Button
+              type="button"
+              variant="accent"
+              onClick={() => setCreateOpen(true)}
+              disabled={saving}
+            >
+              스케줄 생성
+            </Button>
+          ) : undefined
+        }
+      />
 
       {isAdmin ? (
         <TeamFilter value={teamFilter} onChange={setTeamFilter} />

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/layout/page-header";
 import { useNotices } from "@/hooks/use-notices";
 import { deleteNotice, saveNotice } from "@/lib/firestore-notices";
 import type { NoticeDoc } from "@/types/notice";
@@ -109,19 +110,17 @@ export function NoticesView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Notices</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            운영 공지 및 정책 안내
-          </p>
-        </div>
-        {isAdmin ? (
-          <Button type="button" variant="accent" size="sm" onClick={openCreate}>
-            새 공지 작성
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Notices"
+        description="운영 공지 및 정책 안내"
+        actions={
+          isAdmin ? (
+            <Button type="button" variant="accent" size="sm" onClick={openCreate}>
+              새 공지 작성
+            </Button>
+          ) : undefined
+        }
+      />
 
       {error ? (
         <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
@@ -248,32 +247,18 @@ export function NoticesView() {
               <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
                 {n.content}
               </p>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <span>{n.author}</span>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>{n.author}</span>
+                <span className="tabular-nums">
+                  작성 {formatWhen(n.created_at)}
+                </span>
+                {Math.abs(
+                  new Date(n.updated_at).getTime() -
+                    new Date(n.created_at).getTime(),
+                ) > 1500 ? (
                   <span className="tabular-nums">
-                    작성 {formatWhen(n.created_at)}
+                    수정 {formatWhen(n.updated_at)}
                   </span>
-                  {Math.abs(
-                    new Date(n.updated_at).getTime() -
-                      new Date(n.created_at).getTime(),
-                  ) > 1500 ? (
-                    <span className="tabular-nums">
-                      수정 {formatWhen(n.updated_at)}
-                    </span>
-                  ) : null}
-                </div>
-                {isAdmin ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 shrink-0 text-accent hover:text-accent"
-                    onClick={() => openEdit(n)}
-                    disabled={saving}
-                  >
-                    내용 수정
-                  </Button>
                 ) : null}
               </div>
             </CardContent>

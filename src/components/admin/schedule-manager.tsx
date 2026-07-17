@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/page-header";
 import { formatTeamIdsLabel } from "@/types/team";
 import {
   Sheet,
@@ -124,24 +125,22 @@ export function ScheduleManager() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Schedule Manager</h2>
-          <p className="text-sm text-muted-foreground">
-            월별로 세션을 확인하고, 날짜별 그룹에서 탭하여 편집합니다.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="accent"
-          className="gap-2"
-          onClick={() => setCreateOpen(true)}
-          disabled={saving}
-        >
-          <Plus className="size-4" />
-          스케줄 생성
-        </Button>
-      </div>
+      <PageHeader
+        title="Schedule Manager"
+        description="월별로 세션을 확인하고, 날짜별 그룹에서 탭하여 편집합니다."
+        actions={
+          <Button
+            type="button"
+            variant="accent"
+            className="gap-2"
+            onClick={() => setCreateOpen(true)}
+            disabled={saving}
+          >
+            <Plus className="size-4" />
+            스케줄 생성
+          </Button>
+        }
+      />
 
       <CreateScheduleDialog
         open={createOpen}

@@ -6,8 +6,8 @@ import { Calendar, CheckCircle2, ClipboardList, Timer } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PageHeader } from "@/components/layout/page-header";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
 import { ImportantNoticeDialog } from "@/components/dashboard/important-notice-dialog";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -48,12 +48,14 @@ function StatCard({
       )}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
+          {icon}
+        </span>
       </CardHeader>
       <CardContent>
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
       </CardContent>
     </Card>
   );
@@ -159,12 +161,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <ImportantNoticeDialog />
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          운영 현황 개요 · 데이터 연동 전에는 빈 화면으로 테스트할 수 있습니다.
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="운영 현황 개요 · 데이터 연동 전에는 빈 화면으로 테스트할 수 있습니다."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -316,8 +316,6 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
-
-      <Separator className="opacity-60" />
     </div>
   );
 }

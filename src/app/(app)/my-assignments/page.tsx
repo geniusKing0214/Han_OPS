@@ -6,10 +6,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -41,45 +41,46 @@ export default function MyAssignmentsPage() {
   }, [user, weekStart]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <PageHeader
+        title="내 주간 배정표"
+        description={
+          <>
+            관리자가 확정한 나의 근무 일정만 표시됩니다.{" "}
+            <Link
+              href="/my-availability"
+              className="text-accent underline-offset-2 hover:underline"
+            >
+              근무 가능일 선택
+            </Link>
+            에서 가능한 날을 알려 주세요.
+          </>
+        }
+      />
+
       <Card>
-        <CardHeader className="space-y-3">
-          <div>
-            <CardTitle className="text-base">내 주간 배정표</CardTitle>
-              <CardDescription>
-              관리자가 확정한 나의 근무 일정만 표시됩니다.{" "}
-              <Link
-                href="/my-availability"
-                className="text-accent underline-offset-2 hover:underline"
-              >
-                근무 가능일 선택
-              </Link>
-              에서 가능한 날을 알려 주세요.
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              onClick={() => setWeekStart((w) => shiftWeek(w, -1))}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="min-w-[220px] text-center text-sm tabular-nums">
-              {formatWeekRangeLabel(weekStart)}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-8"
-              onClick={() => setWeekStart((w) => shiftWeek(w, 1))}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
+        <CardHeader className="flex flex-row items-center justify-center gap-1 py-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-8"
+            onClick={() => setWeekStart((w) => shiftWeek(w, -1))}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <span className="min-w-[220px] text-center text-sm tabular-nums">
+            {formatWeekRangeLabel(weekStart)}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-8"
+            onClick={() => setWeekStart((w) => shiftWeek(w, 1))}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
         </CardHeader>
       </Card>
 

@@ -47,6 +47,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Sheet,
   SheetContent,
@@ -433,24 +434,22 @@ export function PointsDashboard() {
 
   return (
     <div className="min-w-0 space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
-            포인트/랭킹 관리
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            {isTotal
-              ? "유저별 누적 신청·근무 횟수와 총 포인트를 확인합니다. 순위는 누적 포인트 → 승인 횟수 순입니다."
-              : "유저별 신청·근무 현황과 포인트를 확인합니다. 순위는 승인 횟수 → 월간 포인트 순으로 반영됩니다."}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden max-w-[160px] truncate sm:inline md:max-w-none">
-            {profile?.email ?? user?.email}
-          </span>
-          <Badge variant="accent">관리자</Badge>
-        </div>
-      </div>
+      <PageHeader
+        title="포인트/랭킹 관리"
+        description={
+          isTotal
+            ? "유저별 누적 신청·근무 횟수와 총 포인트를 확인합니다. 순위는 누적 포인트 → 승인 횟수 순입니다."
+            : "유저별 신청·근무 현황과 포인트를 확인합니다. 순위는 승인 횟수 → 월간 포인트 순으로 반영됩니다."
+        }
+        actions={
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="hidden max-w-[160px] truncate sm:inline md:max-w-none">
+              {profile?.email ?? user?.email}
+            </span>
+            <Badge variant="accent">관리자</Badge>
+          </div>
+        }
+      />
 
       <Card className="border-accent/20 bg-muted/20">
         <CardContent className="flex flex-col gap-2 py-3 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-4">
@@ -471,10 +470,7 @@ export function PointsDashboard() {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {statCards.map(({ label, value, icon: Icon, tone }) => (
-          <Card
-            key={label}
-            className="border-border/80 bg-gradient-to-br from-muted/60 to-background"
-          >
+          <Card key={label} className="bg-muted/30">
             <CardContent className="space-y-1.5 p-3 sm:space-y-2 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <p className="text-[11px] text-muted-foreground sm:text-xs">{label}</p>

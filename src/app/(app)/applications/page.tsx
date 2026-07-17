@@ -8,6 +8,7 @@ import { MyApplicationRow } from "@/components/applications/my-application-row";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/page-header";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { filterApplicationsMatchingLiveSchedule } from "@/lib/applications-match-schedule";
@@ -87,13 +88,10 @@ function ApplicationsPageContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          스케줄에서 신청한 내역이 여기에 표시됩니다. 대기·승인 상태는 직접 취소할 수
-          있습니다.
-        </p>
-      </div>
+      <PageHeader
+        title="Applications"
+        description="스케줄에서 신청한 내역이 여기에 표시됩니다. 대기·승인 상태는 직접 취소할 수 있습니다."
+      />
 
       {error ? (
         <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">

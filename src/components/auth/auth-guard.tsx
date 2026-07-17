@@ -18,7 +18,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!authReady || loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+      <div className="flex min-h-[40vh] items-center justify-center gap-2 text-sm text-muted-foreground">
+        <span className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-accent" />
         인증 상태 확인 중...
       </div>
     );

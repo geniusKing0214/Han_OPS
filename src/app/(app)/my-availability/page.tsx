@@ -5,6 +5,7 @@ import { Check, Lock, X } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   subscribeMyAvailability,
   upsertMyAvailability,
@@ -103,16 +104,18 @@ export default function MyAvailabilityPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-4 pb-28">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">근무 가능일</h1>
-        <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-sky-300">익주</span>만 신청할 수
-          있습니다. 신청 후에는 관리자만 변경할 수 있습니다.
-        </p>
-      </header>
+      <PageHeader
+        title="근무 가능일"
+        description={
+          <>
+            <span className="font-medium text-accent">익주</span>만 신청할 수
+            있습니다. 신청 후에는 관리자만 변경할 수 있습니다.
+          </>
+        }
+      />
 
       <div className="rounded-2xl border border-border bg-card p-3 text-center">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-sky-300">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-accent">
           신청 대상 · 익주
         </p>
         <p className="mt-1 text-sm font-semibold tabular-nums">
@@ -180,7 +183,7 @@ export default function MyAvailabilityPage() {
               className={cn(
                 "flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-all",
                 on
-                  ? "border-sky-400/40 bg-sky-500/15 shadow-sm"
+                  ? "border-emerald-400/40 bg-emerald-500/15 shadow-sm"
                   : "border-red-400/30 bg-red-500/10",
                 locked && "cursor-default opacity-90",
                 isToday && "ring-2 ring-accent/40",
@@ -189,7 +192,7 @@ export default function MyAvailabilityPage() {
               <span
                 className={cn(
                   "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl text-xs font-semibold",
-                  on ? "bg-sky-500 text-white" : "bg-red-500/90 text-white",
+                  on ? "bg-emerald-500 text-white" : "bg-red-500/90 text-white",
                 )}
               >
                 <span className="text-[10px] opacity-90">{dow}</span>
@@ -202,7 +205,7 @@ export default function MyAvailabilityPage() {
                 <p
                   className={cn(
                     "text-xs font-medium",
-                    on ? "text-sky-300" : "text-red-300",
+                    on ? "text-emerald-300" : "text-red-300",
                   )}
                 >
                   {on ? "근무 가능" : "근무 불가"}
@@ -212,7 +215,7 @@ export default function MyAvailabilityPage() {
                 className={cn(
                   "flex size-9 items-center justify-center rounded-full",
                   on
-                    ? "bg-sky-500/30 text-sky-200"
+                    ? "bg-emerald-500/30 text-emerald-200"
                     : "bg-red-500/30 text-red-200",
                 )}
               >
