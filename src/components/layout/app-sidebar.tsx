@@ -35,13 +35,13 @@ type SidebarGroup = {
 const overviewGroup: SidebarLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/schedule", label: "Schedule", icon: Calendar },
+  { href: "/my-availability", label: "근무 가능일", icon: CalendarDays },
   { href: "/notices", label: "Notices", icon: Bell },
 ];
 
 const myWorkGroup: SidebarLink[] = [
   { href: "/applications", label: "Applications", icon: ClipboardList },
   { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
-  { href: "/my-availability", label: "근무 가능일", icon: CalendarDays },
   { href: "/monthly-sheet", label: "취합표", icon: Table2 },
 ];
 
