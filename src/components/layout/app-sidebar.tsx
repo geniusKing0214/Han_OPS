@@ -33,6 +33,7 @@ type SidebarGroup = {
 
 const overviewGroup: SidebarLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/monthly-sheet", label: "월간 취합표", icon: Table2 },
   { href: "/my-availability", label: "근무 가능일", icon: CalendarDays },
   { href: "/notices", label: "Notices", icon: Bell },
 ];
@@ -40,7 +41,6 @@ const overviewGroup: SidebarLink[] = [
 const myWorkGroup: SidebarLink[] = [
   { href: "/applications", label: "Applications", icon: ClipboardList },
   { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
-  { href: "/monthly-sheet", label: "취합표", icon: Table2 },
 ];
 
 /** 진입 시 사용자 관리가 기본이 되도록 `/admin/users`로 연결 */

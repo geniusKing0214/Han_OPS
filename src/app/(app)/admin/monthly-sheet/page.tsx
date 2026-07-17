@@ -1,5 +1,5 @@
-import { MonthlySheetBoard } from "@/components/monthly-sheet/monthly-sheet-board";
+import { redirect } from "next/navigation";
 
 export default function AdminMonthlySheetPage() {
-  return <MonthlySheetBoard mode="admin" />;
+  redirect("/monthly-sheet");
 }
