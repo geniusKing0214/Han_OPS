@@ -1248,8 +1248,8 @@ export function WorkforceSchedulerPanel({
               className={cn(
                 "grid gap-2",
                 rangeSpan === "2w"
-                  ? "min-w-[980px] grid-cols-7"
-                  : "min-w-[980px] grid-cols-7",
+                  ? "min-w-[1180px] grid-cols-7"
+                  : "min-w-[1180px] grid-cols-7",
               )}
             >
               {weekDates.map((date) => {
@@ -1274,7 +1274,7 @@ export function WorkforceSchedulerPanel({
                   <section
                     key={date}
                     className={cn(
-                      "flex min-h-[380px] flex-col rounded-2xl border border-border/70 shadow-sm",
+                      "flex min-h-[160px] flex-col rounded-2xl border border-border/70 shadow-sm",
                       hasShortage || emptyDay
                         ? "bg-[repeating-linear-gradient(-45deg,rgba(22,26,34,0.92),rgba(22,26,34,0.92)_7px,rgba(167,175,191,0.08)_7px,rgba(167,175,191,0.08)_14px)]"
                         : "bg-card/90",
@@ -1710,7 +1710,7 @@ function ScheduleCard({
       <div className="flex items-start justify-between gap-1.5 px-2.5 pt-2">
         <button
           type="button"
-          className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug line-clamp-2 hover:text-accent"
+          className="min-w-0 flex-1 truncate text-left text-sm font-semibold leading-snug hover:text-accent"
           onClick={onEdit}
           title={schedule.title || "근무"}
         >
@@ -1761,27 +1761,26 @@ function ScheduleCard({
           </span>
         </div>
 
-        <Input
-          value={venueDraft}
-          placeholder="근무 장소"
-          className="h-8 w-full rounded-lg text-xs"
-          onChange={(e) => setVenueDraft(e.target.value)}
-          onBlur={() => {
-            if (venueDraft.trim() !== schedule.venue.trim()) {
-              onPatch({ venue: venueDraft.trim() });
-            }
-          }}
-          onClick={(e) => e.stopPropagation()}
-        />
-
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-2 py-1">
-          <span className="text-[10px] font-medium text-muted-foreground">
-            필요 인원
-          </span>
-          <div className="flex shrink-0 items-center gap-1">
+        <div className="flex items-center gap-1.5">
+          <Input
+            value={venueDraft}
+            placeholder="근무 장소"
+            className="h-7 min-w-0 flex-1 rounded-lg text-xs"
+            onChange={(e) => setVenueDraft(e.target.value)}
+            onBlur={() => {
+              if (venueDraft.trim() !== schedule.venue.trim()) {
+                onPatch({ venue: venueDraft.trim() });
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div
+            className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-muted/30 px-1 py-0.5"
+            title="필요 인원"
+          >
             <button
               type="button"
-              className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={() =>
                 onPatch({
                   requiredCount: Math.max(0, schedule.requiredCount - 1),
@@ -1790,12 +1789,12 @@ function ScheduleCard({
             >
               <Minus className="size-3" />
             </button>
-            <span className="min-w-[1.5rem] text-center text-xs font-semibold tabular-nums">
+            <span className="min-w-[1.25rem] text-center text-xs font-semibold tabular-nums">
               {need}
             </span>
             <button
               type="button"
-              className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={() =>
                 onPatch({ requiredCount: schedule.requiredCount + 1 })
               }
