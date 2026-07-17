@@ -353,6 +353,7 @@ export function MonthlySheetBoard({ mode }: Props) {
                       ) : null}
                     </div>
                     <MonthlySheetDayDetail
+                      key={selectedYmd}
                       bundle={selectedBundle}
                       dateLabel={formatDateLabel(selected)}
                       showTeamBadge={effectiveTeamFilter === "all"}
@@ -386,6 +387,7 @@ export function MonthlySheetBoard({ mode }: Props) {
                       ) : null}
                     </div>
                     <MonthlySheetDayDetail
+                      key={selectedYmd}
                       bundle={selectedBundle}
                       dateLabel={formatDateLabel(selected)}
                       showTeamBadge={effectiveTeamFilter === "all"}

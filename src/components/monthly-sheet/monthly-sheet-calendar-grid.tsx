@@ -20,44 +20,17 @@ function sameYmd(a: Date, b: Date) {
   return toYmd(a) === toYmd(b);
 }
 
-/** 모바일 좁은 칸용 짧은 요약 (2~3줄) */
-function compactMobilePreview(bundle: SheetDayBundle | undefined): string[] {
-  if (!bundle?.rows.length) {
-    if (bundle?.dayOverride?.manualText?.trim()) {
-      return [bundle.dayOverride.manualText.trim()];
-    }
-    return [];
-  }
-
-  const lines: string[] = [];
-  if (bundle.dayOverride?.manualText?.trim()) {
-    lines.push(bundle.dayOverride.manualText.trim());
-  }
-
-  const titles = [
-    ...new Set(bundle.rows.map((r) => r.eventTitle.trim()).filter(Boolean)),
-  ];
-  if (titles.length > 0) {
-    lines.push(titles.slice(0, 2).join("·"));
-  }
-
-  const first = bundle.rows[0];
-  const names = first.applicants
-    .filter((a) => a.status === "approved" || a.status === "completed")
-    .map((a) => a.name)
-    .slice(0, 2)
-    .join("/");
-  if (names) {
-    lines.push(names);
-  } else {
-    lines.push(`${first.slotTime}·${first.headcount}명`);
-  }
-
-  if (bundle.rows.length > 1) {
-    lines.push(`+${bundle.rows.length - 1}건`);
-  }
-
-  return lines.slice(0, 3);
+/** 날짜 셀에 표시할 스케줄 수 · 미확인 신청 수 */
+function getCellCounts(bundle: SheetDayBundle | undefined) {
+  const scheduleCount = bundle?.rows.length ?? 0;
+  const pendingCount =
+    bundle?.rows.reduce(
+      (sum, row) =>
+        sum +
+        row.applicants.filter((a) => a.status === "pending").length,
+      0,
+    ) ?? 0;
+  return { scheduleCount, pendingCount };
 }
 
 export function MonthlySheetCalendarGrid({
@@ -94,7 +67,7 @@ export function MonthlySheetCalendarGrid({
       return (
         <div
           key={`empty-${i}`}
-          className="min-h-[76px] min-w-0 border-b border-r border-border bg-muted/10 last:border-r-0 md:min-h-[128px]"
+          className="min-h-[76px] min-w-0 border-b border-r border-border bg-muted/10 last:border-r-0 md:min-h-[104px]"
         />
       );
     }
@@ -103,10 +76,8 @@ export function MonthlySheetCalendarGrid({
     const bundle = days.get(ymd);
     const isToday = sameYmd(cell, today);
     const isSelected = sameYmd(cell, selected);
-    const hasRows = (bundle?.rows.length ?? 0) > 0;
     const dayColor = bundle?.dayOverride?.color;
-    const desktopLines = (bundle?.cellPreviewLines ?? []).slice(0, 4);
-    const mobileLines = compactMobilePreview(bundle);
+    const { scheduleCount, pendingCount } = getCellCounts(bundle);
 
     return (
       <button
@@ -114,12 +85,12 @@ export function MonthlySheetCalendarGrid({
         type="button"
         onClick={() => onSelect(cell)}
         className={cn(
-          "group relative flex min-h-[76px] min-w-0 w-full flex-col overflow-hidden border-b border-r border-border p-0.5 text-left transition-colors last:border-r-0 md:min-h-[128px] md:p-2",
+          "group relative flex min-h-[76px] min-w-0 w-full flex-col overflow-hidden border-b border-r border-border p-1 text-left transition-colors last:border-r-0 md:min-h-[104px] md:p-1.5",
           "hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
           isSelected && "bg-accent/10 ring-1 ring-inset ring-accent/40",
-          !hasRows && !mobileLines.length && "text-muted-foreground",
         )}
       >
+        {/* 상단 색상 바 (관리자 오버라이드) */}
         {dayColor ? (
           <span
             className="absolute inset-x-0 top-0 h-0.5 md:h-1"
@@ -128,66 +99,34 @@ export function MonthlySheetCalendarGrid({
           />
         ) : null}
 
-        <div className="flex min-w-0 items-center justify-between gap-0.5">
+        {/* 날짜 번호 (좌상단) */}
+        <span
+          className={cn(
+            "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums md:size-6 md:text-sm",
+            isToday && "bg-accent text-accent-foreground",
+            isSelected && !isToday && "text-accent",
+            !isToday && !isSelected && "text-foreground/70",
+          )}
+        >
+          {cell.getDate()}
+        </span>
+
+        {/* NEW 미확인 신청 배지 (우상단 절대 위치) */}
+        {pendingCount > 0 ? (
           <span
-            className={cn(
-              "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums md:size-6 md:text-sm",
-              isToday && "bg-accent text-accent-foreground",
-              isSelected && !isToday && "text-accent",
-            )}
+            className="absolute right-1 top-1 flex min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 py-px text-[7px] font-bold leading-tight text-white md:min-w-[16px] md:text-[8px]"
+            aria-label={`미확인 신청 ${pendingCount}건`}
           >
-            {cell.getDate()}
+            {pendingCount}
           </span>
-          {bundle?.markerColors?.length ? (
-            <span className="hidden shrink-0 gap-0.5 md:flex">
-              {bundle.markerColors.slice(0, 3).map((c, idx) => (
-                <span
-                  key={`${ymd}-c-${idx}`}
-                  className="size-2 rounded-full ring-1 ring-background/80"
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </span>
-          ) : null}
-          {hasRows ? (
-            <span
-              className="size-1.5 shrink-0 rounded-full bg-accent md:hidden"
-              aria-hidden
-            />
-          ) : null}
-        </div>
+        ) : null}
 
-        {/* 모바일: 화면 너비에 맞춘 짧은 요약 */}
-        <div className="mt-0.5 min-w-0 flex-1 space-y-px overflow-hidden md:hidden">
-          {mobileLines.map((line, idx) => (
-            <p
-              key={`${ymd}-m-${idx}`}
-              className={cn(
-                "truncate text-[7px] leading-[1.15] text-foreground/90",
-                line.startsWith("+") && "text-accent",
-              )}
-              title={line}
-            >
-              {line}
-            </p>
-          ))}
-        </div>
-
-        {/* 데스크톱: 상세 미리보기 */}
-        <div className="mt-1 hidden min-w-0 flex-1 space-y-0.5 overflow-hidden md:block">
-          {desktopLines.map((line, idx) => (
-            <p
-              key={`${ymd}-d-${idx}`}
-              className={cn(
-                "truncate text-[10px] leading-tight text-foreground/90",
-                line.startsWith("+") && "text-accent",
-              )}
-              title={line}
-            >
-              {line}
-            </p>
-          ))}
-        </div>
+        {/* 스케줄 카운트 배지 (하단 행 맞춤) */}
+        {scheduleCount > 0 ? (
+          <span className="mt-auto inline-flex items-center rounded px-1 py-0.5 text-[8px] font-medium leading-tight text-accent bg-accent/15 md:text-[9px]">
+            스케줄 {scheduleCount}
+          </span>
+        ) : null}
       </button>
     );
   };
@@ -215,12 +154,16 @@ export function MonthlySheetCalendarGrid({
       </div>
       <div className="grid w-full grid-cols-7">{cells.map(renderCell)}</div>
 
-      <p className="hidden border-t border-border px-3 py-2 text-xs text-muted-foreground md:block">
-        · 표시: 이벤트명 · 장소 · 승인자 · 시간/인원 · 색상 점
-      </p>
-      <p className="border-t border-border px-2 py-1.5 text-[10px] text-muted-foreground md:hidden">
-        날짜를 탭하면 아래에서 상세 일정을 확인할 수 있습니다.
-      </p>
+      <div className="flex items-center gap-3 border-t border-border px-3 py-2">
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="inline-block rounded px-1 py-0.5 text-[8px] font-medium text-accent bg-accent/15">스케줄 N</span>
+          스케줄 수
+        </span>
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="inline-flex min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold text-white">N</span>
+          미확인 신청
+        </span>
+      </div>
     </div>
   );
 }
