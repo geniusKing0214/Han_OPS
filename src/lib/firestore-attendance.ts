@@ -15,7 +15,11 @@ import {
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import { compressAttendancePhoto } from "@/lib/attendance-image";
-import { getCurrentPosition, haversineMeters } from "@/lib/attendance-geo";
+import {
+  getCurrentPosition,
+  haversineMeters,
+  type MockLocationSignal,
+} from "@/lib/attendance-geo";
 import { parseAttendanceSettings } from "@/lib/attendance-settings";
 import {
   computeLocationStatus,
@@ -276,6 +280,10 @@ export async function submitAttendanceCheckIn(input: {
   photoFile: File | null;
   previousAttendanceId?: string | null;
   attempt?: number;
+  /** watchPosition으로 미리 수집한 좌표. 있으면 getCurrentPosition 재호출 생략 */
+  prefetchedPosition?: { latitude: number; longitude: number; accuracy: number };
+  /** Mock Location 감지 결과. suspicious일 때만 전달 */
+  mockLocationSignal?: MockLocationSignal;
 }): Promise<string> {
   const settings = parseAttendanceSettings(input.event.attendance);
   if (!settings.attendanceEnabled) {
@@ -304,19 +312,25 @@ export async function submitAttendanceCheckIn(input: {
     settings.outsideRadiusPolicy !== "ignore_gps"
   ) {
     try {
-      const pos = await getCurrentPosition();
-      latitude = pos.coords.latitude;
-      longitude = pos.coords.longitude;
-      accuracy =
-        typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null;
+      let lat: number, lon: number, acc: number;
+
+      if (input.prefetchedPosition) {
+        // watchPosition으로 미리 수집한 좌표 재활용
+        ({ latitude: lat, longitude: lon, accuracy: acc } = input.prefetchedPosition);
+      } else {
+        const pos = await getCurrentPosition();
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        acc = typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : 999;
+      }
+
+      latitude = lat;
+      longitude = lon;
+      accuracy = acc;
+
       if (settings.venueLatitude != null && settings.venueLongitude != null) {
         distanceFromVenueMeters = Math.round(
-          haversineMeters(
-            latitude,
-            longitude,
-            settings.venueLatitude,
-            settings.venueLongitude,
-          ),
+          haversineMeters(latitude, longitude, settings.venueLatitude, settings.venueLongitude),
         );
       }
     } catch {
@@ -437,6 +451,14 @@ export async function submitAttendanceCheckIn(input: {
           ? lockSnap.data()?.currentAttendanceId
           : null),
       attempt: nextAttempt,
+      // Mock Location 감지 결과 저장
+      mockLocationRiskLevel: input.mockLocationSignal?.riskLevel ?? null,
+      mockLocationReasons: input.mockLocationSignal?.reasons ?? null,
+      // Cloud Function이 채울 서버사이드 검증 필드 (초기값)
+      gpsVerified: false,
+      serverDistanceMeters: null,
+      gpsSuspicious: false,
+      gpsSuspiciousReasons: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
