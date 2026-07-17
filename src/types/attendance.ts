@@ -100,6 +100,14 @@ export type AttendanceRecord = {
   attempt: number;
   createdAt: string;
   updatedAt: string;
+  // ── 서버사이드 GPS 검증 (Cloud Function이 채움) ──
+  gpsVerified?: boolean;
+  serverDistanceMeters?: number | null;
+  gpsSuspicious?: boolean;
+  gpsSuspiciousReasons?: string[] | null;
+  // ── Mock Location 감지 결과 (클라이언트가 채움) ──
+  mockLocationRiskLevel?: "none" | "low" | "medium" | "high" | null;
+  mockLocationReasons?: string[] | null;
 };
 
 export const TIME_STATUS_LABELS: Record<AttendanceTimeStatus, string> = {
