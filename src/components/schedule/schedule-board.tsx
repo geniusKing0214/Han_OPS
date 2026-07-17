@@ -4,8 +4,15 @@ import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import type { EventItem, Session } from "@/types/schedule";
+import type { TeamId } from "@/types/team";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
+import {
+  canTeamApplyNow,
+  formatTeam2ApplyCountdown,
+  formatTeam2ApplyOpensAt,
+  hasTeam2Stagger,
+} from "@/lib/application-window";
 import {
   ApplySlotContext,
   ApplySlotSurface,
@@ -32,7 +39,13 @@ function sessionsForDate(events: EventItem[], ymd: string) {
   return out;
 }
 
-export function ScheduleBoard({ events }: { events: EventItem[] }) {
+export function ScheduleBoard({
+  events,
+  memberTeamId,
+}: {
+  events: EventItem[];
+  memberTeamId?: TeamId;
+}) {
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -74,14 +87,14 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
           <p className="text-sm text-muted-foreground">
             날짜를 선택하면 우측에서 해당 일정을 확인하고 바로 신청할 수 있습니다.
           </p>
-        <MiniCalendar
-          month={month}
-          selected={selected}
-          onMonthChange={setMonth}
-          onSelect={setSelected}
-          dateMarkers={dateMarkers}
-          mode="full"
-        />
+          <MiniCalendar
+            month={month}
+            selected={selected}
+            onMonthChange={setMonth}
+            onSelect={setSelected}
+            dateMarkers={dateMarkers}
+            mode="full"
+          />
         </div>
         <div className="space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">
@@ -108,6 +121,16 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
             <div className="space-y-3">
               {rows.map(({ event, session }) => {
                 const expanded = openEv[event.id] ?? true;
+                const teamApplyLocked =
+                  memberTeamId === "team_2" &&
+                  hasTeam2Stagger(event) &&
+                  !canTeamApplyNow(event, "team_2");
+                const team2Countdown = teamApplyLocked
+                  ? formatTeam2ApplyCountdown(event)
+                  : null;
+                const team2OpensLabel = teamApplyLocked
+                  ? formatTeam2ApplyOpensAt(event)
+                  : null;
                 return (
                   <Card
                     key={`${event.id}-${session.id}`}
@@ -128,13 +151,24 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                         className="flex w-full items-start gap-2 text-left"
                       >
                         <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base">{event.title}</CardTitle>
+                          <CardTitle className="text-base">
+                            {event.title}
+                          </CardTitle>
                           <CardDescription className="mt-1">
                             {event.venue}
                           </CardDescription>
                           {event.notice ? (
                             <p className="mt-2 text-xs text-muted-foreground">
                               {event.notice}
+                            </p>
+                          ) : null}
+                          {teamApplyLocked ? (
+                            <p className="mt-2 text-xs text-amber-700 dark:text-amber-200">
+                              2팀 신청 대기 ·{" "}
+                              {team2Countdown ??
+                                (team2OpensLabel
+                                  ? `${team2OpensLabel}부터 신청 가능`
+                                  : "1팀 등록 24시간 후 신청 가능")}
                             </p>
                           ) : null}
                         </div>
@@ -153,8 +187,11 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                         </p>
                         {session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
-                          const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                          const blocked = full || alreadyAppliedEvent;
+                          const alreadyAppliedEvent = appliedEventIds.has(
+                            event.id,
+                          );
+                          const blocked =
+                            full || alreadyAppliedEvent || teamApplyLocked;
                           return (
                             <div
                               key={slot.id}
@@ -172,6 +209,13 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                                     마감
                                   </Badge>
                                 )}
+                                {teamApplyLocked &&
+                                !full &&
+                                !alreadyAppliedEvent ? (
+                                  <Badge variant="outline" className="ml-2">
+                                    24시간 대기
+                                  </Badge>
+                                ) : null}
                               </div>
                               <Button
                                 size="sm"
@@ -192,7 +236,13 @@ export function ScheduleBoard({ events }: { events: EventItem[] }) {
                                   setApplyOpen(true);
                                 }}
                               >
-                                {alreadyAppliedEvent ? "신청 완료" : full ? "마감" : "신청"}
+                                {alreadyAppliedEvent
+                                  ? "신청 완료"
+                                  : full
+                                    ? "마감"
+                                    : teamApplyLocked
+                                      ? "대기 중"
+                                      : "신청"}
                               </Button>
                             </div>
                           );

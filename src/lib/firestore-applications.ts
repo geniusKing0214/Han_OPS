@@ -19,6 +19,7 @@ import { assertAdmin } from "@/lib/admin-access";
 import { todayYmd } from "@/lib/application-cancel";
 import { db } from "@/lib/firebase";
 import { userCanApplyToEvent } from "@/lib/team-utils";
+import { canTeamApplyNow, formatTeam2ApplyOpensAt, hasTeam2Stagger } from "@/lib/application-window";
 import {
   notifyAdminsOnApplicationSubmitted,
   notifyAdminsOnApplicationCancelled,
@@ -29,7 +30,7 @@ import type { WorkStatus } from "@/types/points";
 import type { EventItem } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
 import { USERS_COLLECTION } from "@/lib/firestore-users";
-import { normalizeTeamId, type TeamId } from "@/types/team";
+import { normalizeTeamId, normalizeTeamIds, type TeamId } from "@/types/team";
 import type { UserProfileDoc } from "@/types/user";
 
 export const APPLICATIONS_COLLECTION = "applications";
@@ -137,18 +138,43 @@ export async function createApplication(input: CreateApplicationInput) {
     throw new Error("일정을 찾을 수 없습니다.");
   }
   const eventData = eventSnap.data() as Record<string, unknown>;
+  const team2Raw = eventData.team2ApplyOpensAt;
+  let team2ApplyOpensAt: string | undefined;
+  if (
+    team2Raw &&
+    typeof team2Raw === "object" &&
+    "toDate" in team2Raw &&
+    typeof (team2Raw as { toDate: () => Date }).toDate === "function"
+  ) {
+    team2ApplyOpensAt = (team2Raw as { toDate: () => Date }).toDate().toISOString();
+  } else if (typeof team2Raw === "string") {
+    team2ApplyOpensAt = team2Raw;
+  }
   const eventForCheck: EventItem = {
     id: input.eventId,
     title: typeof eventData.title === "string" ? eventData.title : "",
     venue: typeof eventData.venue === "string" ? eventData.venue : "",
     team_ids: Array.isArray(eventData.team_ids)
-      ? (eventData.team_ids as EventItem["team_ids"])
+      ? normalizeTeamIds(eventData.team_ids)
       : undefined,
+    ...(team2ApplyOpensAt ? { team2ApplyOpensAt } : {}),
     sessions: Array.isArray(eventData.sessions)
       ? (eventData.sessions as EventItem["sessions"])
       : [],
   };
   if (!userCanApplyToEvent(userTeamId, eventForCheck)) {
+    if (
+      userTeamId === "team_2" &&
+      hasTeam2Stagger(eventForCheck) &&
+      !canTeamApplyNow(eventForCheck, "team_2")
+    ) {
+      const opensLabel = formatTeam2ApplyOpensAt(eventForCheck);
+      throw new Error(
+        opensLabel
+          ? `2팀 신청은 ${opensLabel}부터 가능합니다. (1팀 등록 24시간 후)`
+          : "2팀 신청은 일정 등록 24시간 후부터 가능합니다.",
+      );
+    }
     throw new Error("소속 팀 일정만 신청할 수 있습니다.");
   }
 

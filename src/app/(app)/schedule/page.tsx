@@ -108,7 +108,10 @@ export default function SchedulePage() {
             : "등록된 일정이 없습니다. 관리자가 일정을 추가하면 표시됩니다."}
         </p>
       ) : (
-        <ScheduleBoard events={visibleEvents} />
+        <ScheduleBoard
+          events={visibleEvents}
+          memberTeamId={isAdmin ? undefined : profile?.teamId}
+        />
       )}
     </div>
   );

@@ -20,6 +20,13 @@ export type EventItem = {
   venue: string;
   /** 노출 팀 (없으면 team_1) */
   team_ids?: TeamId[];
+  /** 생성 시각 (ISO). 1팀 등록 시 2팀 자동 오픈 기준 */
+  createdAt?: string;
+  /**
+   * 1팀만 등록한 일정에서 2팀 신청이 열리는 시각 (ISO).
+   * 있으면 해당 시각 이후 2팀도 일정 확인·신청 가능.
+   */
+  team2ApplyOpensAt?: string;
   /** 이벤트 특이사항(선택) */
   notice?: string;
   /** UI 강조용 hex 등 (선택) */
@@ -28,4 +35,4 @@ export type EventItem = {
   attendance?: AttendanceSettings;
   sessions: Session[];
 };
-
+

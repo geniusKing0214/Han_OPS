@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { formatTeam2ApplyOpensAt, hasTeam2Stagger } from "@/lib/application-window";
 import { formatTeamIdsLabel } from "@/types/team";
 import {
   Sheet,
@@ -293,6 +294,9 @@ export function ScheduleManager() {
                             <p className="text-sm text-muted-foreground">{event.venue}</p>
                             <Badge variant="outline" className="mt-1.5 text-[10px]">
                               {formatTeamIdsLabel(event.team_ids ?? ["team_1"])}
+                              {hasTeam2Stagger(event)
+                                ? ` · 2팀 ${formatTeam2ApplyOpensAt(event) ?? "24시간 후"}`
+                                : ""}
                             </Badge>
                         <p className="mt-2 text-xs text-muted-foreground">
                           슬롯 {session.slots.length}개 · 탭하여 편집

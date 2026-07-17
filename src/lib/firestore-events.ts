@@ -15,12 +15,30 @@ import {
   parseAttendanceSettings,
   serializeAttendanceSettings,
 } from "@/lib/attendance-settings";
+import { computeTeam2ApplyOpensAt } from "@/lib/application-window";
 import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
 
 export const EVENTS_COLLECTION = "events";
 const APPLICATIONS_COLLECTION = "applications";
+
+function timestampToIso(value: unknown): string | undefined {
+  if (
+    value &&
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === "string" && value.trim() !== "") return value;
+  return undefined;
+}
+
+function isTeam1Only(teamIds: ReturnType<typeof normalizeTeamIds>): boolean {
+  return teamIds.length === 1 && teamIds[0] === "team_1";
+}
 
 function docToEvent(id: string, data: Record<string, unknown>): EventItem | null {
   const title = data.title;
@@ -40,11 +58,15 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
   const color =
     colorRaw && colorRaw.trim() !== "" ? colorRaw.trim() : undefined;
   const attendance = parseAttendanceSettings(data.attendance);
+  const createdAt = timestampToIso(data.createdAt);
+  const team2ApplyOpensAt = timestampToIso(data.team2ApplyOpensAt);
   return {
     id,
     title,
     venue,
     team_ids: normalizeTeamIds(data.team_ids),
+    ...(createdAt !== undefined ? { createdAt } : {}),
+    ...(team2ApplyOpensAt !== undefined ? { team2ApplyOpensAt } : {}),
     ...(notice !== undefined ? { notice } : {}),
     ...(color !== undefined ? { color } : {}),
     attendance,
@@ -76,33 +98,37 @@ export async function createEvent(input: {
   venue: string;
 }): Promise<string> {
   const id = crypto.randomUUID();
+  const createdAtIso = new Date().toISOString();
   await setDoc(doc(db, EVENTS_COLLECTION, id), {
     title: input.title.trim(),
     venue: input.venue.trim(),
     team_ids: normalizeTeamIds(["team_1"]),
     sessions: [],
+    createdAt: serverTimestamp(),
+    team2ApplyOpensAt: computeTeam2ApplyOpensAt(new Date(createdAtIso)),
     updatedAt: serverTimestamp(),
   });
   return id;
 }
 
 export async function saveEvent(event: EventItem): Promise<void> {
-  await setDoc(
-    doc(db, EVENTS_COLLECTION, event.id),
-    {
-      title: event.title.trim(),
-      venue: event.venue.trim(),
-      team_ids: normalizeTeamIds(event.team_ids),
-      sessions: event.sessions,
-      notice: event.notice?.trim() ?? "",
-      color: event.color?.trim() ?? "",
-      attendance: serializeAttendanceSettings(
-        parseAttendanceSettings(event.attendance),
-      ),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
+  const payload: Record<string, unknown> = {
+    title: event.title.trim(),
+    venue: event.venue.trim(),
+    team_ids: normalizeTeamIds(event.team_ids),
+    sessions: event.sessions,
+    notice: event.notice?.trim() ?? "",
+    color: event.color?.trim() ?? "",
+    attendance: serializeAttendanceSettings(
+      parseAttendanceSettings(event.attendance),
+    ),
+    updatedAt: serverTimestamp(),
+  };
+  if (event.createdAt) payload.createdAt = event.createdAt;
+  if (event.team2ApplyOpensAt) {
+    payload.team2ApplyOpensAt = event.team2ApplyOpensAt;
+  }
+  await setDoc(doc(db, EVENTS_COLLECTION, event.id), payload, { merge: true });
 }
 
 /** 신규 스케줄 저장 + 해당 팀 멤버 알림 */
@@ -110,14 +136,49 @@ export async function createScheduleEvent(
   event: EventItem,
   createdByUserId: string,
 ): Promise<void> {
-  await saveEvent(event);
+  const teamIds = normalizeTeamIds(event.team_ids);
+  const now = new Date();
+  const createdAtIso = event.createdAt ?? now.toISOString();
+  const withMeta: EventItem = {
+    ...event,
+    team_ids: teamIds,
+    createdAt: createdAtIso,
+    ...(isTeam1Only(teamIds)
+      ? {
+          team2ApplyOpensAt:
+            event.team2ApplyOpensAt ?? computeTeam2ApplyOpensAt(now),
+        }
+      : {}),
+  };
+
+  await setDoc(
+    doc(db, EVENTS_COLLECTION, withMeta.id),
+    {
+      title: withMeta.title.trim(),
+      venue: withMeta.venue.trim(),
+      team_ids: teamIds,
+      sessions: withMeta.sessions,
+      notice: withMeta.notice?.trim() ?? "",
+      color: withMeta.color?.trim() ?? "",
+      attendance: serializeAttendanceSettings(
+        parseAttendanceSettings(withMeta.attendance),
+      ),
+      createdAt: serverTimestamp(),
+      ...(isTeam1Only(teamIds)
+        ? { team2ApplyOpensAt: withMeta.team2ApplyOpensAt }
+        : {}),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
   try {
     await notifyTeamMembersOnScheduleCreated({
-      eventId: event.id,
-      eventTitle: event.title,
-      venue: event.venue,
-      teamIds: normalizeTeamIds(event.team_ids),
-      sessions: event.sessions,
+      eventId: withMeta.id,
+      eventTitle: withMeta.title,
+      venue: withMeta.venue,
+      teamIds,
+      sessions: withMeta.sessions,
       createdByUserId,
     });
   } catch {

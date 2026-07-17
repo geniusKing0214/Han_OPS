@@ -1,4 +1,5 @@
 import type { EventItem } from "@/types/schedule";
+import { canTeamApplyNow } from "@/lib/application-window";
 import { eventVisibleToTeam } from "@/lib/team-utils";
 import type { TeamId } from "@/types/team";
 
@@ -20,6 +21,7 @@ export function countAvailableApplicationEvents(
   let count = 0;
   for (const ev of events) {
     if (teamId && !eventVisibleToTeam(ev, teamId)) continue;
+    if (teamId && !canTeamApplyNow(ev, teamId)) continue;
     if (appliedEventIds.has(ev.id)) continue;
     const hasOpenSlot = ev.sessions.some(
       (session) =>
@@ -41,6 +43,7 @@ export function countAvailableApplicationSlots(
   let count = 0;
   for (const ev of events) {
     if (teamId && !eventVisibleToTeam(ev, teamId)) continue;
+    if (teamId && !canTeamApplyNow(ev, teamId)) continue;
     if (appliedEventIds.has(ev.id)) continue;
     for (const session of ev.sessions) {
       if (session.date < fromDateYmd) continue;

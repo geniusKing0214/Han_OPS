@@ -220,6 +220,11 @@ export function CreateScheduleDialog({
                   </option>
                 ))}
               </select>
+              {teamExposure === "team_1" ? (
+                <p className="text-xs text-muted-foreground">
+                  1팀으로 등록하면 24시간 뒤 2팀도 자동으로 신청할 수 있습니다.
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">
