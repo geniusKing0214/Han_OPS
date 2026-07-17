@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
-  Calendar,
   CalendarCheck2,
   CalendarDays,
   ClipboardList,
@@ -38,7 +37,7 @@ type MoreLink = {
 
 const primary = [
   { href: "/dashboard", label: "홈", icon: LayoutDashboard },
-  { href: "/schedule", label: "일정", icon: Calendar },
+  { href: "/monthly-sheet", label: "취합표", icon: Table2 },
   { href: "/applications", label: "신청", icon: ClipboardList },
   { href: "/notices", label: "공지", icon: Bell },
 ];
@@ -49,7 +48,6 @@ const overviewMoreLinks: MoreLink[] = [
 
 const workMoreLinks: MoreLink[] = [
   { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
-  { href: "/monthly-sheet", label: "취합표", icon: Table2 },
 ];
 
 const moreLinks: MoreLink[] = [...overviewMoreLinks, ...workMoreLinks];

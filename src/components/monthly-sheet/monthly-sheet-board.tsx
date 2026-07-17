@@ -56,12 +56,13 @@ function formatDateLabel(d: Date): string {
 }
 
 type Props = {
-  mode: "admin" | "member";
+  /** @deprecated 개요 `/monthly-sheet` 통합 진입. 편집 권한은 isAdmin 기준 */
+  mode?: "admin" | "member";
 };
 
-export function MonthlySheetBoard({ mode }: Props) {
+export function MonthlySheetBoard(_props: Props = {}) {
   const { isAdmin, profile, user } = useAuth();
-  const canEdit = mode === "admin" && isAdmin;
+  const canEdit = isAdmin;
   const isMobile = useMediaQuery("(max-width: 767px)");
 
   const [month, setMonth] = useState(() => {
@@ -216,14 +217,12 @@ export function MonthlySheetBoard({ mode }: Props) {
         <CardHeader className="space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <CardTitle className="text-lg">
-                {mode === "admin" ? "월간 취합표" : "팀 월간 취합표"}
-              </CardTitle>
+              <CardTitle className="text-lg">월간 취합표</CardTitle>
               <CardDescription>
                 스케줄·승인 신청을 월별·팀별로 자동 취합합니다.
                 {canEdit
-                  ? " 날짜를 선택해 실제 일정 또는 취합표 표시 내용을 수정할 수 있습니다."
-                  : " 보기 전용입니다."}
+                  ? " 관리자는 날짜를 선택해 실제 일정 또는 취합표 표시 내용을 수정할 수 있습니다."
+                  : " 소속 팀 일정을 확인합니다."}
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
