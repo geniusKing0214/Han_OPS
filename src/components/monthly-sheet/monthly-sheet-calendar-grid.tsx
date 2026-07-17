@@ -121,12 +121,14 @@ export function MonthlySheetCalendarGrid({
           </span>
         ) : null}
 
-        {/* 스케줄 카운트 배지 (하단 행 맞춤) */}
-        {scheduleCount > 0 ? (
-          <span className="mt-auto inline-flex items-center rounded px-1 py-0.5 text-[8px] font-medium leading-tight text-accent bg-accent/15 md:text-[9px]">
-            스케줄 {scheduleCount}
-          </span>
-        ) : null}
+        {/* 스케줄 카운트 배지 (셀 중앙) */}
+        <div className="flex flex-1 items-center justify-center">
+          {scheduleCount > 0 ? (
+            <span className="inline-flex items-center rounded px-1 py-0.5 text-[8px] font-medium leading-tight text-accent bg-accent/15 md:text-[9px]">
+              스케줄 {scheduleCount}
+            </span>
+          ) : null}
+        </div>
       </button>
     );
   };
