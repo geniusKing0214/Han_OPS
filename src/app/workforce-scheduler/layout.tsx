@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect } from "react";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { AdminRouteGuard } from "@/components/auth/admin-route-guard";
@@ -9,41 +6,32 @@ import { AdminRouteGuard } from "@/components/auth/admin-route-guard";
 export default function WorkforceSchedulerLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  useEffect(() => {
-    document.documentElement.classList.add("wf-light");
-    document.body.classList.add("wf-light");
-    return () => {
-      document.documentElement.classList.remove("wf-light");
-      document.body.classList.remove("wf-light");
-    };
-  }, []);
-
   return (
     <AuthGuard>
       <AdminRouteGuard>
-        <div className="wf-standalone min-h-dvh bg-[#f3f4f6] text-zinc-800">
-          <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-white/95 backdrop-blur">
+        <div className="min-h-dvh bg-background text-foreground">
+          <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
             <div className="mx-auto flex max-w-[1680px] items-center justify-between gap-3 px-3 py-2.5 sm:px-5">
               <div className="flex min-w-0 items-center gap-3">
                 <Link
                   href="/admin/users"
-                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                 >
                   ← Admin
                 </Link>
-                <div className="h-4 w-px bg-zinc-200" />
+                <div className="h-4 w-px bg-border" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold tracking-tight text-zinc-900 sm:text-base">
+                  <p className="truncate text-sm font-semibold tracking-tight sm:text-base">
                     인력 배치 스케줄러
                   </p>
-                  <p className="hidden text-[11px] text-zinc-500 sm:block">
+                  <p className="hidden text-[11px] text-muted-foreground sm:block">
                     HAN OPS · 주간 근무 배정
                   </p>
                 </div>
               </div>
               <Link
                 href="/dashboard"
-                className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+                className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
               >
                 대시보드
               </Link>

@@ -113,7 +113,7 @@ import {
 const STATUS_DOT: Record<WorkforceWorkerStatus, string> = {
   available: "bg-emerald-400",
   partial: "bg-amber-400",
-  full: "bg-sky-400",
+  full: "bg-accent",
   unavailable: "bg-red-400",
   leave: "bg-zinc-400",
 };
@@ -667,7 +667,7 @@ export function WorkforceSchedulerPanel({
                   className={cn(
                     "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
                     rangeSpan === key
-                      ? "bg-sky-500/20 text-sky-200"
+                      ? "bg-accent/20 text-accent"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={() => {
@@ -686,7 +686,7 @@ export function WorkforceSchedulerPanel({
                 className={cn(
                   "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
                   boardLayout === "columns"
-                    ? "bg-sky-500/20 text-sky-200"
+                    ? "bg-accent/20 text-accent"
                     : "text-muted-foreground hover:text-foreground",
                 )}
                 onClick={() => setBoardLayout("columns")}
@@ -698,7 +698,7 @@ export function WorkforceSchedulerPanel({
                 className={cn(
                   "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
                   boardLayout === "calendar"
-                    ? "bg-sky-500/20 text-sky-200"
+                    ? "bg-accent/20 text-accent"
                     : "text-muted-foreground hover:text-foreground",
                 )}
                 onClick={() => setBoardLayout("calendar")}
@@ -986,10 +986,10 @@ export function WorkforceSchedulerPanel({
         <aside className="rounded-2xl border border-border bg-card/80 lg:max-h-[calc(100dvh-200px)] lg:overflow-hidden">
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <Users className="size-4 text-sky-300" />
+              <Users className="size-4 text-accent" />
               <p className="text-sm font-semibold">근무자 목록</p>
               {selectedWorkerIds.length > 0 ? (
-                <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] text-sky-200">
+                <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] text-accent">
                   선택 {selectedWorkerIds.length}
                 </span>
               ) : null}
@@ -1047,7 +1047,7 @@ export function WorkforceSchedulerPanel({
             ) : (
               <>
               <p className="px-0.5 text-[10px] text-muted-foreground">
-                요일 칩: 파랑=가능 · 빨강=불가 (멤버 «근무 가능일» 반영)
+                요일 칩: 골드=가능 · 빨강=불가 (멤버 «근무 가능일» 반영)
               </p>
               {workerGroups.map((group) => (
                 <div key={group.key} className="space-y-2">
@@ -1067,7 +1067,7 @@ export function WorkforceSchedulerPanel({
                         onDragEnd={() => setDragUserId(null)}
                         className={cn(
                           "rounded-xl border border-border/80 bg-background/50 p-2.5 transition-colors",
-                          selected && "border-sky-400/50 bg-sky-500/10",
+                          selected && "border-accent/50 bg-accent/10",
                           isDesktop && "cursor-grab active:cursor-grabbing",
                         )}
                         onClick={() => {
@@ -1109,7 +1109,7 @@ export function WorkforceSchedulerPanel({
                                 className={cn(
                                   "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
                                   on
-                                    ? "bg-sky-500/25 text-sky-200"
+                                    ? "bg-accent/25 text-accent"
                                     : "bg-red-500/20 text-red-300",
                                 )}
                                 title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
@@ -1122,7 +1122,7 @@ export function WorkforceSchedulerPanel({
                         <div className="mt-1.5 flex gap-2">
                           <button
                             type="button"
-                            className="text-[11px] text-sky-300 hover:underline"
+                            className="text-[11px] text-accent hover:underline"
                             onClick={(e) => {
                               e.stopPropagation();
                               setAvailEditUser(member);
@@ -1186,7 +1186,7 @@ export function WorkforceSchedulerPanel({
                         className={cn(
                           "flex min-h-[120px] flex-col rounded-xl border border-border/70 bg-card/90 p-1.5 shadow-sm",
                           shortage > 0 && "border-red-300/50",
-                          isToday && "ring-2 ring-sky-400/50",
+                          isToday && "ring-2 ring-accent/50",
                         )}
                         onDragOver={(e) => {
                           if (isDesktop) e.preventDefault();
@@ -1196,14 +1196,14 @@ export function WorkforceSchedulerPanel({
                           <span
                             className={cn(
                               "text-xs font-semibold tabular-nums",
-                              isToday ? "text-sky-300" : "text-foreground",
+                              isToday ? "text-accent" : "text-foreground",
                             )}
                           >
                             {label}
                           </span>
                           <button
                             type="button"
-                            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-sky-300"
+                            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-accent"
                             onClick={() => openCreate(date)}
                             aria-label="일정 추가"
                           >
@@ -1276,9 +1276,7 @@ export function WorkforceSchedulerPanel({
                     className={cn(
                       "flex min-h-[380px] flex-col rounded-2xl border border-border/70 shadow-sm",
                       hasShortage || emptyDay
-                        ? standalone
-                          ? "bg-[repeating-linear-gradient(-45deg,#f8fafc,#f8fafc_8px,#eef2f7_8px,#eef2f7_16px)]"
-                          : "bg-[repeating-linear-gradient(-45deg,rgba(24,24,27,0.92),rgba(24,24,27,0.92)_7px,rgba(148,163,184,0.08)_7px,rgba(148,163,184,0.08)_14px)]"
+                        ? "bg-[repeating-linear-gradient(-45deg,rgba(22,26,34,0.92),rgba(22,26,34,0.92)_7px,rgba(167,175,191,0.08)_7px,rgba(167,175,191,0.08)_14px)]"
                         : "bg-card/90",
                     )}
                   >
@@ -1292,7 +1290,7 @@ export function WorkforceSchedulerPanel({
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-medium text-sky-200">
+                        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
                           일정 {daySchedules.length}
                         </span>
                         <span
@@ -1300,7 +1298,7 @@ export function WorkforceSchedulerPanel({
                             "rounded-full px-2 py-0.5 text-[10px] font-medium",
                             dayAssigned >= dayRequired && dayRequired > 0
                               ? "bg-emerald-500/15 text-emerald-300"
-                              : "bg-violet-500/15 text-violet-200",
+                              : "bg-amber-500/15 text-amber-200",
                           )}
                         >
                           배치 {dayAssigned}/{dayRequired || 0}
@@ -1356,7 +1354,7 @@ export function WorkforceSchedulerPanel({
                       <button
                         type="button"
                         onClick={() => openCreate(date)}
-                        className="mt-auto flex h-10 items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-background/40 text-xs font-medium text-muted-foreground transition-colors hover:border-sky-400/40 hover:bg-sky-500/10 hover:text-sky-200"
+                        className="mt-auto flex h-10 items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-background/40 text-xs font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent"
                       >
                         <Plus className="size-3.5" /> 일정 추가
                       </button>
@@ -1712,7 +1710,7 @@ function ScheduleCard({
       <div className="flex items-center justify-between gap-1 px-2.5 pt-2">
         <button
           type="button"
-          className="min-w-0 truncate text-left text-sm font-semibold hover:text-sky-200"
+          className="min-w-0 truncate text-left text-sm font-semibold hover:text-accent"
           onClick={onEdit}
           title="일정 수정"
         >
@@ -1813,7 +1811,7 @@ function ScheduleCard({
                   {schedule.assignedUserIds.map((uid) => (
                     <span
                       key={uid}
-                      className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-medium text-sky-100"
+                      className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent"
                     >
                       <span className="truncate">
                         {nameByUid.get(uid) || uid}
@@ -1834,7 +1832,7 @@ function ScheduleCard({
             <button
               type="button"
               onClick={onClickAssign}
-              className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-sky-500/20 text-[11px] font-medium text-sky-100 hover:bg-sky-500/30"
+              className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-accent/20 text-[11px] font-medium text-accent hover:bg-accent/30"
             >
               <Users className="size-3" /> 근무자 배정
             </button>
