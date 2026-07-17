@@ -1,9 +1,26 @@
-import * as admin from "firebase-admin";
+  import * as admin from "firebase-admin";
 import { logger } from "firebase-functions/v2";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
 admin.initializeApp();
+
+// ──────────────────────────────────────────────
+// 서버사이드 Haversine (클라이언트와 동일 공식)
+// ──────────────────────────────────────────────
+function haversineMeters(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
 
 const PUSH_NOTIFICATION_TYPES = new Set([
   "schedule_created",
@@ -98,6 +115,81 @@ function resolveOpenUrl(data: NotificationDoc): string {
   }
   return `${origin}${base}/dashboard/`;
 }
+
+// ──────────────────────────────────────────────
+// 서버사이드 GPS 검증
+// 출근 인증 제출 시 클라이언트가 보고한 좌표를
+// 서버에서 이벤트 장소 좌표와 재계산하여 검증
+// ──────────────────────────────────────────────
+export const verifyAttendanceGps = onDocumentCreated(
+  "attendances/{attendanceId}",
+  async (event) => {
+    const data = event.data?.data();
+    const attendanceId = event.params.attendanceId;
+
+    if (!data) return;
+
+    const clientLat = data.latitude as number | null;
+    const clientLon = data.longitude as number | null;
+    const clientDist = data.distanceFromVenueMeters as number | null;
+    const venueLat = data.venueLatitude as number | null;
+    const venueLon = data.venueLongitude as number | null;
+
+    // GPS를 사용하지 않은 경우 스킵
+    if (clientLat == null || clientLon == null || venueLat == null || venueLon == null) {
+      await event.data?.ref.update({ gpsVerified: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      return;
+    }
+
+    const serverDist = Math.round(haversineMeters(clientLat, clientLon, venueLat, venueLon));
+    const suspiciousReasons: string[] = [];
+
+    // ① 클라이언트가 보고한 거리와 서버 계산 결과 차이가 100m 이상이면 의심
+    if (clientDist !== null && Math.abs(serverDist - clientDist) > 100) {
+      suspiciousReasons.push(
+        `거리 불일치: 클라이언트 ${clientDist}m vs 서버 ${serverDist}m`,
+      );
+    }
+
+    // ② 정확도가 비정상적으로 낮은데 반경 안에 있다고 주장하는 경우
+    const accuracy = data.accuracy as number | null;
+    const allowedRadius = data.distanceFromVenueMeters != null ? 150 : 0;
+    if (
+      accuracy != null &&
+      accuracy <= 3 &&
+      serverDist > allowedRadius
+    ) {
+      suspiciousReasons.push(`정확도 ${accuracy}m로 비정상적으로 낮음 (fake GPS 의심)`);
+    }
+
+    // ③ Mock Location 클라이언트 신호가 high 위험도였던 경우
+    if (data.mockLocationRiskLevel === "high") {
+      suspiciousReasons.push("클라이언트에서 high 위험 fake GPS 신호 감지됨");
+    }
+
+    const gpsSuspicious = suspiciousReasons.length > 0;
+
+    await event.data?.ref.update({
+      gpsVerified: true,
+      serverDistanceMeters: serverDist,
+      gpsSuspicious,
+      gpsSuspiciousReasons: gpsSuspicious ? suspiciousReasons : null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    if (gpsSuspicious) {
+      logger.warn("GPS suspicious attendance detected", {
+        attendanceId,
+        userId: data.userId,
+        serverDist,
+        clientDist,
+        reasons: suspiciousReasons,
+      });
+    } else {
+      logger.info("GPS verified OK", { attendanceId, serverDist });
+    }
+  },
+);
 
 export const sendPushOnNotification = onDocumentCreated(
   "notifications/{notificationId}",
