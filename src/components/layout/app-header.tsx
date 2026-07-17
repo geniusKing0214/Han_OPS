@@ -8,7 +8,7 @@ export function AppHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 hidden h-14 items-center justify-end border-b border-border bg-background/80 px-6 backdrop-blur md:flex",
+        "sticky top-0 z-20 hidden h-14 shrink-0 items-center justify-end border-b border-border bg-background/80 px-6 backdrop-blur md:flex",
         className,
       )}
     >

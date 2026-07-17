@@ -13,11 +13,11 @@ export function MobileTopBar({ className }: { className?: string }) {
         className,
       )}
     >
-      <Link href="/dashboard" className="font-semibold tracking-tight">
+      <Link href="/dashboard" className="text-base font-semibold tracking-tight">
         <span className="text-foreground">HAN</span>
         <span className="ml-1 text-accent">OPS</span>
       </Link>
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center">
         <NotificationsCenter />
       </div>
     </header>

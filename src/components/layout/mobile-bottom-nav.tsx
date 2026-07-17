@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   Calendar,
+  CalendarCheck2,
+  CalendarDays,
   ClipboardList,
   LayoutDashboard,
   MoreHorizontal,
-  Shield,
   Settings,
+  Shield,
+  Table2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -26,6 +30,12 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 
+type MoreLink = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
 const primary = [
   { href: "/dashboard", label: "홈", icon: LayoutDashboard },
   { href: "/schedule", label: "일정", icon: Calendar },
@@ -33,9 +43,33 @@ const primary = [
   { href: "/notices", label: "공지", icon: Bell },
 ];
 
+const moreLinks: MoreLink[] = [
+  { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
+  { href: "/my-availability", label: "근무 가능일", icon: CalendarDays },
+  { href: "/monthly-sheet", label: "취합표", icon: Table2 },
+];
+
+function MoreLinkItem({ href, label, icon: Icon }: MoreLink) {
+  return (
+    <SheetClose asChild>
+      <Link
+        href={href}
+        className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium transition-colors hover:bg-surface-hover"
+      >
+        <Icon className="size-4 text-muted-foreground" />
+        {label}
+      </Link>
+    </SheetClose>
+  );
+}
+
 export function MobileBottomNav({ className }: { className?: string }) {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
+
+  const moreActive = moreLinks.some(
+    ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
+  );
 
   return (
     <nav
@@ -44,23 +78,22 @@ export function MobileBottomNav({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="flex h-14 items-center justify-around px-1">
+      <div className="flex h-14 items-stretch justify-around px-1">
         {primary.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
               href={href}
-              className={cn(
-                "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium",
-                active ? "text-accent" : "text-muted-foreground",
-              )}
+              className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium"
             >
               <Icon
-                className={cn("size-5", active && "text-accent")}
+                className={cn("size-5", active ? "text-accent" : "text-muted-foreground")}
                 strokeWidth={active ? 2.25 : 2}
               />
-              <span className="truncate">{label}</span>
+              <span className={cn("truncate", active ? "text-accent" : "text-muted-foreground")}>
+                {label}
+              </span>
             </Link>
           );
         })}
@@ -69,9 +102,12 @@ export function MobileBottomNav({ className }: { className?: string }) {
           <SheetTrigger asChild>
             <Button
               variant="ghost"
-              className="h-14 min-w-0 flex-1 flex-col gap-0.5 rounded-none py-1 text-[10px] font-medium text-muted-foreground"
+              className={cn(
+                "h-14 min-w-0 flex-1 flex-col gap-0.5 rounded-none py-1 text-[10px] font-medium hover:bg-transparent",
+                moreActive ? "text-accent" : "text-muted-foreground",
+              )}
             >
-              <MoreHorizontal className="size-5" />
+              <MoreHorizontal className="size-5" strokeWidth={moreActive ? 2.25 : 2} />
               더보기
             </Button>
           </SheetTrigger>
@@ -80,60 +116,28 @@ export function MobileBottomNav({ className }: { className?: string }) {
               <SheetTitle>메뉴</SheetTitle>
             </SheetHeader>
             <div className="mt-4 flex flex-col gap-2">
-              <SheetClose asChild>
-                <Link
-                  href="/my-assignments"
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
-                >
-                  <Calendar className="size-4" />
-                  내 주간 배정표
-                </Link>
-              </SheetClose>
-              <SheetClose asChild>
-                <Link
-                  href="/my-availability"
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
-                >
-                  <Calendar className="size-4" />
-                  근무 가능일
-                </Link>
-              </SheetClose>
-              <SheetClose asChild>
-                <Link
-                  href="/monthly-sheet"
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
-                >
-                  <Calendar className="size-4" />
-                  월간 취합표
-                </Link>
-              </SheetClose>
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                내 업무
+              </p>
+              {moreLinks.map((link) => (
+                <MoreLinkItem key={link.href} {...link} />
+              ))}
+
+              <p className="mt-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                설정
+              </p>
               {isAdmin ? (
-                <SheetClose asChild>
-                  <Link
-                    href="/admin/users"
-                    className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
-                  >
-                    <Shield className="size-4" />
-                    Admin
-                  </Link>
-                </SheetClose>
+                <MoreLinkItem href="/admin/users" label="Admin" icon={Shield} />
               ) : (
                 <p className="rounded-lg border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
                   Admin 메뉴는 관리자 계정만 표시됩니다.
                 </p>
               )}
-              <SheetClose asChild>
-                <Link
-                  href="/settings"
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium hover:bg-surface-hover"
-                >
-                  <Settings className="size-4" />
-                  Settings
-                </Link>
-              </SheetClose>
+              <MoreLinkItem href="/settings" label="Settings" icon={Settings} />
+
               <Separator className="my-2" />
               <LogoutButton fullWidth variant="outline" />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-center text-xs text-muted-foreground">
                 한손 조작을 위해 주 메뉴는 하단 고정입니다.
               </p>
             </div>
