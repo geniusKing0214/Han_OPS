@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ChevronUp,
   LayoutGrid,
+  MapPin,
   Minus,
   Plus,
   Search,
@@ -1682,6 +1683,7 @@ function ScheduleCard({
   isDesktop: boolean;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
+  const [venueOpen, setVenueOpen] = useState(false);
   const [venueDraft, setVenueDraft] = useState(schedule.venue);
   useEffect(() => {
     setOpen(defaultExpanded);
@@ -1762,18 +1764,30 @@ function ScheduleCard({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <Input
-            value={venueDraft}
-            placeholder="근무 장소"
-            className="h-7 min-w-0 flex-1 rounded-lg text-xs"
-            onChange={(e) => setVenueDraft(e.target.value)}
-            onBlur={() => {
-              if (venueDraft.trim() !== schedule.venue.trim()) {
-                onPatch({ venue: venueDraft.trim() });
-              }
+          <button
+            type="button"
+            className={cn(
+              "flex h-7 min-w-0 flex-1 items-center gap-1 rounded-lg border px-2 text-left text-xs transition-colors",
+              venueOpen
+                ? "border-accent/50 bg-accent/10 text-accent"
+                : "border-border bg-background/60 text-foreground hover:border-accent/40",
+            )}
+            title={schedule.venue?.trim() || "근무 장소 입력"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setVenueOpen((v) => !v);
             }}
-            onClick={(e) => e.stopPropagation()}
-          />
+          >
+            <MapPin className="size-3 shrink-0 text-muted-foreground" />
+            <span
+              className={cn(
+                "truncate",
+                !schedule.venue?.trim() && "text-muted-foreground",
+              )}
+            >
+              {schedule.venue?.trim() || "근무 장소"}
+            </span>
+          </button>
           <div
             className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-muted/30 px-1 py-0.5"
             title="필요 인원"
@@ -1803,6 +1817,31 @@ function ScheduleCard({
             </button>
           </div>
         </div>
+
+        {venueOpen ? (
+          <Input
+            autoFocus
+            value={venueDraft}
+            placeholder="근무 장소 상세 입력"
+            className="h-8 w-full rounded-lg text-xs"
+            onChange={(e) => setVenueDraft(e.target.value)}
+            onBlur={() => {
+              if (venueDraft.trim() !== schedule.venue.trim()) {
+                onPatch({ venue: venueDraft.trim() });
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (venueDraft.trim() !== schedule.venue.trim()) {
+                  onPatch({ venue: venueDraft.trim() });
+                }
+                setVenueOpen(false);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : null}
 
         {open ? (
           <div className="space-y-2 pt-0.5">
