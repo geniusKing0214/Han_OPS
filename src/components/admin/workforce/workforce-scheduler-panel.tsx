@@ -377,16 +377,17 @@ export function WorkforceSchedulerPanel({
 
   const workerGroups = useMemo(() => {
     if (workers.length === 0) return [];
-    if (statusFilter !== "all") {
-      return [
-        {
-          key: statusFilter,
-          label: WORKFORCE_WORKER_STATUS_LABELS[statusFilter],
-          items: workers,
-        },
-      ];
-    }
-    return [{ key: "all", label: "전체", items: workers }];
+    const statusSuffix =
+      statusFilter !== "all"
+        ? ` · ${WORKFORCE_WORKER_STATUS_LABELS[statusFilter]}`
+        : "";
+    return TEAM_IDS.map((teamId) => ({
+      key: teamId,
+      label: `${TEAM_LABELS[teamId]}${statusSuffix}`,
+      items: workers.filter(
+        (w) => normalizeTeamId(w.member.team_id) === teamId,
+      ),
+    })).filter((g) => g.items.length > 0);
   }, [workers, statusFilter]);
 
   const patchScheduleFields = async (
@@ -1052,9 +1053,9 @@ export function WorkforceSchedulerPanel({
               </p>
               {workerGroups.map((group) => (
                 <div key={group.key} className="space-y-2">
-                  <p className="px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="sticky top-0 z-[1] -mx-1 border-b border-border/60 bg-card/95 px-1.5 py-1 text-[11px] font-semibold tracking-wide text-foreground backdrop-blur-sm">
                     {group.label}
-                    <span className="ml-1 font-normal normal-case">
+                    <span className="ml-1 font-normal text-muted-foreground">
                       ({group.items.length})
                     </span>
                   </p>
@@ -1088,8 +1089,7 @@ export function WorkforceSchedulerPanel({
                               {member.email}
                             </p>
                             <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              이번주 {count}/{avail.weeklyMaxAssignments}회 ·{" "}
-                              {TEAM_LABELS[normalizeTeamId(member.team_id)]}
+                              이번주 {count}/{avail.weeklyMaxAssignments}회
                             </p>
                           </div>
                           <span
@@ -1324,7 +1324,7 @@ export function WorkforceSchedulerPanel({
                             void (async () => {
                               if (s.id.startsWith("virtual:")) {
                                 setError(
-                                  "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. Admin 일정에서 수정하세요.",
+                                  "스케줄 원본 일정은 배정 화면에서 삭제할 수 없습니다. 월간 취합표에서 수정하세요.",
                                 );
                                 return;
                               }

@@ -1,9 +1,12 @@
 "use client";
 
+import { Pencil } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { statusBadgeVariant } from "@/lib/admin-application-roster";
 import { cn } from "@/lib/utils";
-import type { SheetDayBundle } from "@/types/monthly-sheet";
+import type { SheetDayBundle, SheetSlotRow } from "@/types/monthly-sheet";
 import { TEAM_LABELS } from "@/types/team";
 
 function statusLabel(status: string): string {
@@ -18,11 +21,13 @@ export function MonthlySheetDayDetail({
   bundle,
   dateLabel,
   showTeamBadge,
+  onEditSchedule,
   className,
 }: {
   bundle: SheetDayBundle | null;
   dateLabel: string;
   showTeamBadge?: boolean;
+  onEditSchedule?: (row: SheetSlotRow) => void;
   className?: string;
 }) {
   if (!bundle || bundle.rows.length === 0) {
@@ -65,11 +70,25 @@ export function MonthlySheetDayDetail({
                 : undefined
             }
           >
-            <div className="flex flex-wrap items-center gap-2">
-              {showTeamBadge ? (
-                <Badge variant="outline">{TEAM_LABELS[row.teamId]}</Badge>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {showTeamBadge ? (
+                  <Badge variant="outline">{TEAM_LABELS[row.teamId]}</Badge>
+                ) : null}
+                <p className="text-sm font-medium">{row.eventTitle}</p>
+              </div>
+              {onEditSchedule ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 shrink-0 gap-1 px-2 text-xs"
+                  onClick={() => onEditSchedule(row)}
+                >
+                  <Pencil className="size-3" />
+                  일정 수정
+                </Button>
               ) : null}
-              <p className="text-sm font-medium">{row.eventTitle}</p>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {row.venue} · {row.slotTime} · 인원 {row.headcount}명

@@ -8,11 +8,6 @@ import { cn } from "@/lib/utils";
 
 const items = [
   {
-    href: "/admin/schedule",
-    label: "일정",
-    isActive: (p: string) => p.startsWith("/admin/schedule"),
-  },
-  {
     href: "/admin/availability",
     label: "근무 가능일 현황",
     isActive: (p: string) =>
@@ -74,7 +69,7 @@ export function AdminSubNav() {
         className={cn(
           "items-stretch gap-0",
           "flex min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:overflow-visible lg:grid lg:grid-cols-9",
+          "md:overflow-visible lg:grid lg:grid-cols-8",
         )}
       >
         {items.map(({ href, label, isActive }) => {

@@ -1,5 +1,5 @@
-import { ScheduleManager } from "@/components/admin/schedule-manager";
+import { redirect } from "next/navigation";
 
 export default function AdminScheduleIndexPage() {
-  return <ScheduleManager />;
+  redirect("/admin/monthly-sheet");
 }
