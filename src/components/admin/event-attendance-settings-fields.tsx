@@ -1,11 +1,19 @@
-"use client";
+  "use client";
 
+import dynamic from "next/dynamic";
 import { Input } from "@/components/ui/input";
 import {
   DEFAULT_ATTENDANCE_SETTINGS,
   type AttendanceSettings,
   type OutsideRadiusPolicy,
 } from "@/types/attendance";
+
+// Leaflet은 SSR 불가 → dynamic import
+const VenueMapPicker = dynamic(
+  () =>
+    import("@/components/admin/venue-map-picker").then((m) => m.VenueMapPicker),
+  { ssr: false, loading: () => null },
+);
 
 export function EventAttendanceSettingsFields({
   value,
@@ -124,6 +132,19 @@ export function EventAttendanceSettingsFields({
               }
             />
           </label>
+
+          {/* 지도 핀 설정 */}
+          <div className="sm:col-span-2">
+            <VenueMapPicker
+              latitude={v.venueLatitude}
+              longitude={v.venueLongitude}
+              radiusMeters={v.allowedRadiusMeters}
+              onChange={(lat, lon) => {
+                onChange({ ...v, venueLatitude: lat, venueLongitude: lon });
+              }}
+            />
+          </div>
+
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">허용 반경 (m)</span>
             <Input
