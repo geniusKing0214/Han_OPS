@@ -1707,33 +1707,35 @@ function ScheduleCard({
         onDropWorker();
       }}
     >
-      <div className="flex items-center justify-between gap-1 px-2.5 pt-2">
+      <div className="flex items-start justify-between gap-1.5 px-2.5 pt-2">
         <button
           type="button"
-          className="min-w-0 truncate text-left text-sm font-semibold hover:text-accent"
+          className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug line-clamp-2 hover:text-accent"
           onClick={onEdit}
-          title="일정 수정"
+          title={schedule.title || "근무"}
         >
           {schedule.title || "근무"}
         </button>
-        <div className="flex shrink-0 items-center">
+        <div className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-0.5 rounded-md px-1.5 text-[10px] text-muted-foreground hover:bg-muted"
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={() => setOpen((v) => !v)}
+            aria-label={open ? "접기" : "펼치기"}
+            title={open ? "접기" : "펼치기"}
           >
-            {open ? "접기" : "펼치기"}
             {open ? (
-              <ChevronUp className="size-3" />
+              <ChevronUp className="size-3.5" />
             ) : (
-              <ChevronDown className="size-3" />
+              <ChevronDown className="size-3.5" />
             )}
           </button>
           <button
             type="button"
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-red-300"
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-red-300"
             onClick={onDelete}
             aria-label="삭제"
+            title="삭제"
           >
             <X className="size-3.5" />
           </button>
@@ -1741,46 +1743,6 @@ function ScheduleCard({
       </div>
 
       <div className="space-y-1.5 px-2.5 pb-2 pt-1.5">
-        <div className="flex items-center gap-1">
-          <Input
-            value={venueDraft}
-            placeholder="근무 장소"
-            className="h-8 rounded-lg text-xs"
-            onChange={(e) => setVenueDraft(e.target.value)}
-            onBlur={() => {
-              if (venueDraft.trim() !== schedule.venue.trim()) {
-                onPatch({ venue: venueDraft.trim() });
-              }
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div className="flex h-8 shrink-0 items-center rounded-lg border border-border bg-muted/30">
-            <button
-              type="button"
-              className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
-              onClick={() =>
-                onPatch({
-                  requiredCount: Math.max(0, schedule.requiredCount - 1),
-                })
-              }
-            >
-              <Minus className="size-3" />
-            </button>
-            <span className="min-w-[1.25rem] text-center text-xs font-semibold tabular-nums">
-              {need}
-            </span>
-            <button
-              type="button"
-              className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
-              onClick={() =>
-                onPatch({ requiredCount: schedule.requiredCount + 1 })
-              }
-            >
-              <Plus className="size-3" />
-            </button>
-          </div>
-        </div>
-
         <div className="flex items-center justify-between gap-1">
           <span className="text-[10px] tabular-nums text-muted-foreground">
             {schedule.startTime}
@@ -1797,6 +1759,50 @@ function ScheduleCard({
             {filled}/{need}명
             {full ? " · 충원 완료" : short > 0 ? ` · 부족 ${short}` : ""}
           </span>
+        </div>
+
+        <Input
+          value={venueDraft}
+          placeholder="근무 장소"
+          className="h-8 w-full rounded-lg text-xs"
+          onChange={(e) => setVenueDraft(e.target.value)}
+          onBlur={() => {
+            if (venueDraft.trim() !== schedule.venue.trim()) {
+              onPatch({ venue: venueDraft.trim() });
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-2 py-1">
+          <span className="text-[10px] font-medium text-muted-foreground">
+            필요 인원
+          </span>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() =>
+                onPatch({
+                  requiredCount: Math.max(0, schedule.requiredCount - 1),
+                })
+              }
+            >
+              <Minus className="size-3" />
+            </button>
+            <span className="min-w-[1.5rem] text-center text-xs font-semibold tabular-nums">
+              {need}
+            </span>
+            <button
+              type="button"
+              className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() =>
+                onPatch({ requiredCount: schedule.requiredCount + 1 })
+              }
+            >
+              <Plus className="size-3" />
+            </button>
+          </div>
         </div>
 
         {open ? (

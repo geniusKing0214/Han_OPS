@@ -47,7 +47,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageHeader } from "@/components/layout/page-header";
 import {
   Sheet,
   SheetContent,
@@ -56,6 +55,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/page-header";
 
 function currentMonthKey(): string {
   const d = new Date();
@@ -442,7 +442,7 @@ export function PointsDashboard() {
             : "유저별 신청·근무 현황과 포인트를 확인합니다. 순위는 승인 횟수 → 월간 포인트 순으로 반영됩니다."
         }
         actions={
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
             <span className="hidden max-w-[160px] truncate sm:inline md:max-w-none">
               {profile?.email ?? user?.email}
             </span>
@@ -470,7 +470,10 @@ export function PointsDashboard() {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {statCards.map(({ label, value, icon: Icon, tone }) => (
-          <Card key={label} className="bg-muted/30">
+          <Card
+            key={label}
+            className="bg-muted/30"
+          >
             <CardContent className="space-y-1.5 p-3 sm:space-y-2 sm:p-4">
               <div className="flex items-center justify-between gap-1">
                 <p className="text-[11px] text-muted-foreground sm:text-xs">{label}</p>

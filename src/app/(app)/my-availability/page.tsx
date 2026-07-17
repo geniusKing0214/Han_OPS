@@ -5,7 +5,6 @@ import { Check, Lock, X } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/layout/page-header";
 import {
   subscribeMyAvailability,
   upsertMyAvailability,
@@ -19,6 +18,7 @@ import {
 } from "@/lib/workforce-dates";
 import { isUserAvailableOnDate } from "@/lib/workforce-logic";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/layout/page-header";
 import type { WorkforceAvailability } from "@/types/workforce";
 
 export default function MyAvailabilityPage() {

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 import type { EventItem } from "@/types/schedule";
+import { PageHeader } from "@/components/layout/page-header";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
 import { TeamFilter } from "@/components/team/team-filter";
@@ -22,7 +23,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/layout/page-header";
 import { formatTeamIdsLabel } from "@/types/team";
 import {
   Sheet,

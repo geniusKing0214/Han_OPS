@@ -7,7 +7,10 @@ import { PageHeader } from "@/components/layout/page-header";
 export default function SettingsPage() {
   return (
     <div className="space-y-8">
-      <PageHeader title="Settings" description="프로필과 푸시 알림 설정을 관리합니다." />
+      <PageHeader
+        title="Settings"
+        description="프로필과 푸시 알림 설정을 관리합니다."
+      />
 
       <AccountSummary />
 
