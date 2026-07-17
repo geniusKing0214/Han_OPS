@@ -1763,30 +1763,25 @@ function ScheduleCard({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center justify-between gap-1.5">
           <button
             type="button"
             className={cn(
-              "flex h-7 min-w-0 flex-1 items-center gap-1 rounded-lg border px-2 text-left text-xs transition-colors",
+              "flex size-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
               venueOpen
                 ? "border-accent/50 bg-accent/10 text-accent"
-                : "border-border bg-background/60 text-foreground hover:border-accent/40",
+                : schedule.venue?.trim()
+                  ? "border-accent/40 bg-accent/5 text-accent"
+                  : "border-border bg-background/60 text-muted-foreground hover:border-accent/40 hover:text-accent",
             )}
             title={schedule.venue?.trim() || "근무 장소 입력"}
+            aria-label={schedule.venue?.trim() || "근무 장소 입력"}
             onClick={(e) => {
               e.stopPropagation();
               setVenueOpen((v) => !v);
             }}
           >
-            <MapPin className="size-3 shrink-0 text-muted-foreground" />
-            <span
-              className={cn(
-                "truncate",
-                !schedule.venue?.trim() && "text-muted-foreground",
-              )}
-            >
-              {schedule.venue?.trim() || "근무 장소"}
-            </span>
+            <MapPin className="size-3.5" />
           </button>
           <div
             className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-muted/30 px-1 py-0.5"
