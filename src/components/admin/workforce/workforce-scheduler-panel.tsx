@@ -38,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   subscribeAllUsersForAdmin,
+  subscribeAllUsersForWorkforce,
   type ListedUserRow,
 } from "@/lib/firestore-users";
 import {
@@ -213,10 +214,10 @@ export function WorkforceSchedulerPanel({
 
   useEffect(() => {
     if (!isAdmin) return;
-    return subscribeAllUsersForAdmin(
+    return subscribeAllUsersForWorkforce(
       (rows) =>
         setMembers(
-          rows.filter((r) => r.accountStatus === "approved"),
+          rows.filter((r) => r.accountStatus === "approved" || r.role === "admin"),
         ),
       (e) => setError(e.message),
     );
@@ -381,13 +382,19 @@ export function WorkforceSchedulerPanel({
       statusFilter !== "all"
         ? ` · ${WORKFORCE_WORKER_STATUS_LABELS[statusFilter]}`
         : "";
-    return TEAM_IDS.map((teamId) => ({
-      key: teamId,
-      label: `${TEAM_LABELS[teamId]}${statusSuffix}`,
-      items: workers.filter(
-        (w) => normalizeTeamId(w.member.team_id) === teamId,
-      ),
-    })).filter((g) => g.items.length > 0);
+    const adminItems = workers.filter((w) => w.member.role === "admin");
+    const groups: Array<{ key: string; label: string; items: typeof workers }> =
+      TEAM_IDS.map((teamId) => ({
+        key: teamId as string,
+        label: `${TEAM_LABELS[teamId]}${statusSuffix}`,
+        items: workers.filter(
+          (w) => w.member.role !== "admin" && normalizeTeamId(w.member.team_id) === teamId,
+        ),
+      })).filter((g) => g.items.length > 0);
+    if (adminItems.length > 0) {
+      groups.unshift({ key: "admin", label: `관리자${statusSuffix}`, items: adminItems });
+    }
+    return groups;
   }, [workers, statusFilter]);
 
   const patchScheduleFields = async (
