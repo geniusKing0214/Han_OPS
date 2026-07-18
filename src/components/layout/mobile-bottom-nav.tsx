@@ -6,7 +6,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   CalendarCheck2,
-  CalendarDays,
   ClipboardList,
   LayoutDashboard,
   MoreHorizontal,
@@ -42,15 +41,9 @@ const primary = [
   { href: "/notices", label: "공지", icon: Bell },
 ];
 
-const overviewMoreLinks: MoreLink[] = [
-  { href: "/my-availability", label: "근무 가능일", icon: CalendarDays },
-];
-
-const workMoreLinks: MoreLink[] = [
+const moreLinks: MoreLink[] = [
   { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
 ];
-
-const moreLinks: MoreLink[] = [...overviewMoreLinks, ...workMoreLinks];
 
 function MoreLinkItem({ href, label, icon: Icon }: MoreLink) {
   return (
@@ -120,16 +113,9 @@ export function MobileBottomNav({ className }: { className?: string }) {
             </SheetHeader>
             <div className="mt-4 flex flex-col gap-2">
               <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                개요
-              </p>
-              {overviewMoreLinks.map((link) => (
-                <MoreLinkItem key={link.href} {...link} />
-              ))}
-
-              <p className="mt-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                 내 업무
               </p>
-              {workMoreLinks.map((link) => (
+              {moreLinks.map((link) => (
                 <MoreLinkItem key={link.href} {...link} />
               ))}
 
