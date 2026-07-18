@@ -149,7 +149,7 @@ export function NotificationDetail({
           <Link href={scheduleHref} onClick={onBack}>
             {item.type === "application_submitted" ||
             item.type === "application_cancelled"
-              ? "신청 인원 관리로 이동"
+              ? "신청 관리로 이동"
               : "관련 일정 보기"}
           </Link>
         </Button>

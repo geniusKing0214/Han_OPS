@@ -67,7 +67,7 @@ export function MonthlySheetCalendarGrid({
       return (
         <div
           key={`empty-${i}`}
-          className="min-h-[76px] min-w-0 border-b border-r border-border bg-muted/10 last:border-r-0 md:min-h-[104px]"
+          className="min-h-[76px] min-w-0 border-b border-r border-border bg-muted/10 last:border-r-0 md:min-h-[148px] xl:min-h-[176px]"
         />
       );
     }
@@ -85,7 +85,7 @@ export function MonthlySheetCalendarGrid({
         type="button"
         onClick={() => onSelect(cell)}
         className={cn(
-          "group relative flex min-h-[76px] min-w-0 w-full flex-col overflow-hidden border-b border-r border-border p-1 text-left transition-colors last:border-r-0 md:min-h-[104px] md:p-1.5",
+          "group relative flex min-h-[76px] min-w-0 w-full flex-col overflow-hidden border-b border-r border-border p-1 text-left transition-colors last:border-r-0 md:min-h-[148px] md:p-2.5 xl:min-h-[176px] xl:p-3",
           "hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
           isSelected && "bg-accent/10 ring-1 ring-inset ring-accent/40",
         )}
@@ -102,7 +102,7 @@ export function MonthlySheetCalendarGrid({
         {/* 날짜 번호 (좌상단) */}
         <span
           className={cn(
-            "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums md:size-6 md:text-sm",
+            "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums md:size-7 md:text-base",
             isToday && "bg-accent text-accent-foreground",
             isSelected && !isToday && "text-accent",
             !isToday && !isSelected && "text-foreground/70",
@@ -114,7 +114,7 @@ export function MonthlySheetCalendarGrid({
         {/* NEW 미확인 신청 배지 (우상단 절대 위치) */}
         {pendingCount > 0 ? (
           <span
-            className="absolute right-1 top-1 flex min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 py-px text-[7px] font-bold leading-tight text-white md:min-w-[16px] md:text-[8px]"
+            className="absolute right-1 top-1 flex min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 py-px text-[7px] font-bold leading-tight text-white md:right-2 md:top-2 md:min-w-[20px] md:px-1.5 md:text-[11px]"
             aria-label={`미확인 신청 ${pendingCount}건`}
           >
             {pendingCount}
@@ -124,7 +124,7 @@ export function MonthlySheetCalendarGrid({
         {/* 스케줄 카운트 배지 (셀 중앙) */}
         <div className="flex flex-1 items-center justify-center">
           {scheduleCount > 0 ? (
-            <span className="inline-flex items-center rounded px-1 py-0.5 text-[8px] font-medium leading-tight text-accent bg-accent/15 md:text-[9px]">
+            <span className="inline-flex items-center rounded px-1 py-0.5 text-[8px] font-medium leading-tight text-accent bg-accent/15 md:rounded-md md:px-2 md:py-1 md:text-sm">
               스케줄 {scheduleCount}
             </span>
           ) : null}
@@ -136,16 +136,16 @@ export function MonthlySheetCalendarGrid({
   return (
     <div
       className={cn(
-        "w-full max-w-full overflow-hidden rounded-lg border border-border bg-card",
+        "w-full max-w-full overflow-hidden rounded-lg border border-border bg-card md:rounded-xl",
         className,
       )}
     >
-      <div className="grid w-full grid-cols-7 border-b border-border bg-muted/30 text-center text-[9px] font-medium text-muted-foreground md:text-xs">
+      <div className="grid w-full grid-cols-7 border-b border-border bg-muted/30 text-center text-[9px] font-medium text-muted-foreground md:text-sm">
         {weekdays.map((w, idx) => (
           <div
             key={w}
             className={cn(
-              "min-w-0 border-r border-border py-1.5 last:border-r-0 md:px-1 md:py-2",
+              "min-w-0 border-r border-border py-1.5 last:border-r-0 md:px-1 md:py-2.5",
               idx === 0 && "text-red-400",
               idx === 6 && "text-blue-400",
             )}
@@ -156,13 +156,17 @@ export function MonthlySheetCalendarGrid({
       </div>
       <div className="grid w-full grid-cols-7">{cells.map(renderCell)}</div>
 
-      <div className="flex items-center gap-3 border-t border-border px-3 py-2">
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <span className="inline-block rounded px-1 py-0.5 text-[8px] font-medium text-accent bg-accent/15">스케줄 N</span>
+      <div className="flex items-center gap-3 border-t border-border px-3 py-2 md:gap-4 md:px-4 md:py-2.5">
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground md:text-sm">
+          <span className="inline-block rounded px-1 py-0.5 text-[8px] font-medium text-accent bg-accent/15 md:text-xs">
+            스케줄 N
+          </span>
           스케줄 수
         </span>
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <span className="inline-flex min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold text-white">N</span>
+        <span className="flex items-center gap-1 text-[10px] text-muted-foreground md:text-sm">
+          <span className="inline-flex min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold text-white md:min-w-[18px] md:text-[11px]">
+            N
+          </span>
           미확인 신청
         </span>
       </div>

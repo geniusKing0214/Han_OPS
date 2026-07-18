@@ -212,13 +212,13 @@ export function MonthlySheetBoard(_props: Props = {}) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-6">
       <Card>
-        <CardHeader className="space-y-3">
+        <CardHeader className="space-y-3 md:space-y-4 md:p-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <CardTitle className="text-lg">월간 취합표</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg md:text-2xl">월간 취합표</CardTitle>
+              <CardDescription className="md:text-sm">
                 스케줄·승인 신청을 월별·팀별로 자동 취합합니다.
                 {canEdit
                   ? " 관리자는 날짜를 선택해 실제 일정 또는 취합표 표시 내용을 수정할 수 있습니다."
@@ -231,11 +231,11 @@ export function MonthlySheetBoard(_props: Props = {}) {
                   type="button"
                   size="sm"
                   variant="accent"
-                  className="gap-1.5"
+                  className="gap-1.5 md:h-10 md:px-4 md:text-sm"
                   onClick={() => setCreateOpen(true)}
                   disabled={scheduleSaving}
                 >
-                  <Plus className="size-3.5" />
+                  <Plus className="size-3.5 md:size-4" />
                   스케줄 생성
                 </Button>
               ) : null}
@@ -244,11 +244,11 @@ export function MonthlySheetBoard(_props: Props = {}) {
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="gap-1.5"
+                  className="gap-1.5 md:h-10 md:px-4 md:text-sm"
                   onClick={handleExport}
                   disabled={effectiveTeamFilter === "all"}
                 >
-                  <Download className="size-3.5" />
+                  <Download className="size-3.5 md:size-4" />
                   엑셀 다운로드
                 </Button>
               ) : null}
@@ -261,22 +261,24 @@ export function MonthlySheetBoard(_props: Props = {}) {
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="md:size-10"
                 onClick={() => setMonth((m) => addMonths(m, -1))}
                 aria-label="이전 달"
               >
-                <ChevronLeft className="size-4" />
+                <ChevronLeft className="size-4 md:size-5" />
               </Button>
-              <p className="min-w-[8rem] text-center text-base font-semibold tabular-nums">
+              <p className="min-w-[8rem] text-center text-base font-semibold tabular-nums md:min-w-[10rem] md:text-xl">
                 {monthLabel}
               </p>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="md:size-10"
                 onClick={() => setMonth((m) => addMonths(m, 1))}
                 aria-label="다음 달"
               >
-                <ChevronRight className="size-4" />
+                <ChevronRight className="size-4 md:size-5" />
               </Button>
             </div>
 
@@ -287,6 +289,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
                   type="button"
                   size="sm"
                   variant={includePending ? "accent" : "outline"}
+                  className="md:h-10 md:px-4 md:text-sm"
                   onClick={() => setIncludePending((v) => !v)}
                 >
                   {includePending ? "대기자 포함" : "승인자만"}
@@ -296,7 +299,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4 overflow-x-hidden">
+        <CardContent className="space-y-4 overflow-x-hidden md:space-y-5 md:p-6 md:pt-0">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
@@ -316,14 +319,14 @@ export function MonthlySheetBoard(_props: Props = {}) {
           ) : null}
 
           {canEdit && teamFilter === "all" ? (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 md:text-sm">
               「전체」에서는 실제 일정 수정만 가능합니다. 취합표 표시 수정과 엑셀
               다운로드는 1팀/2팀 탭에서 선택하세요.
             </p>
           ) : null}
 
           {!loading ? (
-            <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-6">
               <div className="space-y-4">
                 <MonthlySheetCalendarGrid
                   month={month}
@@ -368,10 +371,10 @@ export function MonthlySheetBoard(_props: Props = {}) {
               </div>
 
               {!isMobile ? (
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold">날짜 상세</h3>
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-border bg-card p-5">
+                    <div className="mb-4 flex items-center justify-between gap-2">
+                      <h3 className="text-base font-semibold">날짜 상세</h3>
                       {canEdit && effectiveTeamFilter !== "all" ? (
                         <Button
                           type="button"
@@ -400,11 +403,11 @@ export function MonthlySheetBoard(_props: Props = {}) {
                   </div>
 
                   {canEdit && effectiveTeamFilter !== "all" ? (
-                    <div className="rounded-lg border border-border bg-card p-4">
-                      <h3 className="text-sm font-semibold">월간 관리자 메모</h3>
+                    <div className="rounded-xl border border-border bg-card p-5">
+                      <h3 className="text-base font-semibold">월간 관리자 메모</h3>
                       <Textarea
-                        className="mt-2"
-                        rows={3}
+                        className="mt-3 min-h-[110px] text-sm"
+                        rows={4}
                         value={memoDraft}
                         onChange={(e) => setMemoDraft(e.target.value)}
                         placeholder="이번 달 취합표 전체 메모"
@@ -413,7 +416,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
                         type="button"
                         size="sm"
                         variant="accent"
-                        className="mt-2"
+                        className="mt-3 md:h-10 md:px-4"
                         disabled={memoSaving}
                         onClick={() => void handleSaveAdminMemo()}
                       >
@@ -421,9 +424,9 @@ export function MonthlySheetBoard(_props: Props = {}) {
                       </Button>
                     </div>
                   ) : adminMemo ? (
-                    <div className="rounded-lg border border-border bg-card p-4">
-                      <h3 className="text-sm font-semibold">월간 메모</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">
+                    <div className="rounded-xl border border-border bg-card p-5">
+                      <h3 className="text-base font-semibold">월간 메모</h3>
+                      <p className="mt-3 text-sm text-muted-foreground">
                         {adminMemo}
                       </p>
                     </div>
