@@ -175,7 +175,7 @@ export function MonthlySheetDayDetail({
                   </div>
 
                   {/* 일정 수정 버튼 */}
-                  {onEditSchedule ? (
+                  {onEditSchedule && !row.workforceScheduleId ? (
                     <div className="mb-2 md:mb-3">
                       <Button
                         type="button"
@@ -191,6 +191,10 @@ export function MonthlySheetDayDetail({
                         일정 수정
                       </Button>
                     </div>
+                  ) : row.workforceScheduleId ? (
+                    <p className="mb-2 text-xs text-accent md:mb-3 md:text-sm">
+                      인력 배치 스케줄러에서 자동 연동됨
+                    </p>
                   ) : null}
 
                   {/* 신청자 목록 */}

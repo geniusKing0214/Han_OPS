@@ -37,6 +37,8 @@ export type SheetApplicant = {
 /** 캘린더 셀·상세에 표시할 슬롯 단위 행 */
 export type SheetSlotRow = {
   entryKey: string;
+  /** 인력 배치 스케줄러에서 자동 집계된 행 */
+  workforceScheduleId?: string;
   eventId: string;
   sessionId: string;
   slotId: string;

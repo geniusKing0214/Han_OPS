@@ -2,12 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { buildMonthlySheetDays } from "@/lib/monthly-sheet-aggregator";
+import {
+  buildMonthlySheetDays,
+  datesInMonth,
+  type WorkforceUserSummary,
+} from "@/lib/monthly-sheet-aggregator";
 import {
   subscribeApplicationsInMonthForAdmin,
   subscribeApplicationsInMonthForTeam,
 } from "@/lib/firestore-applications";
 import { subscribeMonthlySheet } from "@/lib/firestore-monthly-sheets";
+import { subscribeWorkforceSchedulesMulti } from "@/lib/firestore-workforce";
+import { subscribeAllUsersForAdmin } from "@/lib/firestore-users";
+import { getWeekStartMonday } from "@/lib/workforce-dates";
 import { filterEventsByTeamFilter, filterEventsForMember } from "@/lib/team-utils";
 import type { ApplicationItem } from "@/types/application";
 import type { MonthlySheetDoc } from "@/types/monthly-sheet";
@@ -20,6 +27,7 @@ import {
   type TeamId,
 } from "@/types/team";
 import type { EventItem } from "@/types/schedule";
+import type { WorkforceSchedule } from "@/types/workforce";
 
 export function useMonthlySheetData(input: {
   month: Date;
@@ -30,6 +38,13 @@ export function useMonthlySheetData(input: {
   events: EventItem[];
 }) {
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
+  const [workforceSchedules, setWorkforceSchedules] = useState<
+    WorkforceSchedule[]
+  >([]);
+  const [workforceUsers, setWorkforceUsers] = useState<
+    WorkforceUserSummary[]
+  >([]);
+  const [workforceLoading, setWorkforceLoading] = useState(input.isAdmin);
   const [appsLoading, setAppsLoading] = useState(true);
   const [appsError, setAppsError] = useState<string | null>(null);
   const [sheetDocs, setSheetDocs] = useState<
@@ -40,6 +55,70 @@ export function useMonthlySheetData(input: {
   const year = input.month.getFullYear();
   const monthIndex = input.month.getMonth();
   const memberTeam = normalizeTeamId(input.memberTeamId);
+
+  const monthWeekStarts = useMemo(
+    () => [
+      ...new Set(
+        datesInMonth(year, monthIndex).map((date) =>
+          getWeekStartMonday(new Date(`${date}T00:00:00`)),
+        ),
+      ),
+    ],
+    [year, monthIndex],
+  );
+
+  useEffect(() => {
+    if (!input.isAdmin) {
+      setWorkforceSchedules([]);
+      setWorkforceUsers([]);
+      setWorkforceLoading(false);
+      return;
+    }
+
+    setWorkforceLoading(true);
+    let schedulesReady = false;
+    let usersReady = false;
+    const finishIfReady = () => {
+      if (schedulesReady && usersReady) setWorkforceLoading(false);
+    };
+    const unsubscribeSchedules = subscribeWorkforceSchedulesMulti(
+      monthWeekStarts,
+      (rows) => {
+        setWorkforceSchedules(
+          rows.filter((row) => row.date.startsWith(monthKey)),
+        );
+        schedulesReady = true;
+        finishIfReady();
+      },
+      (err) => {
+        setAppsError(err.message);
+        schedulesReady = true;
+        finishIfReady();
+      },
+    );
+    const unsubscribeUsers = subscribeAllUsersForAdmin(
+      (rows) => {
+        setWorkforceUsers(
+          rows.map((row) => ({
+            uid: row.uid,
+            name: row.displayName?.trim() || row.email,
+            teamId: normalizeTeamId(row.team_id),
+          })),
+        );
+        usersReady = true;
+        finishIfReady();
+      },
+      (err) => {
+        setAppsError(err.message);
+        usersReady = true;
+        finishIfReady();
+      },
+    );
+    return () => {
+      unsubscribeSchedules();
+      unsubscribeUsers();
+    };
+  }, [input.isAdmin, monthKey, monthWeekStarts]);
 
   useEffect(() => {
     setAppsLoading(true);
@@ -126,6 +205,8 @@ export function useMonthlySheetData(input: {
         monthIndex,
         events: filteredEvents,
         applications,
+        workforceSchedules,
+        workforceUsers,
         teamFilter: effectiveTeamFilter,
         includePending: input.isAdmin && input.includePending,
         dayOverridesByTeam,
@@ -135,6 +216,8 @@ export function useMonthlySheetData(input: {
       monthIndex,
       filteredEvents,
       applications,
+      workforceSchedules,
+      workforceUsers,
       effectiveTeamFilter,
       input.isAdmin,
       input.includePending,
@@ -150,7 +233,7 @@ export function useMonthlySheetData(input: {
   return {
     days,
     applications,
-    appsLoading,
+    appsLoading: appsLoading || workforceLoading,
     appsError,
     sheetDocs,
     adminMemo,

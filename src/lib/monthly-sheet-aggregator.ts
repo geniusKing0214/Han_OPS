@@ -18,6 +18,13 @@ import {
   type TeamId,
 } from "@/types/team";
 import type { EventItem, Session, Slot } from "@/types/schedule";
+import type { WorkforceSchedule } from "@/types/workforce";
+
+export type WorkforceUserSummary = {
+  uid: string;
+  name: string;
+  teamId: TeamId;
+};
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -179,10 +186,69 @@ function teamsForFilter(filter: TeamFilterValue): TeamId[] {
   return [filter];
 }
 
+function buildWorkforceRow(
+  schedule: WorkforceSchedule,
+  teamId: TeamId,
+  usersById: ReadonlyMap<string, WorkforceUserSummary>,
+  entryOverride?: SheetEntryOverride,
+): SheetSlotRow | null {
+  const assignedUsers = schedule.assignedUserIds
+    .map((uid) => usersById.get(uid))
+    .filter(
+      (user): user is WorkforceUserSummary =>
+        Boolean(user) && user?.teamId === teamId,
+    );
+  const assignedCount = schedule.assignedUserIds.filter((uid) => {
+    const user = usersById.get(uid);
+    // 멤버 화면처럼 사용자 명단을 읽을 수 없을 때는 팀 공용 일정의
+    // 전체 배정 인원을 숫자로라도 표시한다.
+    return user ? user.teamId === teamId : schedule.teamIds.includes(teamId);
+  }).length;
+
+  if (assignedCount === 0 && !entryOverride) return null;
+
+  const applicants = assignedUsers.map((user) => ({
+    name: user.name,
+    status: "approved" as const,
+  }));
+  const base = {
+    entryKey: `workforce:${schedule.id}:${teamId}`,
+    workforceScheduleId: schedule.id,
+    eventId: schedule.sourceEventId ?? "",
+    sessionId: schedule.sourceSessionId ?? "",
+    slotId: schedule.sourceSlotId ?? "",
+    date: schedule.date,
+    teamId,
+    eventTitle: schedule.title,
+    venue: schedule.venue,
+    slotTime: schedule.startTime.trim() || "—",
+    capacity: schedule.requiredCount,
+    headcount: assignedCount,
+    applicants,
+    eventNotice: schedule.note || undefined,
+    eventColor: schedule.color,
+  };
+  const row = applyEntryOverride(base, entryOverride);
+  return {
+    ...row,
+    statusLabel: `배정 ${assignedCount}명 · 필요 ${schedule.requiredCount}명`,
+    displayLines: [
+      row.eventTitle,
+      row.venue,
+      applicants.length > 0
+        ? applicants.map((applicant) => applicant.name).join(", ")
+        : `배정 ${assignedCount}명`,
+      `${row.slotTime} · ${assignedCount}/${schedule.requiredCount}명`,
+    ],
+  };
+}
+
 function buildDayBundle(
   date: string,
   events: EventItem[],
   applications: ApplicationItem[],
+  workforceSchedules: WorkforceSchedule[],
+  workforceUsersById: ReadonlyMap<string, WorkforceUserSummary>,
   teamFilter: TeamFilterValue,
   includePending: boolean,
   dayOverride?: SheetDayOverride,
@@ -191,10 +257,31 @@ function buildDayBundle(
   const teams = teamsForFilter(teamFilter);
 
   for (const teamId of teams) {
+    const dayWorkforceSchedules = workforceSchedules.filter(
+      (schedule) =>
+        schedule.date === date &&
+        schedule.status !== "cancelled" &&
+        schedule.teamIds.includes(teamId) &&
+        schedule.assignedUserIds.length > 0,
+    );
+    const linkedSessionKeys = new Set(
+      dayWorkforceSchedules
+        .filter(
+          (schedule) => schedule.sourceEventId && schedule.sourceSessionId,
+        )
+        .map(
+          (schedule) =>
+            `${schedule.sourceEventId}:${schedule.sourceSessionId}`,
+        ),
+    );
+
     for (const event of events) {
       if (!eventVisibleToTeam(event, teamId)) continue;
       for (const session of event.sessions) {
         if (session.date !== date) continue;
+        // 스케줄러에 연결되어 실제 배정이 있으면 슬롯 신청 행 대신
+        // 아래의 인력 배정 행 하나로 표시하여 중복을 방지한다.
+        if (linkedSessionKeys.has(`${event.id}:${session.id}`)) continue;
         for (const slot of session.slots) {
           const entryOverride = dayOverride?.entryOverrides?.[
             slotKey(event.id, session.id, slot.id)
@@ -221,6 +308,29 @@ function buildDayBundle(
             rows.push(row);
           }
         }
+      }
+    }
+
+    for (const schedule of dayWorkforceSchedules) {
+      const entryKey = `workforce:${schedule.id}:${teamId}`;
+      const entryOverride = dayOverride?.entryOverrides?.[entryKey];
+      const row = buildWorkforceRow(
+        schedule,
+        teamId,
+        workforceUsersById,
+        entryOverride,
+      );
+      if (!row) continue;
+      if (teamFilter === "all") {
+        rows.push({
+          ...row,
+          displayLines: [
+            `[${TEAM_LABELS[teamId]}]`,
+            ...row.displayLines,
+          ],
+        });
+      } else {
+        rows.push(row);
       }
     }
   }
@@ -263,6 +373,8 @@ export function buildMonthlySheetDays(input: {
   monthIndex: number;
   events: EventItem[];
   applications: ApplicationItem[];
+  workforceSchedules?: WorkforceSchedule[];
+  workforceUsers?: WorkforceUserSummary[];
   teamFilter: TeamFilterValue;
   includePending: boolean;
   dayOverridesByTeam: Partial<Record<TeamId, Record<string, SheetDayOverride>>>;
@@ -270,6 +382,9 @@ export function buildMonthlySheetDays(input: {
   const liveApps = filterApplicationsMatchingLiveSchedule(
     input.applications,
     input.events,
+  );
+  const workforceUsersById = new Map(
+    (input.workforceUsers ?? []).map((user) => [user.uid, user]),
   );
 
   const map = new Map<string, SheetDayBundle>();
@@ -288,6 +403,8 @@ export function buildMonthlySheetDays(input: {
         date,
         input.events,
         liveApps,
+        input.workforceSchedules ?? [],
+        workforceUsersById,
         input.teamFilter,
         input.includePending,
         mergedOverride,

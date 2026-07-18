@@ -47,7 +47,6 @@ import {
   deleteWorkforceSchedule,
   deleteSchedulesInMonth,
   ensureWeekMeta,
-  exportWeekToMonthlySheet,
   importEventsForWeek,
   countPendingEventImports,
   hasDuplicateSessionSchedules,
@@ -310,12 +309,6 @@ export function WorkforceSchedulerPanel({
     for (const r of members) {
       m.set(r.uid, r.displayName?.trim() || r.email.split("@")[0] || r.uid);
     }
-    return m;
-  }, [members]);
-
-  const teamByUid = useMemo(() => {
-    const m = new Map<string, TeamId>();
-    for (const r of members) m.set(r.uid, normalizeTeamId(r.team_id));
     return m;
   }, [members]);
 
@@ -948,38 +941,6 @@ export function WorkforceSchedulerPanel({
             }
           >
             전체 초기화
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-xl"
-            disabled={busy || schedules.length === 0}
-            onClick={() =>
-              void (async () => {
-                setBusy(true);
-                try {
-                  const id = await exportWeekToMonthlySheet({
-                    weekStart: primaryWeekStart,
-                    schedules,
-                    nameByUid,
-                    teamByUid,
-                    yearMonth: yearMonthFromYmd(cursor),
-                  });
-                  alert(
-                    `취합표 전달 데이터를 저장했습니다. (export: ${id.slice(0, 8)}…)`,
-                  );
-                } catch (e) {
-                  setError(
-                    e instanceof Error ? e.message : "취합표 전달 실패",
-                  );
-                } finally {
-                  setBusy(false);
-                }
-              })()
-            }
-          >
-            취합표로 보내기
           </Button>
         </div>
       </div>
