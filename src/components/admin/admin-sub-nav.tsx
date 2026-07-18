@@ -14,12 +14,6 @@ const items = [
       p === "/admin/availability" || p.startsWith("/admin/availability/"),
   },
   {
-    href: "/admin/roster",
-    label: "신청 인원 관리",
-    isActive: (p: string) =>
-      p === "/admin/roster" || p.startsWith("/admin/roster/"),
-  },
-  {
     href: "/admin/attendance",
     label: "출근 인증 관리",
     isActive: (p: string) =>
@@ -63,7 +57,7 @@ export function AdminSubNav() {
         className={cn(
           "items-stretch gap-0",
           "flex min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:overflow-visible lg:grid lg:grid-cols-7",
+          "md:overflow-visible lg:grid lg:grid-cols-6",
         )}
       >
         {items.map(({ href, label, isActive }) => {

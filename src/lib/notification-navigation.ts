@@ -16,7 +16,8 @@ export function buildAdminRosterPath(params?: AdminRosterLinkParams): string {
   if (params?.slotTime) search.set("slot", params.slotTime);
   if (params?.applicationId) search.set("app", params.applicationId);
   const q = search.toString();
-  return q ? `/admin/roster/?${q}` : "/admin/roster/";
+  // 신청 인원 관리 메뉴 제거 → 어드민 신청 화면으로 연결
+  return q ? `/admin/applications/?${q}` : "/admin/applications/";
 }
 
 export function adminRosterPathFromNotification(
