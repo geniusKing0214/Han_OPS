@@ -277,3 +277,21 @@ export async function removeFcmToken(uid: string, token: string) {
     fcmTokens: arrayRemove(trimmed),
   });
 }
+
+/** Workforce scheduler: subscribe all users including admins */
+export function subscribeAllUsersForWorkforce(
+  onData: (rows: ListedUserRow[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  return onSnapshot(
+    collection(db, USERS_COLLECTION),
+    (snap) => {
+      const rows = snap.docs.map((d) => ({
+        uid: d.id,
+        ...(d.data() as UserProfileDoc),
+      }));
+      onData(rows);
+    },
+    (err) => onError?.(err),
+  );
+}
