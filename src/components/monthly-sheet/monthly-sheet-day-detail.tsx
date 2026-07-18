@@ -56,9 +56,11 @@ export function MonthlySheetDayDetail({
     return (
       <div className={cn("space-y-1", className)}>
         {bundle?.dayOverride?.manualText ? (
-          <p className="px-1 text-sm text-accent">{bundle.dayOverride.manualText}</p>
+          <p className="px-1 text-sm text-accent md:text-base">
+            {bundle.dayOverride.manualText}
+          </p>
         ) : null}
-        <p className="px-1 text-sm text-muted-foreground">
+        <p className="px-1 text-sm text-muted-foreground md:text-base">
           이 날짜에 표시할 일정이 없습니다.
         </p>
       </div>
@@ -66,19 +68,21 @@ export function MonthlySheetDayDetail({
   }
 
   return (
-    <div className={cn("space-y-1", className)}>
+    <div className={cn("space-y-1 md:space-y-2", className)}>
       {bundle.dayOverride?.manualText ? (
-        <p className="px-1 pb-1 text-sm text-accent">{bundle.dayOverride.manualText}</p>
+        <p className="px-1 pb-1 text-sm text-accent md:text-base">
+          {bundle.dayOverride.manualText}
+        </p>
       ) : null}
       {bundle.dayOverride?.customMemo ? (
-        <p className="px-1 pb-1 text-xs text-muted-foreground">
+        <p className="px-1 pb-1 text-xs text-muted-foreground md:text-sm">
           {bundle.dayOverride.customMemo}
         </p>
       ) : null}
 
       {/* 아코디언 목록 */}
-      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-        {bundle.rows.map((row, rowIdx) => {
+      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card md:rounded-xl">
+        {bundle.rows.map((row) => {
           const isOpen = expandedKeys.has(row.entryKey);
           const accentColor = row.override?.color || row.eventColor;
           const newCount = pendingCount(row);
@@ -89,11 +93,11 @@ export function MonthlySheetDayDetail({
               <button
                 type="button"
                 onClick={() => toggleRow(row.entryKey)}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/30"
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/30 md:gap-3 md:px-4 md:py-3.5"
               >
                 {/* 이벤트 색상 점 */}
                 <span
-                  className="size-2 shrink-0 rounded-full"
+                  className="size-2 shrink-0 rounded-full md:size-2.5"
                   style={{
                     backgroundColor: accentColor ?? "hsl(var(--accent))",
                   }}
@@ -104,26 +108,27 @@ export function MonthlySheetDayDetail({
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     {showTeamBadge ? (
-                      <Badge variant="outline" className="text-[9px]">
+                      <Badge variant="outline" className="text-[9px] md:text-[11px]">
                         {TEAM_LABELS[row.teamId]}
                       </Badge>
                     ) : null}
-                    <span className="truncate text-sm font-medium">
+                    <span className="truncate text-sm font-medium md:text-base">
                       {row.override?.eventTitle ?? row.eventTitle}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                    {row.override?.venue ?? row.venue} · {row.override?.slotTime ?? row.slotTime}
+                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground md:text-sm">
+                    {row.override?.venue ?? row.venue} ·{" "}
+                    {row.override?.slotTime ?? row.slotTime}
                   </p>
                 </div>
 
                 {/* 미확인 신청 배지 */}
                 {newCount > 0 ? (
-                  <span className="shrink-0 rounded-full bg-red-500/90 px-1.5 py-px text-[9px] font-bold text-white">
+                  <span className="shrink-0 rounded-full bg-red-500/90 px-1.5 py-px text-[9px] font-bold text-white md:px-2 md:text-xs">
                     NEW {newCount}
                   </span>
                 ) : row.applicants.length > 0 ? (
-                  <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[9px] text-muted-foreground">
+                  <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[9px] text-muted-foreground md:px-2 md:text-xs">
                     신청 {row.applicants.length}
                   </span>
                 ) : null}
@@ -131,7 +136,7 @@ export function MonthlySheetDayDetail({
                 {/* 펼침 아이콘 */}
                 <ChevronDown
                   className={cn(
-                    "size-4 shrink-0 text-muted-foreground/60 transition-transform duration-200",
+                    "size-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 md:size-5",
                     isOpen && "rotate-180",
                   )}
                 />
@@ -139,41 +144,50 @@ export function MonthlySheetDayDetail({
 
               {/* 아코디언 바디 */}
               {isOpen ? (
-                <div className="border-t border-border bg-muted/10 px-3 py-3">
+                <div className="border-t border-border bg-muted/10 px-3 py-3 md:px-4 md:py-4">
                   {/* 상세 정보 */}
-                  <div className="mb-2 space-y-1 text-xs text-muted-foreground">
+                  <div className="mb-2 space-y-1 text-xs text-muted-foreground md:mb-3 md:space-y-1.5 md:text-sm">
                     <p>
-                      <span className="inline-block w-10 font-medium text-foreground/60">장소</span>
+                      <span className="inline-block w-10 font-medium text-foreground/60 md:w-12">
+                        장소
+                      </span>
                       {row.override?.venue ?? row.venue}
                     </p>
                     <p>
-                      <span className="inline-block w-10 font-medium text-foreground/60">시간</span>
+                      <span className="inline-block w-10 font-medium text-foreground/60 md:w-12">
+                        시간
+                      </span>
                       {row.override?.slotTime ?? row.slotTime}
                     </p>
                     <p>
-                      <span className="inline-block w-10 font-medium text-foreground/60">인원</span>
-                      {row.override?.headcount ?? row.headcount}명 / {row.capacity}명 정원
+                      <span className="inline-block w-10 font-medium text-foreground/60 md:w-12">
+                        인원
+                      </span>
+                      {row.override?.headcount ?? row.headcount}명 / {row.capacity}
+                      명 정원
                     </p>
                     <p>
-                      <span className="inline-block w-10 font-medium text-foreground/60">상태</span>
+                      <span className="inline-block w-10 font-medium text-foreground/60 md:w-12">
+                        상태
+                      </span>
                       {row.statusLabel}
                     </p>
                   </div>
 
                   {/* 일정 수정 버튼 */}
                   {onEditSchedule ? (
-                    <div className="mb-2">
+                    <div className="mb-2 md:mb-3">
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 gap-1 px-2 text-xs"
+                        className="h-7 gap-1 px-2 text-xs md:h-9 md:px-3 md:text-sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           onEditSchedule(row);
                         }}
                       >
-                        <Pencil className="size-3" />
+                        <Pencil className="size-3 md:size-3.5" />
                         일정 수정
                       </Button>
                     </div>
@@ -181,39 +195,41 @@ export function MonthlySheetDayDetail({
 
                   {/* 신청자 목록 */}
                   {row.applicants.length > 0 ? (
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-1.5 md:space-y-2">
                       {row.applicants.map((a, idx) => (
                         <li
                           key={`${row.entryKey}-a-${idx}`}
-                          className="flex items-center gap-2 text-sm"
+                          className="flex items-center gap-2 text-sm md:text-base"
                         >
                           <Badge
                             variant={statusBadgeVariant(a.status)}
-                            className="text-[10px]"
+                            className="text-[10px] md:text-xs"
                           >
                             {statusLabel(a.status)}
                           </Badge>
-                          <span className="text-sm">{a.name}</span>
+                          <span>{a.name}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-muted-foreground">신청자 없음</p>
+                    <p className="text-xs text-muted-foreground md:text-sm">
+                      신청자 없음
+                    </p>
                   )}
 
                   {/* 메모 */}
                   {row.override?.displayMemo ? (
-                    <p className="mt-2 text-xs text-foreground/90">
+                    <p className="mt-2 text-xs text-foreground/90 md:text-sm">
                       {row.override.displayMemo}
                     </p>
                   ) : null}
                   {row.override?.extraMemo ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                       {row.override.extraMemo}
                     </p>
                   ) : null}
                   {row.eventNotice ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
                       [일정] {row.eventNotice}
                     </p>
                   ) : null}
