@@ -53,29 +53,37 @@ function StatCard({
   const card = (
     <Card
       className={cn(
+        "flex h-full min-h-[7.5rem] flex-col",
         interactive &&
           "transition-colors hover:border-accent/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
       )}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="truncate text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
           {icon}
         </span>
       </CardHeader>
-      <CardContent>
+      <CardContent className="mt-auto flex flex-1 flex-col justify-end">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+        <p
+          className="mt-0.5 line-clamp-2 min-h-[2rem] text-xs leading-4 text-muted-foreground"
+          title={hint}
+        >
+          {hint}
+        </p>
       </CardContent>
     </Card>
   );
 
+  const shellClass =
+    "block h-full min-w-0 w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+
   if (href) {
     return (
-      <Link
-        href={href}
-        className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      >
+      <Link href={href} className={shellClass}>
         {card}
       </Link>
     );
@@ -86,14 +94,14 @@ function StatCard({
       <button
         type="button"
         onClick={onClick}
-        className="block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className={cn(shellClass, "appearance-none border-0 bg-transparent p-0 text-left")}
       >
         {card}
       </button>
     );
   }
 
-  return card;
+  return <div className="h-full min-w-0 w-full">{card}</div>;
 }
 
 const RECENT_NOTICES_LIMIT = 3;
@@ -220,7 +228,7 @@ export default function DashboardPage() {
         description="운영 현황 개요 · 데이터 연동 전에는 빈 화면으로 테스트할 수 있습니다."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <StatCard
           title="오늘 일정"
           value={stats.todayShiftCount}
