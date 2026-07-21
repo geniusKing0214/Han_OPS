@@ -1370,6 +1370,7 @@ export function WorkforceSchedulerPanel({
                           approvedApplicants={
                             approvedApplicantsByScheduleId.get(s.id) ?? []
                           }
+                          applications={applications}
                           defaultExpanded={daySchedules.length <= 2}
                           onEdit={() => void openEdit(s)}
                           onDelete={() =>
@@ -1718,6 +1719,7 @@ function ScheduleCard({
   schedule,
   nameByUid,
   approvedApplicants,
+  applications,
   defaultExpanded = true,
   onEdit,
   onDelete,
@@ -1732,6 +1734,8 @@ function ScheduleCard({
   nameByUid: Map<string, string>;
   /** 이벤트 신청에서 승인·완료된 유저 (배정 목록과 별도 표시) */
   approvedApplicants: ApprovedApplicant[];
+  /** 포지션 슬롯 시간 표시를 위한 신청 목록 */
+  applications: ApplicationItem[];
   defaultExpanded?: boolean;
   onEdit: () => void;
   onDelete: () => void;
