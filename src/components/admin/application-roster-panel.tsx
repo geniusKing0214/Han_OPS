@@ -196,6 +196,9 @@ function SlotRosterRow({
                         <p className="text-xs text-muted-foreground">
                           포지션:{" "}
                           <span className="font-medium text-foreground">{a.positionLabel}</span>
+                          {a.positionSlotTime ? (
+                            <span className="ml-1 tabular-nums text-accent">· {a.positionSlotTime}</span>
+                          ) : null}
                         </p>
                       ) : null}
                       <p className="text-xs text-muted-foreground">

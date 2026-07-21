@@ -185,36 +185,81 @@ export function ScheduleBoard({
                         <p className="text-xs text-muted-foreground">
                           거절 처리된 신청은 같은 이벤트에 다시 신청할 수 있습니다.
                         </p>
-                        {session.slots.map((slot) => {
+                        {/* Option B: 포지션 기반 표시 */}
+                        {event.usePositions &&
+                        event.positions?.some((p) => p.slots && p.slots.length > 0) ? (
+                          <div className="space-y-2">
+                            {event.positions!.filter((p) => p.slots && p.slots.length > 0).map((pos) => {
+                              const alreadyAppliedEvent = appliedEventIds.has(event.id);
+                              return (
+                                <div key={pos.id} className="rounded-md border border-border bg-card px-3 py-2.5 space-y-2">
+                                  <p className="text-xs font-semibold text-foreground">{pos.label}</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {pos.slots.map((slot) => {
+                                      const slotRemaining = Math.max(0, slot.capacity - slot.applied_count);
+                                      const full = slotRemaining === 0;
+                                      const blocked = full || alreadyAppliedEvent || teamApplyLocked;
+                                      return (
+                                        <div key={slot.id} className="flex items-center gap-1.5">
+                                          <span className="text-xs tabular-nums text-muted-foreground">
+                                            {slot.time}
+                                            <span className="ml-1 opacity-70">
+                                              {full ? "마감" : `잔여${slotRemaining}/${slot.capacity}`}
+                                            </span>
+                                          </span>
+                                          {full && <Badge variant="warning" className="text-[10px] px-1.5 py-0">마감</Badge>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {/* 이 포지션에 열린 슬롯이 하나라도 있으면 신청 버튼 */}
+                                  {!alreadyAppliedEvent && !teamApplyLocked &&
+                                  pos.slots.some((s) => s.applied_count < s.capacity) ? (
+                                    <Button
+                                      size="sm"
+                                      variant="accent"
+                                      className="w-full"
+                                      onClick={() => {
+                                        setApplyCtx({
+                                          eventId: event.id,
+                                          sessionId: session.id,
+                                          eventTitle: event.title,
+                                          venue: event.venue,
+                                          date: session.date,
+                                          usePositions: true,
+                                          positions: event.positions,
+                                        });
+                                        setApplyOpen(true);
+                                      }}
+                                    >
+                                      신청
+                                    </Button>
+                                  ) : alreadyAppliedEvent ? (
+                                    <Button size="sm" variant="outline" disabled className="w-full">신청 완료</Button>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* 기존: 일반 슬롯 표시 */
+                          session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
-                          const alreadyAppliedEvent = appliedEventIds.has(
-                            event.id,
-                          );
-                          const blocked =
-                            full || alreadyAppliedEvent || teamApplyLocked;
+                          const alreadyAppliedEvent = appliedEventIds.has(event.id);
+                          const blocked = full || alreadyAppliedEvent || teamApplyLocked;
                           return (
                             <div
                               key={slot.id}
                               className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2.5"
                             >
                               <div className="text-sm tabular-nums">
-                                <span className="font-medium text-foreground">
-                                  {slot.start_time}
-                                </span>
+                                <span className="font-medium text-foreground">{slot.start_time}</span>
                                 <span className="ml-2 text-muted-foreground">
                                   정원 {slot.applied_count}/{slot.capacity}
                                 </span>
-                                {full && (
-                                  <Badge variant="warning" className="ml-2">
-                                    마감
-                                  </Badge>
-                                )}
-                                {teamApplyLocked &&
-                                !full &&
-                                !alreadyAppliedEvent ? (
-                                  <Badge variant="outline" className="ml-2">
-                                    24시간 대기
-                                  </Badge>
+                                {full && <Badge variant="warning" className="ml-2">마감</Badge>}
+                                {teamApplyLocked && !full && !alreadyAppliedEvent ? (
+                                  <Badge variant="outline" className="ml-2">24시간 대기</Badge>
                                 ) : null}
                               </div>
                               <Button
@@ -238,17 +283,11 @@ export function ScheduleBoard({
                                   setApplyOpen(true);
                                 }}
                               >
-                                {alreadyAppliedEvent
-                                  ? "신청 완료"
-                                  : full
-                                    ? "마감"
-                                    : teamApplyLocked
-                                      ? "대기 중"
-                                      : "신청"}
+                                {alreadyAppliedEvent ? "신청 완료" : full ? "마감" : teamApplyLocked ? "대기 중" : "신청"}
                               </Button>
                             </div>
                           );
-                        })}
+                        }))}
                       </CardContent>
                     )}
                   </Card>

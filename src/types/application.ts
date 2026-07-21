@@ -39,6 +39,10 @@ export type ApplicationItem = {
   positionId?: string;
   /** 신청 포지션 라벨 스냅샷 (e.g. "딜러") */
   positionLabel?: string;
+  /** Option B: 포지션 내 시간 슬롯 ID */
+  positionSlotId?: string;
+  /** Option B: 포지션 슬롯 시간 스냅샷 (e.g. "09:00") */
+  positionSlotTime?: string;
 };
 
 export const statusLabels: Record<ApplicationStatus, string> = {

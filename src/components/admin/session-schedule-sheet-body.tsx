@@ -336,44 +336,109 @@ export function SessionScheduleSheetBody({
             {metaUsePositions && (
               <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-2">
                 {metaPositions.map((pos, idx) => (
-                  <div key={pos.id} className="flex items-center gap-2">
-                    <Input
-                      className="flex-1 text-sm"
-                      placeholder="포지션 이름"
-                      value={pos.label}
-                      onChange={(e) =>
-                        setMetaPositions((prev) =>
-                          prev.map((p, i) =>
-                            i === idx ? { ...p, label: e.target.value } : p,
-                          ),
-                        )
-                      }
-                    />
-                    <Input
-                      type="number"
-                      min={0}
-                      className="w-20 text-sm"
-                      placeholder="정원(0=무제한)"
-                      value={pos.capacity}
-                      onChange={(e) =>
-                        setMetaPositions((prev) =>
-                          prev.map((p, i) =>
-                            i === idx
-                              ? { ...p, capacity: Math.max(0, Number.parseInt(e.target.value, 10) || 0) }
-                              : p,
-                          ),
-                        )
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="shrink-0 text-muted-foreground hover:text-red-400"
-                      onClick={() =>
-                        setMetaPositions((prev) => prev.filter((_, i) => i !== idx))
-                      }
-                    >
-                      ×
-                    </button>
+                  <div key={pos.id} className="rounded-md border border-border bg-muted/30 p-2.5 space-y-2">
+                    {/* 포지션 이름 행 */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-10 shrink-0">포지션</span>
+                      <Input
+                        className="flex-1 text-sm h-8"
+                        placeholder="예: 딜러"
+                        value={pos.label}
+                        onChange={(e) =>
+                          setMetaPositions((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, label: e.target.value } : p,
+                            ),
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="shrink-0 text-muted-foreground hover:text-red-400 px-1"
+                        onClick={() =>
+                          setMetaPositions((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {/* 시간슬롯 */}
+                    <div className="space-y-1.5 pl-12">
+                      {(pos.slots ?? []).map((slot, si) => (
+                        <div key={slot.id} className="flex items-center gap-2">
+                          <Input
+                            type="time"
+                            step={60}
+                            className="w-28 h-8 text-sm tabular-nums"
+                            value={slot.time}
+                            onChange={(e) =>
+                              setMetaPositions((prev) =>
+                                prev.map((p, i) =>
+                                  i !== idx ? p : {
+                                    ...p,
+                                    slots: p.slots.map((s, j) =>
+                                      j === si ? { ...s, time: e.target.value } : s,
+                                    ),
+                                  },
+                                ),
+                              )
+                            }
+                          />
+                          <Input
+                            type="number"
+                            min={1}
+                            className="w-16 h-8 text-sm"
+                            placeholder="정원"
+                            value={slot.capacity}
+                            onChange={(e) =>
+                              setMetaPositions((prev) =>
+                                prev.map((p, i) =>
+                                  i !== idx ? p : {
+                                    ...p,
+                                    slots: p.slots.map((s, j) =>
+                                      j === si ? { ...s, capacity: Math.max(1, Number.parseInt(e.target.value, 10) || 1) } : s,
+                                    ),
+                                  },
+                                ),
+                              )
+                            }
+                          />
+                          <span className="text-xs text-muted-foreground">명</span>
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-red-400"
+                            onClick={() =>
+                              setMetaPositions((prev) =>
+                                prev.map((p, i) =>
+                                  i !== idx ? p : { ...p, slots: p.slots.filter((_, j) => j !== si) },
+                                ),
+                              )
+                            }
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="text-xs text-accent hover:underline"
+                        onClick={() =>
+                          setMetaPositions((prev) =>
+                            prev.map((p, i) =>
+                              i !== idx ? p : {
+                                ...p,
+                                slots: [
+                                  ...p.slots,
+                                  { id: crypto.randomUUID(), time: "09:00", capacity: 1, applied_count: 0 },
+                                ],
+                              },
+                            ),
+                          )
+                        }
+                      >
+                        + 시간 추가
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <Button
@@ -384,7 +449,7 @@ export function SessionScheduleSheetBody({
                   onClick={() =>
                     setMetaPositions((prev) => [
                       ...prev,
-                      { id: crypto.randomUUID(), label: "", capacity: 0 },
+                      { id: crypto.randomUUID(), label: "", capacity: 0, slots: [] },
                     ])
                   }
                 >

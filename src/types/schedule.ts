@@ -1,18 +1,27 @@
 import type { AttendanceSettings } from "@/types/attendance";
 import type { TeamId } from "@/types/team";
 
+/** 포지션 내 시간 슬롯 (Option B) */
+export type PositionSlot = {
+  id: string;
+  time: string;          // e.g. "09:00"
+  capacity: number;
+  applied_count: number;
+};
+
 /** 포지션 정의 (어드민이 이벤트별로 커스터마이즈) */
 export type PositionDef = {
   id: string;    // e.g. "dealer", "floor", "reg", "chips"
   label: string; // e.g. "딜러", "플로어", "레지", "칩스"
-  capacity: number; // 해당 포지션 정원 (0 = 무제한)
+  capacity: number; // 단순 정원 (slots 미사용 시)
+  slots: PositionSlot[]; // 시간별 정원 (Option B)
 };
 
 export const DEFAULT_POSITIONS: PositionDef[] = [
-  { id: "dealer", label: "딜러", capacity: 0 },
-  { id: "floor",  label: "플로어", capacity: 0 },
-  { id: "reg",    label: "레지", capacity: 0 },
-  { id: "chips",  label: "칩스", capacity: 0 },
+  { id: "dealer", label: "딜러", capacity: 0, slots: [] },
+  { id: "floor",  label: "플로어", capacity: 0, slots: [] },
+  { id: "reg",    label: "레지", capacity: 0, slots: [] },
+  { id: "chips",  label: "칩스", capacity: 0, slots: [] },
 ];
 
 export type Slot = {

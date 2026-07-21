@@ -1920,16 +1920,29 @@ function ScheduleCard({
                       <span className="truncate">{a.name}</span>
                     </span>
                   ))}
-                  {schedule.assignedUserIds.map((uid) => (
+                  {schedule.assignedUserIds.map((uid) => {
+                    const posLabel = schedule.assigneePositions?.[uid];
+                    const workerApp = schedule.sourceEventId
+                      ? applications.find(
+                          (a) =>
+                            a.userId === uid &&
+                            a.eventId === schedule.sourceEventId &&
+                            (a.status === "approved" ||
+                              a.status === "pending" ||
+                              a.status === "completed"),
+                        )
+                      : undefined;
+                    const slotTime = workerApp?.positionSlotTime;
+                    return (
                     <span
                       key={uid}
                       className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent"
                     >
                       <span className="truncate">
                         {nameByUid.get(uid) || uid}
-                        {schedule.assigneePositions?.[uid] ? (
+                        {posLabel ? (
                           <span className="ml-0.5 opacity-70">
-                            / {schedule.assigneePositions[uid]}
+                            / {posLabel}{slotTime ? ` ${slotTime}` : ""}
                           </span>
                         ) : null}
                       </span>
@@ -1959,7 +1972,8 @@ function ScheduleCard({
                         ×
                       </button>
                     </span>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </div>

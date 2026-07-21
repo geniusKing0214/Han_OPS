@@ -112,6 +112,10 @@ function docToApplicationItem(
       typeof data.positionId === "string" ? data.positionId : undefined,
     positionLabel:
       typeof data.positionLabel === "string" ? data.positionLabel : undefined,
+    positionSlotId:
+      typeof data.positionSlotId === "string" ? data.positionSlotId : undefined,
+    positionSlotTime:
+      typeof data.positionSlotTime === "string" ? data.positionSlotTime : undefined,
   };
 }
 
@@ -129,6 +133,8 @@ export type CreateApplicationInput = {
   note: string;
   positionId?: string;
   positionLabel?: string;
+  positionSlotId?: string;
+  positionSlotTime?: string;
 };
 
 export async function createApplication(input: CreateApplicationInput) {
@@ -218,6 +224,8 @@ export async function createApplication(input: CreateApplicationInput) {
     createdAt: serverTimestamp(),
     ...(input.positionId ? { positionId: input.positionId } : {}),
     ...(input.positionLabel ? { positionLabel: input.positionLabel } : {}),
+    ...(input.positionSlotId ? { positionSlotId: input.positionSlotId } : {}),
+    ...(input.positionSlotTime ? { positionSlotTime: input.positionSlotTime } : {}),
   });
 
   try {
@@ -531,8 +539,10 @@ export async function decideApplication(
     const sessionId =
       typeof freshData.sessionId === "string" ? freshData.sessionId : "";
     const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
-    if (!eventId || !sessionId || !slotId) {
-      throw new Error("신청 데이터에 event/session/slot 정보가 없습니다.");
+    const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
+    const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
+    if (!eventId) {
+      throw new Error("신청 데이터에 event 정보가 없습니다.");
     }
 
     const eventRef = doc(db, EVENTS_COLLECTION, eventId);
@@ -542,6 +552,42 @@ export async function decideApplication(
     }
 
     const eventData = eventSnap.data() as Record<string, unknown>;
+
+    // Option B: 포지션 슬롯 기반 승인
+    if (positionId && positionSlotId) {
+      const positions = Array.isArray(eventData.positions)
+        ? (eventData.positions as Array<Record<string, unknown>>)
+        : [];
+      let posFound = false;
+      let psFound = false;
+      const nextPositions = positions.map((pos) => {
+        if (pos.id !== positionId) return pos;
+        posFound = true;
+        const slots = Array.isArray(pos.slots) ? (pos.slots as Array<Record<string, unknown>>) : [];
+        return {
+          ...pos,
+          slots: slots.map((s) => {
+            if (s.id !== positionSlotId) return s;
+            psFound = true;
+            const cap = typeof s.capacity === "number" ? s.capacity : 0;
+            const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
+            if (applied >= cap) throw new Error("포지션 슬롯이 이미 마감되어 승인할 수 없습니다.");
+            return { ...s, applied_count: applied + 1 };
+          }),
+        };
+      });
+      if (!posFound || !psFound) {
+        throw new Error("포지션/슬롯을 찾을 수 없습니다.");
+      }
+      tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+      tx.update(appRef, { status: nextStatus });
+      return;
+    }
+
+    // 기존: 세션 슬롯 기반 승인
+    if (!sessionId || !slotId) {
+      throw new Error("신청 데이터에 session/slot 정보가 없습니다.");
+    }
     const sessions = Array.isArray(eventData.sessions)
       ? (eventData.sessions as EventItem["sessions"])
       : [];
@@ -558,8 +604,7 @@ export async function decideApplication(
           if (slot.applied_count >= slot.capacity) {
             throw new Error("슬롯이 이미 마감되어 승인할 수 없습니다.");
           }
-          const nextApplied = slot.applied_count + 1;
-          return { ...slot, applied_count: nextApplied };
+          return { ...slot, applied_count: slot.applied_count + 1 };
         }),
       };
     });
@@ -664,11 +709,10 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
       }
 
       const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
-      const sessionId =
-        typeof freshData.sessionId === "string" ? freshData.sessionId : "";
-      const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
-      if (!eventId || !sessionId || !slotId) {
-        throw new Error("신청 데이터에 event/session/slot 정보가 없습니다.");
+      const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
+      const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
+      if (!eventId) {
+        throw new Error("신청 데이터에 event 정보가 없습니다.");
       }
 
       const eventRef = doc(db, EVENTS_COLLECTION, eventId);
@@ -679,28 +723,50 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
       }
 
       const eventData = eventSnap.data() as Record<string, unknown>;
+
+      // Option B: 포지션 슬롯 기반 취소
+      if (positionId && positionSlotId) {
+        const positions = Array.isArray(eventData.positions)
+          ? (eventData.positions as Array<Record<string, unknown>>)
+          : [];
+        const nextPositions = positions.map((pos) => {
+          if (pos.id !== positionId) return pos;
+          const slots = Array.isArray(pos.slots) ? (pos.slots as Array<Record<string, unknown>>) : [];
+          return {
+            ...pos,
+            slots: slots.map((s) => {
+              if (s.id !== positionSlotId) return s;
+              const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
+              return { ...s, applied_count: Math.max(0, applied - 1) };
+            }),
+          };
+        });
+        tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+        tx.delete(appRef);
+        return;
+      }
+
+      // 기존: 세션 슬롯 기반 취소
+      const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+      const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
+      if (!sessionId || !slotId) {
+        tx.delete(appRef);
+        return;
+      }
       const sessions = Array.isArray(eventData.sessions)
         ? (eventData.sessions as EventItem["sessions"])
         : [];
-
       const nextSessions = sessions.map((sess) => {
         if (sess.id !== sessionId) return sess;
         return {
           ...sess,
           slots: sess.slots.map((slot) => {
             if (slot.id !== slotId) return slot;
-            return {
-              ...slot,
-              applied_count: Math.max(0, slot.applied_count - 1),
-            };
+            return { ...slot, applied_count: Math.max(0, slot.applied_count - 1) };
           }),
         };
       });
-
-      tx.update(eventRef, {
-        sessions: nextSessions,
-        updatedAt: serverTimestamp(),
-      });
+      tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
       tx.delete(appRef);
     }
   });

@@ -84,6 +84,9 @@ export function MyApplicationRow({
             <p className="mt-0.5 text-xs text-muted-foreground">
               포지션:{" "}
               <span className="font-medium text-foreground">{app.positionLabel}</span>
+              {app.positionSlotTime ? (
+                <span className="ml-1 tabular-nums text-accent">· {app.positionSlotTime}</span>
+              ) : null}
             </p>
           ) : null}
           {!compact && app.note ? (

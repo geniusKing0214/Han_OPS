@@ -18,7 +18,7 @@ import {
 import { computeTeam2ApplyOpensAt } from "@/lib/application-window";
 import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
-import type { EventItem, PositionDef } from "@/types/schedule";
+import type { EventItem, PositionDef, PositionSlot } from "@/types/schedule";
 
 export const EVENTS_COLLECTION = "events";
 const APPLICATIONS_COLLECTION = "applications";
@@ -62,7 +62,14 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
   const team2ApplyOpensAt = timestampToIso(data.team2ApplyOpensAt);
   const usePositions = data.usePositions === true;
   const positions: PositionDef[] = Array.isArray(data.positions)
-    ? (data.positions as PositionDef[])
+    ? (data.positions as Array<Record<string, unknown>>).map((p) => ({
+        id: typeof p.id === "string" ? p.id : "",
+        label: typeof p.label === "string" ? p.label : "",
+        capacity: typeof p.capacity === "number" ? p.capacity : 0,
+        slots: Array.isArray(p.slots)
+          ? (p.slots as PositionSlot[])
+          : [],
+      }))
     : [];
   return {
     id,
