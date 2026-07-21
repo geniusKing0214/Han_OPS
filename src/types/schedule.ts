@@ -1,6 +1,20 @@
 import type { AttendanceSettings } from "@/types/attendance";
 import type { TeamId } from "@/types/team";
 
+/** 포지션 정의 (어드민이 이벤트별로 커스터마이즈) */
+export type PositionDef = {
+  id: string;    // e.g. "dealer", "floor", "reg", "chips"
+  label: string; // e.g. "딜러", "플로어", "레지", "칩스"
+  capacity: number; // 해당 포지션 정원 (0 = 무제한)
+};
+
+export const DEFAULT_POSITIONS: PositionDef[] = [
+  { id: "dealer", label: "딜러", capacity: 0 },
+  { id: "floor",  label: "플로어", capacity: 0 },
+  { id: "reg",    label: "레지", capacity: 0 },
+  { id: "chips",  label: "칩스", capacity: 0 },
+];
+
 export type Slot = {
   id: string;
   start_time: string;
@@ -34,5 +48,9 @@ export type EventItem = {
   /** 이벤트별 출근 인증 설정 (기본: 비활성) */
   attendance?: AttendanceSettings;
   sessions: Session[];
+  /** 포지션 사용 여부 (어드민이 이벤트 생성 시 활성화) */
+  usePositions?: boolean;
+  /** 포지션 목록 (usePositions=true 일 때만 유효) */
+  positions?: PositionDef[];
 };
 

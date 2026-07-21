@@ -232,6 +232,8 @@ export function ScheduleBoard({
                                     slotStart: slot.start_time,
                                     capacity: slot.capacity,
                                     applied: slot.applied_count,
+                                    usePositions: event.usePositions,
+                                    positions: event.positions,
                                   });
                                   setApplyOpen(true);
                                 }}

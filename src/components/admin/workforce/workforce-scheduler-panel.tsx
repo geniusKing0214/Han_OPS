@@ -539,6 +539,23 @@ export function WorkforceSchedulerPanel({
     }
   };
 
+  const setWorkerPosition = async (
+    schedule: WorkforceSchedule,
+    uid: string,
+    positionLabel: string | null,
+  ) => {
+    if (schedule.id.startsWith("virtual:")) return;
+    try {
+      await setScheduleAssignees(schedule.id, schedule.assignedUserIds, {
+        action: "update_schedule",
+        detail: schedule.title,
+        assigneePositionsPatch: { [uid]: positionLabel },
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "포지션 변경에 실패했습니다.");
+    }
+  };
+
   const openCreate = (date: string) => {
     setEditingId(null);
     setForm(emptyForm(date));
@@ -1352,6 +1369,9 @@ export function WorkforceSchedulerPanel({
                             setAssignTarget(s);
                           }}
                           onRemoveUser={(uid) => void removeAssignee(s, uid)}
+                          onSetPosition={(uid, pos) =>
+                            void setWorkerPosition(s, uid, pos)
+                          }
                           onPatch={(patch) =>
                             void patchScheduleFields(s, patch)
                           }
@@ -1675,6 +1695,7 @@ function ScheduleCard({
   onDropWorker,
   onClickAssign,
   onRemoveUser,
+  onSetPosition,
   onPatch,
   isDesktop,
 }: {
@@ -1686,6 +1707,7 @@ function ScheduleCard({
   onDropWorker: () => void;
   onClickAssign: () => void;
   onRemoveUser: (uid: string) => void;
+  onSetPosition: (uid: string, positionLabel: string | null) => void;
   onPatch: (patch: Partial<{ venue: string; requiredCount: number }>) => void;
   isDesktop: boolean;
 }) {
@@ -1861,7 +1883,29 @@ function ScheduleCard({
                     >
                       <span className="truncate">
                         {nameByUid.get(uid) || uid}
+                        {schedule.assigneePositions?.[uid] ? (
+                          <span className="ml-0.5 opacity-70">
+                            / {schedule.assigneePositions[uid]}
+                          </span>
+                        ) : null}
                       </span>
+                      {schedule.positions && schedule.positions.length > 0 ? (
+                        <select
+                          className="ml-0.5 max-w-[60px] rounded bg-accent/30 text-[9px] text-accent outline-none"
+                          value={schedule.assigneePositions?.[uid] ?? ""}
+                          onChange={(e) =>
+                            onSetPosition(uid, e.target.value || null)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <option value="">--</option>
+                          {schedule.positions.map((p) => (
+                            <option key={p.id} value={p.label}>
+                              {p.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
                       <button
                         type="button"
                         className="shrink-0 opacity-70 hover:opacity-100"

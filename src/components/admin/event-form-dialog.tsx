@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import type { EventItem, Session, Slot } from "@/types/schedule";
+import type { EventItem, PositionDef, Session, Slot } from "@/types/schedule";
+import { DEFAULT_POSITIONS } from "@/types/schedule";
 import {
   TEAM_EXPOSURE_OPTIONS,
   teamExposureToTeamIds,
@@ -65,6 +66,8 @@ export function CreateScheduleDialog({
   });
   const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [sessions, setSessions] = useState<SessionDraft[]>([emptySession()]);
+  const [usePositions, setUsePositions] = useState(false);
+  const [positions, setPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -76,6 +79,8 @@ export function CreateScheduleDialog({
     setAttendance({ ...DEFAULT_ATTENDANCE_SETTINGS });
     setTeamExposure("team_1");
     setSessions([emptySession()]);
+    setUsePositions(false);
+    setPositions(DEFAULT_POSITIONS);
     setError("");
   }, [open]);
 
@@ -181,6 +186,8 @@ export function CreateScheduleDialog({
       team_ids: teamExposureToTeamIds(teamExposure),
       sessions: builtSessions,
       attendance,
+      usePositions,
+      positions: usePositions ? positions.filter((p) => p.label.trim()) : [],
     };
     if (notice.trim()) payload.notice = notice.trim();
     if (color.trim()) payload.color = color.trim();
@@ -282,6 +289,101 @@ export function CreateScheduleDialog({
             value={attendance}
             onChange={setAttendance}
           />
+
+          <Separator />
+
+          {/* 포지션 설정 */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">포지션 사용</p>
+                <p className="text-xs text-muted-foreground">
+                  딜러·플로어·레지 등 포지션별로 신청을 받습니다
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={usePositions}
+                onClick={() => setUsePositions((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  usePositions ? "bg-accent" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    usePositions ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {usePositions && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                {positions.map((pos, idx) => (
+                  <div key={pos.id} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1 text-sm"
+                      placeholder="포지션 이름"
+                      value={pos.label}
+                      onChange={(e) =>
+                        setPositions((prev) =>
+                          prev.map((p, i) =>
+                            i === idx ? { ...p, label: e.target.value } : p,
+                          ),
+                        )
+                      }
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      className="w-20 text-sm"
+                      placeholder="정원(0=무제한)"
+                      value={pos.capacity}
+                      onChange={(e) =>
+                        setPositions((prev) =>
+                          prev.map((p, i) =>
+                            i === idx
+                              ? {
+                                  ...p,
+                                  capacity: Math.max(
+                                    0,
+                                    Number.parseInt(e.target.value, 10) || 0,
+                                  ),
+                                }
+                              : p,
+                          ),
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 text-muted-foreground hover:text-red-400"
+                      onClick={() =>
+                        setPositions((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-xs"
+                  onClick={() =>
+                    setPositions((prev) => [
+                      ...prev,
+                      { id: crypto.randomUUID(), label: "", capacity: 0 },
+                    ])
+                  }
+                >
+                  + 포지션 추가
+                </Button>
+              </div>
+            )}
+          </div>
 
           <Separator />
 

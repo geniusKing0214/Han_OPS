@@ -108,6 +108,10 @@ function docToApplicationItem(
       typeof data.completed_by_admin === "string"
         ? data.completed_by_admin
         : undefined,
+    positionId:
+      typeof data.positionId === "string" ? data.positionId : undefined,
+    positionLabel:
+      typeof data.positionLabel === "string" ? data.positionLabel : undefined,
   };
 }
 
@@ -123,6 +127,8 @@ export type CreateApplicationInput = {
   date: string;
   slotTime: string;
   note: string;
+  positionId?: string;
+  positionLabel?: string;
 };
 
 export async function createApplication(input: CreateApplicationInput) {
@@ -210,6 +216,8 @@ export async function createApplication(input: CreateApplicationInput) {
     work_status: "not_checked",
     points_awarded: false,
     createdAt: serverTimestamp(),
+    ...(input.positionId ? { positionId: input.positionId } : {}),
+    ...(input.positionLabel ? { positionLabel: input.positionLabel } : {}),
   });
 
   try {

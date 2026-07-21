@@ -1,0 +1,4933 @@
+===== types\schedule.ts =====
+import type { AttendanceSettings } from "@/types/attendance";
+import type { TeamId } from "@/types/team";
+
+export type Slot = {
+  id: string;
+  start_time: string;
+  capacity: number;
+  applied_count: number;
+};
+
+export type Session = {
+  id: string;
+  date: string;
+  slots: Slot[];
+};
+
+export type EventItem = {
+  id: string;
+  title: string;
+  venue: string;
+  /** ?∏Ï∂ú ?Ä (?ÜÏúºÎ©?team_1) */
+  team_ids?: TeamId[];
+  /** ?ùÏÑ± ?úÍ∞Å (ISO). 1?Ä ?±Î°ù ??2?Ä ?êÎèô ?§Ìîà Í∏∞Ï? */
+  createdAt?: string;
+  /**
+   * 1?ÄÎß??±Î°ù???ºÏ†ï?êÏÑú 2?Ä ?†Ï≤≠???¥Î¶¨???úÍ∞Å (ISO).
+   * ?àÏúºÎ©??¥Îãπ ?úÍ∞Å ?¥ÌõÑ 2?Ä???ºÏ†ï ?ïÏù∏¬∑?†Ï≤≠ Í∞Ä??
+   */
+  team2ApplyOpensAt?: string;
+  /** ?¥Î≤§???πÏù¥?¨Ìï≠(?†ÌÉù) */
+  notice?: string;
+  /** UI Í∞ïÏ°∞??hex ??(?†ÌÉù) */
+  color?: string;
+  /** ?¥Î≤§?∏Î≥Ñ Ï∂úÍ∑º ?∏Ï¶ù ?§Ï†ï (Í∏∞Î≥∏: ÎπÑÌôú?? */
+  attendance?: AttendanceSettings;
+  sessions: Session[];
+};
+
+
+
+===== types\application.ts =====
+import type { WorkStatus } from "@/types/points";
+import type { TeamId } from "@/types/team";
+
+export type ApplicationStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "completed";
+
+export type ApplicationItem = {
+  id: string;
+  userId?: string;
+  /** ?ÑÎ°ú??Íµ¨Í? ?âÎÑ§???§Ï†ï ??. ?ÜÏúºÎ©?UI?êÏÑú ?¥Î©î?ºÎ°ú ?ÄÏ≤??úÏãú */
+  applicantDisplayName?: string;
+  applicantEmail?: string;
+  eventId?: string;
+  sessionId?: string;
+  slotId?: string;
+  /** ?†Ï≤≠???åÏÜç ?Ä (?ÜÏúºÎ©?team_1) */
+  team_id?: TeamId;
+  eventTitle: string;
+  venue: string;
+  slotTime: string;
+  date: string;
+  status: ApplicationStatus;
+  /** ISO Î¨∏Ïûê??*/
+  submittedAt: string;
+  /** ?†Ï≤≠??Î©îÎ™® */
+  note?: string;
+  /** Í±∞Ï†à ??Í¥ÄÎ¶¨Ïûê ?¨Ïú† */
+  rejectionReason?: string;
+  /** Í¥ÄÎ¶¨Ïûê Î©îÎ™® (?†ÌÉù) */
+  adminMemo?: string;
+  workStatus?: WorkStatus;
+  pointsAwarded?: boolean;
+  completedAt?: string;
+  completedByAdmin?: string;
+};
+
+export const statusLabels: Record<ApplicationStatus, string> = {
+  pending: "?ÄÍ∏?Ï§?,
+  approved: "?πÏù∏ ?ÑÎ£å",
+  rejected: "Í±∞Ï†à??,
+  completed: "?ÑÎ£å??,
+};
+
+
+===== types\workforce.ts =====
+import type { TeamId } from "@/types/team";
+
+/** ??0 ????6 (Ï£ºÍ∞Ñ ?¨Î†• Í∏∞Ï?) */
+export type WeekdayKey =
+  | "mon"
+  | "tue"
+  | "wed"
+  | "thu"
+  | "fri"
+  | "sat"
+  | "sun";
+
+export const WEEKDAY_KEYS: WeekdayKey[] = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+];
+
+export const WEEKDAY_LABELS: Record<WeekdayKey, string> = {
+  mon: "??,
+  tue: "??,
+  wed: "??,
+  thu: "Î™?,
+  fri: "Í∏?,
+  sat: "??,
+  sun: "??,
+};
+
+export const WEEKDAY_SHORT: Record<WeekdayKey, string> = {
+  mon: "M",
+  tue: "T",
+  wed: "W",
+  thu: "T",
+  fri: "F",
+  sat: "S",
+  sun: "S",
+};
+
+export type WorkforceAssignStatus = "draft" | "confirmed" | "cancelled";
+
+export type WorkforceWorkerStatus =
+  | "available"
+  | "partial"
+  | "full"
+  | "unavailable"
+  | "leave";
+
+export const WORKFORCE_WORKER_STATUS_LABELS: Record<
+  WorkforceWorkerStatus,
+  string
+> = {
+  available: "Î∞∞Ï†ï Í∞Ä??,
+  partial: "?ºÎ? Í∞Ä??,
+  full: "Î∞∞Ï†ï ?ÑÎ£å",
+  unavailable: "Î∞∞Ï†ï Î∂àÍ?",
+  leave: "?¥Î¨¥",
+};
+
+export const DEFAULT_WEEKLY_MAX = 5;
+
+export const DEFAULT_AVAILABLE_WEEKDAYS: Record<WeekdayKey, boolean> = {
+  mon: true,
+  tue: true,
+  wed: true,
+  thu: true,
+  fri: true,
+  sat: true,
+  sun: true,
+};
+
+export const WORKFORCE_COLORS = [
+  "#F59E0B",
+  "#3B82F6",
+  "#10B981",
+  "#EF4444",
+  "#8B5CF6",
+  "#EC4899",
+  "#06B6D4",
+  "#C8A96B",
+] as const;
+
+export type WorkforceWeekMeta = {
+  weekStart: string;
+  status: WorkforceAssignStatus;
+  confirmedAt?: string;
+  confirmedBy?: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
+export type WorkforceSchedule = {
+  id: string;
+  weekStart: string;
+  date: string;
+  title: string;
+  startTime: string;
+  venue: string;
+  requiredCount: number;
+  teamIds: TeamId[];
+  note: string;
+  color: string;
+  assignedUserIds: string[];
+  status: WorkforceAssignStatus;
+  /** Í∏∞Ï°¥ events ?§Ï?Ï§ÑÍ≥º ?∞Îèô ??*/
+  sourceEventId?: string;
+  sourceSessionId?: string;
+  sourceSlotId?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+};
+
+export type WorkforceAvailability = {
+  userId: string;
+  weeklyMaxAssignments: number;
+  availableWeekdays: Record<WeekdayKey, boolean>;
+  /** YYYY-MM-DD ??available | unavailable */
+  dateExceptions: Record<string, "available" | "unavailable">;
+  /**
+   * Î©§Î≤ÑÍ∞Ä Í∞Ä?•Ïùº ?†Ï≤≠???ÑÎ£å??Ï£??îÏöî??YMD).
+   * ?¥Îãπ Ï£ºÎäî Î©§Î≤ÑÍ∞Ä ?§Ïãú ?òÏ†ï?????ÜÍ≥† Í¥ÄÎ¶¨ÏûêÎß?Î≥ÄÍ≤?Í∞Ä??
+   */
+  memberSubmittedWeeks: string[];
+  updatedAt: string;
+};
+
+export type WorkforceLogAction =
+  | "create_schedule"
+  | "update_schedule"
+  | "delete_schedule"
+  | "duplicate_schedule"
+  | "assign"
+  | "unassign"
+  | "move"
+  | "confirm_week"
+  | "reset_week"
+  | "save_draft"
+  | "export_monthly"
+  | "update_availability"
+  | "import_events";
+
+export type WorkforceAssignmentLog = {
+  id: string;
+  weekStart: string;
+  scheduleId?: string;
+  actorUserId: string;
+  actorName: string;
+  action: WorkforceLogAction;
+  targetUserId?: string;
+  targetUserName?: string;
+  detail?: string;
+  reason?: string;
+  createdAt: string;
+};
+
+export type WorkforceMonthlyExportRow = {
+  userId: string;
+  userName: string;
+  teamId: TeamId;
+  date: string;
+  title: string;
+  startTime: string;
+  venue: string;
+  note: string;
+  status: WorkforceAssignStatus;
+};
+
+export type WorkforceMonthlyExport = {
+  id: string;
+  yearMonth: string;
+  weekStart: string;
+  exportedAt: string;
+  exportedBy: string;
+  rows: WorkforceMonthlyExportRow[];
+};
+
+
+===== lib\firestore-applications.ts =====
+import {
+  type FirestoreError,
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  runTransaction,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { getAuth } from "firebase/auth";
+
+import { assertAdmin } from "@/lib/admin-access";
+import { todayYmd } from "@/lib/application-cancel";
+import { db } from "@/lib/firebase";
+import { userCanApplyToEvent } from "@/lib/team-utils";
+import { canTeamApplyNow, formatTeam2ApplyOpensAt, hasTeam2Stagger } from "@/lib/application-window";
+import {
+  notifyAdminsOnApplicationSubmitted,
+  notifyAdminsOnApplicationCancelled,
+  notifyMemberOnApplicationApproved,
+} from "@/lib/firestore-notifications";
+import type { ApplicationItem, ApplicationStatus } from "@/types/application";
+import type { WorkStatus } from "@/types/points";
+import type { EventItem } from "@/types/schedule";
+import { EVENTS_COLLECTION } from "@/lib/firestore-events";
+import { USERS_COLLECTION } from "@/lib/firestore-users";
+import { normalizeTeamId, normalizeTeamIds, type TeamId } from "@/types/team";
+import type { UserProfileDoc } from "@/types/user";
+
+export const APPLICATIONS_COLLECTION = "applications";
+
+function timestampToIso(value: unknown): string {
+  if (
+    value &&
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === "string") return value;
+  return new Date().toISOString();
+}
+
+function normalizeWorkStatus(value: unknown): WorkStatus {
+  if (
+    value === "completed" ||
+    value === "no_show" ||
+    value === "late_cancel" ||
+    value === "not_checked"
+  ) {
+    return value;
+  }
+  return "not_checked";
+}
+
+function normalizeStatus(value: unknown): ApplicationStatus {
+  if (
+    value === "approved" ||
+    value === "rejected" ||
+    value === "completed" ||
+    value === "pending"
+  ) {
+    return value;
+  }
+  return "pending";
+}
+
+function docToApplicationItem(
+  id: string,
+  data: Record<string, unknown>,
+): ApplicationItem {
+  return {
+    id,
+    userId: typeof data.userId === "string" ? data.userId : undefined,
+    applicantDisplayName:
+      typeof data.applicantDisplayName === "string"
+        ? data.applicantDisplayName
+        : undefined,
+    applicantEmail:
+      typeof data.applicantEmail === "string" ? data.applicantEmail : undefined,
+    eventId: typeof data.eventId === "string" ? data.eventId : undefined,
+    sessionId: typeof data.sessionId === "string" ? data.sessionId : undefined,
+    slotId: typeof data.slotId === "string" ? data.slotId : undefined,
+    team_id: normalizeTeamId(data.team_id),
+    eventTitle: typeof data.eventTitle === "string" ? data.eventTitle : "",
+    venue: typeof data.venue === "string" ? data.venue : "",
+    date: typeof data.date === "string" ? data.date : "",
+    slotTime: typeof data.slotTime === "string" ? data.slotTime : "",
+    status: normalizeStatus(data.status),
+    submittedAt: timestampToIso(data.createdAt),
+    note: typeof data.note === "string" ? data.note : undefined,
+    rejectionReason:
+      typeof data.rejectionReason === "string" ? data.rejectionReason : undefined,
+    adminMemo: typeof data.adminMemo === "string" ? data.adminMemo : undefined,
+    workStatus: normalizeWorkStatus(data.work_status),
+    pointsAwarded: Boolean(data.points_awarded),
+    completedAt: data.completed_at
+      ? timestampToIso(data.completed_at)
+      : undefined,
+    completedByAdmin:
+      typeof data.completed_by_admin === "string"
+        ? data.completed_by_admin
+        : undefined,
+  };
+}
+
+export type CreateApplicationInput = {
+  userId: string;
+  applicantDisplayName: string;
+  applicantEmail: string;
+  eventId: string;
+  sessionId: string;
+  slotId: string;
+  eventTitle: string;
+  venue: string;
+  date: string;
+  slotTime: string;
+  note: string;
+};
+
+export async function createApplication(input: CreateApplicationInput) {
+  const userSnap = await getDoc(doc(db, USERS_COLLECTION, input.userId));
+  if (!userSnap.exists()) {
+    throw new Error("?¨Ïö©???ïÎ≥¥Î•?Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+  }
+  const userData = userSnap.data() as UserProfileDoc;
+  const userTeamId = normalizeTeamId(userData.team_id);
+
+  const eventSnap = await getDoc(doc(db, EVENTS_COLLECTION, input.eventId));
+  if (!eventSnap.exists()) {
+    throw new Error("?ºÏ†ï??Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+  }
+  const eventData = eventSnap.data() as Record<string, unknown>;
+  const team2Raw = eventData.team2ApplyOpensAt;
+  let team2ApplyOpensAt: string | undefined;
+  if (
+    team2Raw &&
+    typeof team2Raw === "object" &&
+    "toDate" in team2Raw &&
+    typeof (team2Raw as { toDate: () => Date }).toDate === "function"
+  ) {
+    team2ApplyOpensAt = (team2Raw as { toDate: () => Date }).toDate().toISOString();
+  } else if (typeof team2Raw === "string") {
+    team2ApplyOpensAt = team2Raw;
+  }
+  const eventForCheck: EventItem = {
+    id: input.eventId,
+    title: typeof eventData.title === "string" ? eventData.title : "",
+    venue: typeof eventData.venue === "string" ? eventData.venue : "",
+    team_ids: Array.isArray(eventData.team_ids)
+      ? normalizeTeamIds(eventData.team_ids)
+      : undefined,
+    ...(team2ApplyOpensAt ? { team2ApplyOpensAt } : {}),
+    sessions: Array.isArray(eventData.sessions)
+      ? (eventData.sessions as EventItem["sessions"])
+      : [],
+  };
+  if (!userCanApplyToEvent(userTeamId, eventForCheck)) {
+    if (
+      userTeamId === "team_2" &&
+      hasTeam2Stagger(eventForCheck) &&
+      !canTeamApplyNow(eventForCheck, "team_2")
+    ) {
+      const opensLabel = formatTeam2ApplyOpensAt(eventForCheck);
+      throw new Error(
+        opensLabel
+          ? `2?Ä ?†Ï≤≠?Ä ${opensLabel}Î∂Ä??Í∞Ä?•Ìï©?àÎã§. (1?Ä ?±Î°ù 24?úÍ∞Ñ ??`
+          : "2?Ä ?†Ï≤≠?Ä ?ºÏ†ï ?±Î°ù 24?úÍ∞Ñ ?ÑÎ???Í∞Ä?•Ìï©?àÎã§.",
+      );
+    }
+    throw new Error("?åÏÜç ?Ä ?ºÏ†ïÎß??†Ï≤≠?????àÏäµ?àÎã§.");
+  }
+
+  const dupQuery = query(
+    collection(db, APPLICATIONS_COLLECTION),
+    where("userId", "==", input.userId),
+    where("eventId", "==", input.eventId),
+  );
+  const dupSnap = await getDocs(dupQuery);
+  const hasActive = dupSnap.docs.some((d) => {
+    const data = d.data() as Record<string, unknown>;
+    const s = normalizeStatus(data.status);
+    return s === "pending" || s === "approved" || s === "completed";
+  });
+  if (hasActive) {
+    throw new Error("Í∞ôÏ? ?¥Î≤§?∏Ïóê??Ï§ëÎ≥µ ?†Ï≤≠?????ÜÏäµ?àÎã§.");
+  }
+
+  const appRef = await addDoc(collection(db, APPLICATIONS_COLLECTION), {
+    userId: input.userId,
+    applicantDisplayName: input.applicantDisplayName.trim(),
+    applicantEmail: input.applicantEmail.trim(),
+    eventId: input.eventId,
+    sessionId: input.sessionId,
+    slotId: input.slotId,
+    team_id: userTeamId,
+    eventTitle: input.eventTitle,
+    venue: input.venue,
+    date: input.date,
+    slotTime: input.slotTime,
+    note: input.note,
+    status: "pending" as const,
+    work_status: "not_checked",
+    points_awarded: false,
+    createdAt: serverTimestamp(),
+  });
+
+  try {
+    await notifyAdminsOnApplicationSubmitted({
+      applicationId: appRef.id,
+      createdByUserId: input.userId,
+      applicantName: input.applicantDisplayName.trim(),
+      applicantEmail: input.applicantEmail.trim(),
+      eventId: input.eventId,
+      eventTitle: input.eventTitle,
+      eventDate: input.date,
+      slotTime: input.slotTime,
+      location: input.venue,
+    });
+  } catch {
+    // ?†Ï≤≠?Ä ?±Í≥µ ???åÎ¶ºÎß??§Ìå®?????àÏùå (config/admins ÎØ∏ÏÑ§????
+  }
+}
+
+export function subscribeMyApplications(
+  uid: string,
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  const q = query(
+    collection(db, APPLICATIONS_COLLECTION),
+    where("userId", "==", uid),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs
+        .map((d) =>
+          docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+        )
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      onData(items);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+function lastDayOfMonth(monthKey: string): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${monthKey}-${String(last).padStart(2, "0")}`;
+}
+
+/** Í¥ÄÎ¶¨Ïûê: ?ÑÏ≤¥ ?†Ï≤≠ Íµ¨ÎèÖ (?ÑÏ†Å ??Çπ?? */
+export function subscribeAllApplicationsForAdmin(
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      innerUnsub = onSnapshot(
+        collection(db, APPLICATIONS_COLLECTION),
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "Í¥ÄÎ¶¨Ïûê Í∂åÌïú???ÑÏöî?©Îãà??",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
+/** Í¥ÄÎ¶¨Ïûê: ?îÍ∞Ñ ?†Ï≤≠ ?ÑÏ≤¥ Íµ¨ÎèÖ (date ?ÑÎìú Î≤îÏúÑ) */
+export function subscribeApplicationsInMonthForAdmin(
+  monthKey: string,
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+  const start = `${monthKey}-01`;
+  const end = lastDayOfMonth(monthKey);
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, APPLICATIONS_COLLECTION),
+        where("date", ">=", start),
+        where("date", "<=", end),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "Í¥ÄÎ¶¨Ïûê Í∂åÌïú???ÑÏöî?©Îãà??",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
+/** ?Ä?? Î≥∏Ïù∏ ?Ä???πÏù∏¬∑?ÑÎ£å ?†Ï≤≠ ?îÍ∞Ñ Íµ¨ÎèÖ (Ï∑®Ìï©??Ï°∞Ìöå?? */
+export function subscribeApplicationsInMonthForTeam(
+  teamId: TeamId,
+  monthKey: string,
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  const start = `${monthKey}-01`;
+  const end = lastDayOfMonth(monthKey);
+  const q = query(
+    collection(db, APPLICATIONS_COLLECTION),
+    where("team_id", "==", teamId),
+    where("date", ">=", start),
+    where("date", "<=", end),
+    where("status", "in", ["approved", "completed"]),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs
+        .map((d) =>
+          docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+        )
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+      onData(items);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** Í¥ÄÎ¶¨Ïûê: ?πÏ†ï ?†Ïßú(YYYY-MM-DD) ?†Ï≤≠ ?ÑÏ≤¥ Íµ¨ÎèÖ */
+export function subscribeApplicationsByDateForAdmin(
+  date: string,
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, APPLICATIONS_COLLECTION),
+        where("date", "==", date),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "Í¥ÄÎ¶¨Ïûê Í∂åÌïú???ÑÏöî?©Îãà??",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
+/** Í¥ÄÎ¶¨Ïûê: ?ÄÍ∏?Ï§??†Ï≤≠Îß?Íµ¨ÎèÖ */
+export function subscribePendingApplicationsForAdmin(
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, APPLICATIONS_COLLECTION),
+        where("status", "==", "pending"),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "Í¥ÄÎ¶¨Ïûê Í∂åÌïú???ÑÏöî?©Îãà??",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
+export async function updateApplicationStatus(
+  applicationId: string,
+  status: Exclude<ApplicationStatus, "pending">,
+) {
+  await assertAdmin();
+  const ref = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  await updateDoc(ref, { status });
+}
+
+/** Í¥ÄÎ¶¨Ïûê: ?†Ï≤≠ Î¨∏ÏÑú??Í¥ÄÎ¶¨Ïûê Î©îÎ™® ?Ä??*/
+export async function updateApplicationAdminMemo(
+  applicationId: string,
+  adminMemo: string,
+) {
+  await assertAdmin();
+  const ref = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  await updateDoc(ref, { adminMemo: adminMemo.trim() });
+}
+
+/**
+ * Í¥ÄÎ¶¨Ïûê ?òÏÇ¨Í≤∞Ï†ï Ï≤òÎ¶¨:
+ * - approved: applications ?ÅÌÉú ?ÖÎç∞?¥Ìä∏ + events ?¨Î°Ø ?†Ï≤≠ ?∏Ïõê(+1)
+ * - rejected: applications ?ÅÌÉúÎß??ÖÎç∞?¥Ìä∏
+ */
+export async function decideApplication(
+  applicationId: string,
+  status: "approved" | "rejected",
+  options?: { rejectionReason?: string },
+) {
+  await assertAdmin();
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("?†Ï≤≠ Î¨∏ÏÑúÎ•?Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+  }
+  const appData = appSnap.data() as Record<string, unknown>;
+
+  await runTransaction(db, async (tx) => {
+    const freshSnap = await tx.get(appRef);
+    if (!freshSnap.exists()) {
+      throw new Error("?†Ï≤≠ Î¨∏ÏÑúÎ•?Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+    }
+    const freshData = freshSnap.data() as Record<string, unknown>;
+    const currentStatus = normalizeStatus(freshData.status);
+    if (currentStatus !== "pending") {
+      throw new Error("?¥Î? Ï≤òÎ¶¨???†Ï≤≠?ÖÎãà??");
+    }
+
+    const nextStatus: Exclude<ApplicationStatus, "pending"> = status;
+
+    if (status !== "approved") {
+      const rejectPatch: Record<string, unknown> = { status: nextStatus };
+      const reason = options?.rejectionReason?.trim();
+      if (reason) rejectPatch.rejectionReason = reason;
+      tx.update(appRef, rejectPatch);
+      return;
+    }
+
+    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+    const sessionId =
+      typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
+    if (!eventId || !sessionId || !slotId) {
+      throw new Error("?†Ï≤≠ ?∞Ïù¥?∞Ïóê event/session/slot ?ïÎ≥¥Í∞Ä ?ÜÏäµ?àÎã§.");
+    }
+
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+    const eventSnap = await tx.get(eventRef);
+    if (!eventSnap.exists()) {
+      throw new Error("?Ä???¥Î≤§?∏Î? Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+    }
+
+    const eventData = eventSnap.data() as Record<string, unknown>;
+    const sessions = Array.isArray(eventData.sessions)
+      ? (eventData.sessions as EventItem["sessions"])
+      : [];
+    let sessionFound = false;
+    let slotFound = false;
+    const nextSessions = sessions.map((sess) => {
+      if (sess.id !== sessionId) return sess;
+      sessionFound = true;
+      return {
+        ...sess,
+        slots: sess.slots.map((slot) => {
+          if (slot.id !== slotId) return slot;
+          slotFound = true;
+          if (slot.applied_count >= slot.capacity) {
+            throw new Error("?¨Î°Ø???¥Î? ÎßàÍ∞ê?òÏñ¥ ?πÏù∏?????ÜÏäµ?àÎã§.");
+          }
+          const nextApplied = slot.applied_count + 1;
+          return { ...slot, applied_count: nextApplied };
+        }),
+      };
+    });
+    if (!sessionFound || !slotFound) {
+      throw new Error("?¥Î≤§?∏Ïùò ?∏ÏÖò/?¨Î°Ø??Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+    }
+
+    tx.update(eventRef, {
+      sessions: nextSessions,
+      updatedAt: serverTimestamp(),
+    });
+    tx.update(appRef, { status: nextStatus });
+  });
+
+  if (status === "approved") {
+    const userId = typeof appData.userId === "string" ? appData.userId : "";
+    if (userId) {
+      try {
+        await notifyMemberOnApplicationApproved({
+          targetUserId: userId,
+          targetEmail:
+            typeof appData.applicantEmail === "string"
+              ? appData.applicantEmail
+              : undefined,
+          applicationId,
+          eventId: typeof appData.eventId === "string" ? appData.eventId : undefined,
+          eventTitle:
+            typeof appData.eventTitle === "string" ? appData.eventTitle : "",
+          eventDate: typeof appData.date === "string" ? appData.date : "",
+          slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
+          location: typeof appData.venue === "string" ? appData.venue : "",
+          createdByUserId: getAuth().currentUser?.uid ?? undefined,
+        });
+      } catch {
+        // ?πÏù∏?Ä ?±Í≥µ ???åÎ¶ºÎß??§Ìå®?????àÏùå
+      }
+    }
+  }
+}
+
+/** Î≥∏Ïù∏ ?†Ï≤≠ Ï∑®ÏÜå: pending/rejected????†ú, approved???¨Î°Ø ?ïÏõê Î≥µÍµ¨ ????†ú */
+export async function cancelMyApplication(applicationId: string, uid: string) {
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("?†Ï≤≠??Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+  }
+
+  const appData = appSnap.data() as Record<string, unknown>;
+  const userId = typeof appData.userId === "string" ? appData.userId : "";
+  if (userId !== uid) {
+    throw new Error("Î≥∏Ïù∏ ?†Ï≤≠Îß?Ï∑®ÏÜå?????àÏäµ?àÎã§.");
+  }
+
+  const status = normalizeStatus(appData.status);
+  if (status === "completed") {
+    throw new Error("?ÑÎ£å???†Ï≤≠?Ä Ï∑®ÏÜå?????ÜÏäµ?àÎã§.");
+  }
+
+  const notifyPayload = {
+    applicationId,
+    createdByUserId: uid,
+    applicantName:
+      typeof appData.applicantDisplayName === "string"
+        ? appData.applicantDisplayName
+        : "",
+    applicantEmail:
+      typeof appData.applicantEmail === "string" ? appData.applicantEmail : "",
+    eventId: typeof appData.eventId === "string" ? appData.eventId : "",
+    eventTitle: typeof appData.eventTitle === "string" ? appData.eventTitle : "",
+    eventDate: typeof appData.date === "string" ? appData.date : "",
+    slotTime: typeof appData.slotTime === "string" ? appData.slotTime : "",
+    location: typeof appData.venue === "string" ? appData.venue : "",
+    wasApproved: status === "approved",
+  };
+
+  await runTransaction(db, async (tx) => {
+    const freshSnap = await tx.get(appRef);
+    if (!freshSnap.exists()) {
+      throw new Error("?†Ï≤≠??Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+    }
+    const freshData = freshSnap.data() as Record<string, unknown>;
+    const freshUserId = typeof freshData.userId === "string" ? freshData.userId : "";
+    if (freshUserId !== uid) {
+      throw new Error("Î≥∏Ïù∏ ?†Ï≤≠Îß?Ï∑®ÏÜå?????àÏäµ?àÎã§.");
+    }
+
+    const freshStatus = normalizeStatus(freshData.status);
+    if (freshStatus === "completed") {
+      throw new Error("?ÑÎ£å???†Ï≤≠?Ä Ï∑®ÏÜå?????ÜÏäµ?àÎã§.");
+    }
+
+    if (freshStatus === "pending" || freshStatus === "rejected") {
+      tx.delete(appRef);
+      return;
+    }
+
+    if (freshStatus === "approved") {
+      const date = typeof freshData.date === "string" ? freshData.date : "";
+      if (date && date < todayYmd()) {
+        throw new Error("ÏßÄ???ºÏ†ï?Ä Ï∑®ÏÜå?????ÜÏäµ?àÎã§.");
+      }
+
+      const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+      const sessionId =
+        typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+      const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
+      if (!eventId || !sessionId || !slotId) {
+        throw new Error("?†Ï≤≠ ?∞Ïù¥?∞Ïóê event/session/slot ?ïÎ≥¥Í∞Ä ?ÜÏäµ?àÎã§.");
+      }
+
+      const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+      const eventSnap = await tx.get(eventRef);
+      if (!eventSnap.exists()) {
+        tx.delete(appRef);
+        return;
+      }
+
+      const eventData = eventSnap.data() as Record<string, unknown>;
+      const sessions = Array.isArray(eventData.sessions)
+        ? (eventData.sessions as EventItem["sessions"])
+        : [];
+
+      const nextSessions = sessions.map((sess) => {
+        if (sess.id !== sessionId) return sess;
+        return {
+          ...sess,
+          slots: sess.slots.map((slot) => {
+            if (slot.id !== slotId) return slot;
+            return {
+              ...slot,
+              applied_count: Math.max(0, slot.applied_count - 1),
+            };
+          }),
+        };
+      });
+
+      tx.update(eventRef, {
+        sessions: nextSessions,
+        updatedAt: serverTimestamp(),
+      });
+      tx.delete(appRef);
+    }
+  });
+
+  try {
+    await notifyAdminsOnApplicationCancelled(notifyPayload);
+  } catch {
+    // Ï∑®ÏÜå???±Í≥µ ???åÎ¶ºÎß??§Ìå®?????àÏùå
+  }
+}
+
+
+===== lib\firestore-events.ts =====
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
+import {
+  parseAttendanceSettings,
+  serializeAttendanceSettings,
+} from "@/lib/attendance-settings";
+import { computeTeam2ApplyOpensAt } from "@/lib/application-window";
+import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
+import { normalizeTeamIds } from "@/types/team";
+import type { EventItem } from "@/types/schedule";
+
+export const EVENTS_COLLECTION = "events";
+const APPLICATIONS_COLLECTION = "applications";
+
+function timestampToIso(value: unknown): string | undefined {
+  if (
+    value &&
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === "string" && value.trim() !== "") return value;
+  return undefined;
+}
+
+function isTeam1Only(teamIds: ReturnType<typeof normalizeTeamIds>): boolean {
+  return teamIds.length === 1 && teamIds[0] === "team_1";
+}
+
+function docToEvent(id: string, data: Record<string, unknown>): EventItem | null {
+  const title = data.title;
+  const venue = data.venue;
+  const sessions = data.sessions;
+  if (
+    typeof title !== "string" ||
+    typeof venue !== "string" ||
+    !Array.isArray(sessions)
+  ) {
+    return null;
+  }
+  const noticeRaw = typeof data.notice === "string" ? data.notice : undefined;
+  const colorRaw = typeof data.color === "string" ? data.color : undefined;
+  const notice =
+    noticeRaw && noticeRaw.trim() !== "" ? noticeRaw.trim() : undefined;
+  const color =
+    colorRaw && colorRaw.trim() !== "" ? colorRaw.trim() : undefined;
+  const attendance = parseAttendanceSettings(data.attendance);
+  const createdAt = timestampToIso(data.createdAt);
+  const team2ApplyOpensAt = timestampToIso(data.team2ApplyOpensAt);
+  return {
+    id,
+    title,
+    venue,
+    team_ids: normalizeTeamIds(data.team_ids),
+    ...(createdAt !== undefined ? { createdAt } : {}),
+    ...(team2ApplyOpensAt !== undefined ? { team2ApplyOpensAt } : {}),
+    ...(notice !== undefined ? { notice } : {}),
+    ...(color !== undefined ? { color } : {}),
+    attendance,
+    sessions: sessions as EventItem["sessions"],
+  };
+}
+
+export function subscribeEvents(
+  onNext: (events: EventItem[]) => void,
+  onError?: (message: string) => void,
+) {
+  return onSnapshot(
+    collection(db, EVENTS_COLLECTION),
+    (snap) => {
+      const list: EventItem[] = [];
+      for (const d of snap.docs) {
+        const ev = docToEvent(d.id, d.data() as Record<string, unknown>);
+        if (ev) list.push(ev);
+      }
+      list.sort((a, b) => a.title.localeCompare(b.title, "ko"));
+      onNext(list);
+    },
+    (err) => onError?.(err.message),
+  );
+}
+
+export async function createEvent(input: {
+  title: string;
+  venue: string;
+}): Promise<string> {
+  const id = crypto.randomUUID();
+  const createdAtIso = new Date().toISOString();
+  await setDoc(doc(db, EVENTS_COLLECTION, id), {
+    title: input.title.trim(),
+    venue: input.venue.trim(),
+    team_ids: normalizeTeamIds(["team_1"]),
+    sessions: [],
+    createdAt: serverTimestamp(),
+    team2ApplyOpensAt: computeTeam2ApplyOpensAt(new Date(createdAtIso)),
+    updatedAt: serverTimestamp(),
+  });
+  return id;
+}
+
+export async function saveEvent(event: EventItem): Promise<void> {
+  const payload: Record<string, unknown> = {
+    title: event.title.trim(),
+    venue: event.venue.trim(),
+    team_ids: normalizeTeamIds(event.team_ids),
+    sessions: event.sessions,
+    notice: event.notice?.trim() ?? "",
+    color: event.color?.trim() ?? "",
+    attendance: serializeAttendanceSettings(
+      parseAttendanceSettings(event.attendance),
+    ),
+    updatedAt: serverTimestamp(),
+  };
+  if (event.createdAt) payload.createdAt = event.createdAt;
+  if (event.team2ApplyOpensAt) {
+    payload.team2ApplyOpensAt = event.team2ApplyOpensAt;
+  }
+  await setDoc(doc(db, EVENTS_COLLECTION, event.id), payload, { merge: true });
+}
+
+/** ?†Í∑ú ?§Ï?Ï§??Ä??+ ?¥Îãπ ?Ä Î©§Î≤Ñ ?åÎ¶º */
+export async function createScheduleEvent(
+  event: EventItem,
+  createdByUserId: string,
+): Promise<void> {
+  const teamIds = normalizeTeamIds(event.team_ids);
+  const now = new Date();
+  const createdAtIso = event.createdAt ?? now.toISOString();
+  const withMeta: EventItem = {
+    ...event,
+    team_ids: teamIds,
+    createdAt: createdAtIso,
+    ...(isTeam1Only(teamIds)
+      ? {
+          team2ApplyOpensAt:
+            event.team2ApplyOpensAt ?? computeTeam2ApplyOpensAt(now),
+        }
+      : {}),
+  };
+
+  await setDoc(
+    doc(db, EVENTS_COLLECTION, withMeta.id),
+    {
+      title: withMeta.title.trim(),
+      venue: withMeta.venue.trim(),
+      team_ids: teamIds,
+      sessions: withMeta.sessions,
+      notice: withMeta.notice?.trim() ?? "",
+      color: withMeta.color?.trim() ?? "",
+      attendance: serializeAttendanceSettings(
+        parseAttendanceSettings(withMeta.attendance),
+      ),
+      createdAt: serverTimestamp(),
+      ...(isTeam1Only(teamIds)
+        ? { team2ApplyOpensAt: withMeta.team2ApplyOpensAt }
+        : {}),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  try {
+    await notifyTeamMembersOnScheduleCreated({
+      eventId: withMeta.id,
+      eventTitle: withMeta.title,
+      venue: withMeta.venue,
+      teamIds,
+      sessions: withMeta.sessions,
+      createdByUserId,
+    });
+  } catch {
+    // ?åÎ¶º ?§Ìå®?¥ÎèÑ ?§Ï?Ï§??Ä?•Ï? ?†Ï?
+  }
+}
+
+export async function deleteEvent(
+  eventId: string,
+  options?: {
+    event?: EventItem;
+    cancelledByUserId?: string;
+  },
+): Promise<void> {
+  if (options?.event && options.cancelledByUserId) {
+    try {
+      await notifyTeamMembersOnScheduleCancelled({
+        eventId: options.event.id,
+        eventTitle: options.event.title,
+        venue: options.event.venue,
+        teamIds: normalizeTeamIds(options.event.team_ids),
+        sessions: options.event.sessions,
+        createdByUserId: options.cancelledByUserId,
+      });
+    } catch {
+      // ?åÎ¶º ?§Ìå®?¥ÎèÑ ??†ú??ÏßÑÌñâ
+    }
+  }
+
+  const appSnap = await getDocs(
+    query(collection(db, APPLICATIONS_COLLECTION), where("eventId", "==", eventId)),
+  );
+  await Promise.all(appSnap.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(doc(db, EVENTS_COLLECTION, eventId));
+}
+
+
+===== lib\firestore-workforce.ts =====
+import {
+  type FirestoreError,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+
+import { assertAdmin } from "@/lib/admin-access";
+import { db } from "@/lib/firebase";
+import { getClientAuth } from "@/lib/firebase-auth";
+import {
+  getMonthDates,
+  getNextWeekStart,
+  getWeekDates,
+  getWeekStartMonday,
+  getWeekStartsCoveringDates,
+  parseYmd,
+} from "@/lib/workforce-dates";
+import {
+  DEFAULT_AVAILABLE_WEEKDAYS,
+  DEFAULT_WEEKLY_MAX,
+  WORKFORCE_COLORS,
+  type WorkforceAssignStatus,
+  type WorkforceAssignmentLog,
+  type WorkforceAvailability,
+  type WorkforceLogAction,
+  type WorkforceMonthlyExportRow,
+  type WorkforceSchedule,
+  type WorkforceWeekMeta,
+  type WeekdayKey,
+} from "@/types/workforce";
+import { normalizeTeamIds, type TeamId } from "@/types/team";
+import type { EventItem } from "@/types/schedule";
+
+export const WORKFORCE_WEEKS = "workforceWeeks";
+export const WORKFORCE_SCHEDULES = "workforceSchedules";
+export const WORKFORCE_AVAILABILITY = "workforceAvailability";
+export const WORKFORCE_LOGS = "workforceLogs";
+export const WORKFORCE_MONTHLY_EXPORTS = "workforceMonthlyExports";
+
+function timestampToIso(value: unknown): string {
+  if (
+    value &&
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof value === "string") return value;
+  return new Date().toISOString();
+}
+
+function parseWeekdays(raw: unknown): Record<WeekdayKey, boolean> {
+  const base = { ...DEFAULT_AVAILABLE_WEEKDAYS };
+  if (!raw || typeof raw !== "object") return base;
+  const o = raw as Record<string, unknown>;
+  for (const k of Object.keys(base) as WeekdayKey[]) {
+    if (typeof o[k] === "boolean") base[k] = o[k];
+  }
+  return base;
+}
+
+function parseExceptions(
+  raw: unknown,
+): Record<string, "available" | "unavailable"> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, "available" | "unavailable"> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v === "available" || v === "unavailable") out[k] = v;
+  }
+  return out;
+}
+
+export function docToSchedule(
+  id: string,
+  data: Record<string, unknown>,
+): WorkforceSchedule {
+  return {
+    id,
+    weekStart: typeof data.weekStart === "string" ? data.weekStart : "",
+    date: typeof data.date === "string" ? data.date : "",
+    title: typeof data.title === "string" ? data.title : "",
+    startTime: typeof data.startTime === "string" ? data.startTime : "",
+    venue: typeof data.venue === "string" ? data.venue : "",
+    requiredCount:
+      typeof data.requiredCount === "number" ? data.requiredCount : 0,
+    teamIds: normalizeTeamIds(data.teamIds),
+    note: typeof data.note === "string" ? data.note : "",
+    color: typeof data.color === "string" ? data.color : "#C8A96B",
+    assignedUserIds: Array.isArray(data.assignedUserIds)
+      ? data.assignedUserIds.filter((x): x is string => typeof x === "string")
+      : [],
+    status:
+      data.status === "confirmed" ||
+      data.status === "cancelled" ||
+      data.status === "draft"
+        ? data.status
+        : "draft",
+    sourceEventId:
+      typeof data.sourceEventId === "string" ? data.sourceEventId : undefined,
+    sourceSessionId:
+      typeof data.sourceSessionId === "string"
+        ? data.sourceSessionId
+        : undefined,
+    sourceSlotId:
+      typeof data.sourceSlotId === "string" ? data.sourceSlotId : undefined,
+    createdAt: timestampToIso(data.createdAt),
+    updatedAt: timestampToIso(data.updatedAt),
+    createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
+  };
+}
+
+function parseSubmittedWeeks(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (x): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x),
+  );
+}
+
+export function docToAvailability(
+  userId: string,
+  data: Record<string, unknown>,
+): WorkforceAvailability {
+  return {
+    userId,
+    weeklyMaxAssignments:
+      typeof data.weeklyMaxAssignments === "number"
+        ? data.weeklyMaxAssignments
+        : DEFAULT_WEEKLY_MAX,
+    availableWeekdays: parseWeekdays(data.availableWeekdays),
+    dateExceptions: parseExceptions(data.dateExceptions),
+    memberSubmittedWeeks: parseSubmittedWeeks(data.memberSubmittedWeeks),
+    updatedAt: timestampToIso(data.updatedAt),
+  };
+}
+
+export function defaultAvailability(userId: string): WorkforceAvailability {
+  return {
+    userId,
+    weeklyMaxAssignments: DEFAULT_WEEKLY_MAX,
+    availableWeekdays: { ...DEFAULT_AVAILABLE_WEEKDAYS },
+    dateExceptions: {},
+    memberSubmittedWeeks: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function subscribeWorkforceWeek(
+  weekStart: string,
+  onData: (meta: WorkforceWeekMeta | null) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  return onSnapshot(
+    doc(db, WORKFORCE_WEEKS, weekStart),
+    (snap) => {
+      if (!snap.exists()) {
+        onData(null);
+        return;
+      }
+      const data = snap.data() as Record<string, unknown>;
+      onData({
+        weekStart,
+        status:
+          data.status === "confirmed" ||
+          data.status === "cancelled" ||
+          data.status === "draft"
+            ? data.status
+            : "draft",
+        confirmedAt:
+          typeof data.confirmedAt === "string"
+            ? data.confirmedAt
+            : data.confirmedAt
+              ? timestampToIso(data.confirmedAt)
+              : undefined,
+        confirmedBy:
+          typeof data.confirmedBy === "string" ? data.confirmedBy : undefined,
+        updatedAt: timestampToIso(data.updatedAt),
+        updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : "",
+      });
+    },
+    (err) => onError?.(err),
+  );
+}
+
+export function subscribeWorkforceSchedules(
+  weekStart: string,
+  onData: (rows: WorkforceSchedule[]) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  const q = query(
+    collection(db, WORKFORCE_SCHEDULES),
+    where("weekStart", "==", weekStart),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rows = snap.docs
+        .map((d) => docToSchedule(d.id, d.data() as Record<string, unknown>))
+        .filter((s) => s.status !== "cancelled")
+        .sort((a, b) =>
+          a.date === b.date
+            ? a.startTime.localeCompare(b.startTime)
+            : a.date.localeCompare(b.date),
+        );
+      onData(rows);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** ?¨Îü¨ Ï£ºÏùò ?ºÏ†ï???©Ï≥ê Íµ¨ÎèÖ */
+export function subscribeWorkforceSchedulesMulti(
+  weekStarts: string[],
+  onData: (rows: WorkforceSchedule[]) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  const unique = [...new Set(weekStarts.filter(Boolean))];
+  if (unique.length === 0) {
+    onData([]);
+    return () => {};
+  }
+  if (unique.length === 1) {
+    return subscribeWorkforceSchedules(unique[0]!, onData, onError);
+  }
+
+  const byWeek = new Map<string, WorkforceSchedule[]>();
+  const unsubs = unique.map((ws) =>
+    subscribeWorkforceSchedules(
+      ws,
+      (rows) => {
+        byWeek.set(ws, rows);
+        const merged = [...byWeek.values()].flat().sort((a, b) =>
+          a.date === b.date
+            ? a.startTime.localeCompare(b.startTime)
+            : a.date.localeCompare(b.date),
+        );
+        onData(merged);
+      },
+      onError,
+    ),
+  );
+  return () => {
+    for (const u of unsubs) u();
+  };
+}
+
+export function subscribeAllAvailability(
+  onData: (map: Map<string, WorkforceAvailability>) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  return onSnapshot(
+    collection(db, WORKFORCE_AVAILABILITY),
+    (snap) => {
+      const map = new Map<string, WorkforceAvailability>();
+      for (const d of snap.docs) {
+        map.set(
+          d.id,
+          docToAvailability(d.id, d.data() as Record<string, unknown>),
+        );
+      }
+      onData(map);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+export async function ensureWeekMeta(
+  weekStart: string,
+  actorUid: string,
+): Promise<void> {
+  await assertAdmin();
+  const ref = doc(db, WORKFORCE_WEEKS, weekStart);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return;
+  await setDoc(ref, {
+    weekStart,
+    status: "draft",
+    updatedAt: serverTimestamp(),
+    updatedBy: actorUid,
+  });
+}
+
+export async function writeAssignmentLog(input: {
+  weekStart: string;
+  scheduleId?: string;
+  actorUserId: string;
+  actorName: string;
+  action: WorkforceLogAction;
+  targetUserId?: string;
+  targetUserName?: string;
+  detail?: string;
+  reason?: string;
+}) {
+  const payload: Record<string, unknown> = {
+    weekStart: input.weekStart,
+    actorUserId: input.actorUserId,
+    actorName: input.actorName,
+    action: input.action,
+    createdAt: serverTimestamp(),
+  };
+  if (input.scheduleId) payload.scheduleId = input.scheduleId;
+  if (input.targetUserId) payload.targetUserId = input.targetUserId;
+  if (input.targetUserName) payload.targetUserName = input.targetUserName;
+  if (input.detail) payload.detail = input.detail;
+  if (input.reason?.trim()) payload.reason = input.reason.trim();
+
+  await addDoc(collection(db, WORKFORCE_LOGS), payload);
+}
+
+export async function createWorkforceSchedule(input: {
+  weekStart: string;
+  date: string;
+  title: string;
+  startTime: string;
+  venue: string;
+  requiredCount: number;
+  teamIds: TeamId[];
+  note: string;
+  color: string;
+  sourceEventId?: string;
+  sourceSessionId?: string;
+  sourceSlotId?: string;
+}): Promise<string> {
+  const uid = await assertAdmin();
+  await ensureWeekMeta(input.weekStart, uid);
+  const ref = await addDoc(collection(db, WORKFORCE_SCHEDULES), {
+    weekStart: input.weekStart,
+    date: input.date,
+    title: input.title.trim(),
+    startTime: input.startTime,
+    venue: input.venue.trim(),
+    requiredCount: Math.max(0, Math.floor(input.requiredCount)),
+    teamIds: normalizeTeamIds(input.teamIds),
+    note: input.note.trim(),
+    color: input.color,
+    assignedUserIds: [],
+    status: "draft",
+    ...(input.sourceEventId
+      ? {
+          sourceEventId: input.sourceEventId,
+          sourceSessionId: input.sourceSessionId ?? "",
+          sourceSlotId: input.sourceSlotId ?? "",
+        }
+      : {}),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    createdBy: uid,
+  });
+  await writeAssignmentLog({
+    weekStart: input.weekStart,
+    scheduleId: ref.id,
+    actorUserId: uid,
+    actorName: "",
+    action: "create_schedule",
+    detail: input.title.trim(),
+  });
+  return ref.id;
+}
+
+export async function updateWorkforceSchedule(
+  scheduleId: string,
+  patch: Partial<{
+    title: string;
+    date: string;
+    startTime: string;
+    venue: string;
+    requiredCount: number;
+    teamIds: TeamId[];
+    note: string;
+    color: string;
+  }>,
+): Promise<void> {
+  const uid = await assertAdmin();
+  const ref = doc(db, WORKFORCE_SCHEDULES, scheduleId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("?ºÏ†ï??Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+  const prev = docToSchedule(scheduleId, snap.data() as Record<string, unknown>);
+  await updateDoc(ref, {
+    ...patch,
+    ...(patch.teamIds ? { teamIds: normalizeTeamIds(patch.teamIds) } : {}),
+    updatedAt: serverTimestamp(),
+  });
+  await writeAssignmentLog({
+    weekStart: prev.weekStart,
+    scheduleId,
+    actorUserId: uid,
+    actorName: "",
+    action: "update_schedule",
+    detail: prev.title,
+  });
+}
+
+export async function deleteWorkforceSchedule(scheduleId: string): Promise<void> {
+  const uid = await assertAdmin();
+  const ref = doc(db, WORKFORCE_SCHEDULES, scheduleId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const prev = docToSchedule(scheduleId, snap.data() as Record<string, unknown>);
+  await deleteDoc(ref);
+  await writeAssignmentLog({
+    weekStart: prev.weekStart,
+    scheduleId,
+    actorUserId: uid,
+    actorName: "",
+    action: "delete_schedule",
+    detail: prev.title,
+  });
+}
+
+export async function duplicateWorkforceSchedule(
+  scheduleId: string,
+  targetDate?: string,
+): Promise<string> {
+  const uid = await assertAdmin();
+  const snap = await getDoc(doc(db, WORKFORCE_SCHEDULES, scheduleId));
+  if (!snap.exists()) throw new Error("?ºÏ†ï??Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+  const src = docToSchedule(scheduleId, snap.data() as Record<string, unknown>);
+  const id = await createWorkforceSchedule({
+    weekStart: src.weekStart,
+    date: targetDate || src.date,
+    title: `${src.title} (Î≥µÏ†ú)`,
+    startTime: src.startTime,
+    venue: src.venue,
+    requiredCount: src.requiredCount,
+    teamIds: src.teamIds,
+    note: src.note,
+    color: src.color,
+  });
+  await writeAssignmentLog({
+    weekStart: src.weekStart,
+    scheduleId: id,
+    actorUserId: uid,
+    actorName: "",
+    action: "duplicate_schedule",
+    detail: src.title,
+  });
+  return id;
+}
+
+export async function setScheduleAssignees(
+  scheduleId: string,
+  assignedUserIds: string[],
+  meta?: {
+    action?: WorkforceLogAction;
+    targetUserId?: string;
+    targetUserName?: string;
+    reason?: string;
+    detail?: string;
+  },
+): Promise<void> {
+  const uid = await assertAdmin();
+  const ref = doc(db, WORKFORCE_SCHEDULES, scheduleId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("?ºÏ†ï??Ï∞æÏùÑ ???ÜÏäµ?àÎã§.");
+  const prev = docToSchedule(scheduleId, snap.data() as Record<string, unknown>);
+  const unique = [...new Set(assignedUserIds)];
+  await updateDoc(ref, {
+    assignedUserIds: unique,
+    updatedAt: serverTimestamp(),
+  });
+  await writeAssignmentLog({
+    weekStart: prev.weekStart,
+    scheduleId,
+    actorUserId: uid,
+    actorName: "",
+    action: meta?.action ?? "assign",
+    targetUserId: meta?.targetUserId,
+    targetUserName: meta?.targetUserName,
+    reason: meta?.reason,
+    detail: meta?.detail ?? prev.title,
+  });
+}
+
+export async function saveWeekDraft(weekStart: string): Promise<void> {
+  const uid = await assertAdmin();
+  await ensureWeekMeta(weekStart, uid);
+  await updateDoc(doc(db, WORKFORCE_WEEKS, weekStart), {
+    status: "draft",
+    updatedAt: serverTimestamp(),
+    updatedBy: uid,
+  });
+  await writeAssignmentLog({
+    weekStart,
+    actorUserId: uid,
+    actorName: "",
+    action: "save_draft",
+  });
+}
+
+export async function confirmWorkforceWeek(weekStart: string): Promise<{
+  schedules: WorkforceSchedule[];
+}> {
+  const uid = await assertAdmin();
+  await ensureWeekMeta(weekStart, uid);
+  const q = query(
+    collection(db, WORKFORCE_SCHEDULES),
+    where("weekStart", "==", weekStart),
+  );
+  const snap = await getDocs(q);
+  const batch = writeBatch(db);
+  const schedules: WorkforceSchedule[] = [];
+  for (const d of snap.docs) {
+    const s = docToSchedule(d.id, d.data() as Record<string, unknown>);
+    if (s.status === "cancelled") continue;
+    batch.update(d.ref, {
+      status: "confirmed",
+      updatedAt: serverTimestamp(),
+    });
+    schedules.push({ ...s, status: "confirmed" });
+  }
+  batch.set(
+    doc(db, WORKFORCE_WEEKS, weekStart),
+    {
+      weekStart,
+      status: "confirmed",
+      confirmedAt: serverTimestamp(),
+      confirmedBy: uid,
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+    },
+    { merge: true },
+  );
+  await batch.commit();
+  await writeAssignmentLog({
+    weekStart,
+    actorUserId: uid,
+    actorName: "",
+    action: "confirm_week",
+    detail: `${schedules.length}Í∞??ºÏ†ï`,
+  });
+  return { schedules };
+}
+
+export async function resetWorkforceWeek(weekStart: string): Promise<void> {
+  const uid = await assertAdmin();
+  const q = query(
+    collection(db, WORKFORCE_SCHEDULES),
+    where("weekStart", "==", weekStart),
+  );
+  const snap = await getDocs(q);
+  const batch = writeBatch(db);
+  for (const d of snap.docs) {
+    batch.delete(d.ref);
+  }
+  batch.set(
+    doc(db, WORKFORCE_WEEKS, weekStart),
+    {
+      weekStart,
+      status: "draft",
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+    },
+    { merge: true },
+  );
+  await batch.commit();
+  await writeAssignmentLog({
+    weekStart,
+    actorUserId: uid,
+    actorName: "",
+    action: "reset_week",
+  });
+}
+
+export async function upsertAvailability(
+  userId: string,
+  patch: Partial<{
+    weeklyMaxAssignments: number;
+    availableWeekdays: Record<WeekdayKey, boolean>;
+    dateExceptions: Record<string, "available" | "unavailable">;
+    memberSubmittedWeeks: string[];
+  }>,
+  opts?: { mergeExceptions?: boolean },
+): Promise<void> {
+  const uid = await assertAdmin();
+  const ref = doc(db, WORKFORCE_AVAILABILITY, userId);
+  const snap = await getDoc(ref);
+  const prev = snap.exists()
+    ? docToAvailability(userId, snap.data() as Record<string, unknown>)
+    : defaultAvailability(userId);
+  const mergeExceptions = opts?.mergeExceptions !== false;
+  const nextExceptions =
+    patch.dateExceptions === undefined
+      ? prev.dateExceptions
+      : mergeExceptions
+        ? { ...prev.dateExceptions, ...patch.dateExceptions }
+        : patch.dateExceptions;
+  await setDoc(
+    ref,
+    {
+      userId,
+      weeklyMaxAssignments:
+        patch.weeklyMaxAssignments ?? prev.weeklyMaxAssignments,
+      availableWeekdays: patch.availableWeekdays ?? prev.availableWeekdays,
+      dateExceptions: nextExceptions,
+      memberSubmittedWeeks:
+        patch.memberSubmittedWeeks ?? prev.memberSubmittedWeeks,
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+    },
+    { merge: true },
+  );
+  await writeAssignmentLog({
+    weekStart: "",
+    actorUserId: uid,
+    actorName: "",
+    action: "update_availability",
+    targetUserId: userId,
+  });
+}
+
+/** Î©§Î≤Ñ Î≥∏Ïù∏ ???µÏ£º Í∞Ä?•ÏùºÎß??†Ï≤≠. ?¥Î? ?úÏ∂ú??Ï£ºÎäî ?òÏ†ï Î∂àÍ?. */
+export async function upsertMyAvailability(input: {
+  weekStart: string;
+  dateExceptions: Record<string, "available" | "unavailable">;
+}): Promise<void> {
+  const uid = getClientAuth().currentUser?.uid;
+  if (!uid) throw new Error("Î°úÍ∑∏?∏Ïù¥ ?ÑÏöî?©Îãà??");
+
+  const allowedWeek = getNextWeekStart();
+  if (input.weekStart !== allowedWeek) {
+    throw new Error("Í∑ºÎ¨¥ Í∞Ä?•Ïùº?Ä ?µÏ£ºÎß??†Ï≤≠?????àÏäµ?àÎã§.");
+  }
+
+  const allowedDates = new Set(getWeekDates(allowedWeek));
+  for (const date of Object.keys(input.dateExceptions)) {
+    if (!allowedDates.has(date)) {
+      throw new Error("?µÏ£º ?†ÏßúÎß??Ä?•Ìï† ???àÏäµ?àÎã§.");
+    }
+  }
+
+  const ref = doc(db, WORKFORCE_AVAILABILITY, uid);
+  const snap = await getDoc(ref);
+  const prev = snap.exists()
+    ? docToAvailability(uid, snap.data() as Record<string, unknown>)
+    : defaultAvailability(uid);
+
+  if (prev.memberSubmittedWeeks.includes(allowedWeek)) {
+    throw new Error(
+      "?¥Î? ?µÏ£º Í∞Ä?•Ïùº???†Ï≤≠?àÏäµ?àÎã§. Î≥ÄÍ≤ΩÏ? Í¥ÄÎ¶¨Ïûê?êÍ≤å ?îÏ≤≠??Ï£ºÏÑ∏??",
+    );
+  }
+
+  const nextExceptions = {
+    ...prev.dateExceptions,
+    ...input.dateExceptions,
+  };
+  const memberSubmittedWeeks = [
+    ...new Set([...prev.memberSubmittedWeeks, allowedWeek]),
+  ].sort();
+
+  await setDoc(
+    ref,
+    {
+      userId: uid,
+      weeklyMaxAssignments: prev.weeklyMaxAssignments,
+      availableWeekdays: prev.availableWeekdays,
+      dateExceptions: nextExceptions,
+      memberSubmittedWeeks,
+      updatedAt: serverTimestamp(),
+      updatedBy: uid,
+    },
+    { merge: true },
+  );
+}
+
+export function subscribeMyAvailability(
+  userId: string,
+  onData: (row: WorkforceAvailability) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  return onSnapshot(
+    doc(db, WORKFORCE_AVAILABILITY, userId),
+    (snap) => {
+      if (!snap.exists()) {
+        onData(defaultAvailability(userId));
+        return;
+      }
+      onData(
+        docToAvailability(userId, snap.data() as Record<string, unknown>),
+      );
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** ?¥Îãπ ??YYYY-MM)???çÌïú ?ºÏ†ïÎß???†ú */
+export async function deleteSchedulesInMonth(
+  yearMonth: string,
+): Promise<number> {
+  const uid = await assertAdmin();
+  const monthDates = new Set(getMonthDates(yearMonth));
+  const weekStarts = getWeekStartsCoveringDates([...monthDates]);
+  let deleted = 0;
+
+  for (const ws of weekStarts) {
+    const snap = await getDocs(
+      query(
+        collection(db, WORKFORCE_SCHEDULES),
+        where("weekStart", "==", ws),
+      ),
+    );
+    const toDelete = snap.docs.filter((d) => {
+      const date = (d.data() as { date?: string }).date;
+      return typeof date === "string" && monthDates.has(date);
+    });
+    for (let i = 0; i < toDelete.length; i += 400) {
+      const chunk = toDelete.slice(i, i + 400);
+      const batch = writeBatch(db);
+      for (const d of chunk) batch.delete(d.ref);
+      await batch.commit();
+      deleted += chunk.length;
+    }
+  }
+
+  await writeAssignmentLog({
+    weekStart: weekStarts[0] ?? "",
+    actorUserId: uid,
+    actorName: "",
+    action: "reset_week",
+    detail: `${yearMonth} ???ºÏ†ï ${deleted}Í±???†ú`,
+  });
+  return deleted;
+}
+
+export async function exportWeekToMonthlySheet(input: {
+  weekStart: string;
+  schedules: WorkforceSchedule[];
+  nameByUid: Map<string, string>;
+  teamByUid: Map<string, TeamId>;
+  yearMonth: string;
+}): Promise<string> {
+  const uid = await assertAdmin();
+  const rows: WorkforceMonthlyExportRow[] = [];
+  for (const s of input.schedules) {
+    if (s.status === "cancelled") continue;
+    for (const userId of s.assignedUserIds) {
+      rows.push({
+        userId,
+        userName: input.nameByUid.get(userId) || userId,
+        teamId: input.teamByUid.get(userId) || "team_1",
+        date: s.date,
+        title: s.title,
+        startTime: s.startTime,
+        venue: s.venue,
+        note: s.note,
+        status: s.status,
+      });
+    }
+  }
+  const ref = await addDoc(collection(db, WORKFORCE_MONTHLY_EXPORTS), {
+    yearMonth: input.yearMonth,
+    weekStart: input.weekStart,
+    exportedAt: serverTimestamp(),
+    exportedBy: uid,
+    rows,
+  });
+  await writeAssignmentLog({
+    weekStart: input.weekStart,
+    actorUserId: uid,
+    actorName: "",
+    action: "export_monthly",
+    detail: `${rows.length}????${input.yearMonth}`,
+  });
+  return ref.id;
+}
+
+export function subscribeMyConfirmedSchedules(
+  userId: string,
+  weekStart: string,
+  onData: (rows: WorkforceSchedule[]) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  const q = query(
+    collection(db, WORKFORCE_SCHEDULES),
+    where("weekStart", "==", weekStart),
+    where("status", "==", "confirmed"),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rows = snap.docs
+        .map((d) => docToSchedule(d.id, d.data() as Record<string, unknown>))
+        .filter((s) => s.assignedUserIds.includes(userId))
+        .sort((a, b) =>
+          a.date === b.date
+            ? a.startTime.localeCompare(b.startTime)
+            : a.date.localeCompare(b.date),
+        );
+      onData(rows);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+export function subscribeRecentLogs(
+  weekStart: string,
+  onData: (rows: WorkforceAssignmentLog[]) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  const q = query(
+    collection(db, WORKFORCE_LOGS),
+    where("weekStart", "==", weekStart),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rows = snap.docs
+        .map((d) => {
+          const data = d.data() as Record<string, unknown>;
+          return {
+            id: d.id,
+            weekStart:
+              typeof data.weekStart === "string" ? data.weekStart : "",
+            scheduleId:
+              typeof data.scheduleId === "string" ? data.scheduleId : undefined,
+            actorUserId:
+              typeof data.actorUserId === "string" ? data.actorUserId : "",
+            actorName: typeof data.actorName === "string" ? data.actorName : "",
+            action: data.action as WorkforceLogAction,
+            targetUserId:
+              typeof data.targetUserId === "string"
+                ? data.targetUserId
+                : undefined,
+            targetUserName:
+              typeof data.targetUserName === "string"
+                ? data.targetUserName
+                : undefined,
+            detail: typeof data.detail === "string" ? data.detail : undefined,
+            reason: typeof data.reason === "string" ? data.reason : undefined,
+            createdAt: timestampToIso(data.createdAt),
+          } satisfies WorkforceAssignmentLog;
+        })
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 50);
+      onData(rows);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+export type { WorkforceAssignStatus };
+
+export function sourceSlotKey(
+  eventId: string,
+  sessionId: string,
+  slotId: string,
+) {
+  return `${eventId}:${sessionId}:${slotId}`;
+}
+
+/** ?¥Î≤§???∏ÏÖò ?®ÏúÑ ??(?¨Î°Ø ?¨Îü¨ Í∞úÏó¨??Î∞∞Ï†ï Ïπ¥Îìú 1Í∞? */
+export function sourceSessionKey(eventId: string, sessionId: string) {
+  return `${eventId}:${sessionId}`;
+}
+
+/** ?∏ÏÖò Î≥ëÌï© ?¨Î°Ø id ???¨Î°ØÎ≥?Ï§ëÎ≥µ Ïπ¥Îìú Î∞©Ï? */
+export const MERGED_SLOT_ID = "__session__";
+
+function normalizeSessionDate(raw: string): string {
+  return raw.trim().slice(0, 10);
+}
+
+export type WeekEventSessionRow = {
+  event: EventItem;
+  sessionId: string;
+  date: string;
+  startTime: string;
+  requiredCount: number;
+};
+
+/** Ï£ºÍ∞Ñ ?∏ÏÖò???¥Î≤§?∏√óÏÑ∏?òÎãπ 1Í±¥ÏúºÎ°?Ï∑®Ìï© (?ôÏùº ?úÍ∞Ñ ?¨Î°Ø Ï§ëÎ≥µ ?úÍ±∞) */
+export function listEventSessionsInWeek(
+  weekDates: string[],
+  events: EventItem[],
+): WeekEventSessionRow[] {
+  const dateSet = new Set(weekDates.map((d) => d.trim()));
+  const out: WeekEventSessionRow[] = [];
+
+  for (const event of events) {
+    for (const session of event.sessions) {
+      const date = normalizeSessionDate(session.date || "");
+      if (!date || !dateSet.has(date)) continue;
+
+      const slots = session.slots ?? [];
+      if (slots.length === 0) {
+        out.push({
+          event,
+          sessionId: session.id,
+          date,
+          startTime: "10:00",
+          requiredCount: 1,
+        });
+        continue;
+      }
+
+      // Í∞ôÏ? start_time ?¨Î°Ø?Ä ?ïÏõêÎß??©ÏÇ∞ (Ï§ëÎ≥µ Ïπ¥Îìú Î∞©Ï?)
+      const byTime = new Map<string, number>();
+      for (const slot of slots) {
+        const t = (slot.start_time || "10:00").trim() || "10:00";
+        byTime.set(t, (byTime.get(t) ?? 0) + Math.max(0, slot.capacity || 0));
+      }
+
+      // ?∏ÏÖò??Ïπ¥Îìú 1Í∞? Í∞Ä???¥Î•∏ ?úÍ∞Ñ + ?ÑÏ≤¥ ?ïÏõê ??      const times = [...byTime.keys()].sort();
+      const startTime = times[0] ?? "10:00";
+      const requiredCount = [...byTime.values()].reduce((a, b) => a + b, 0);
+
+      out.push({
+        event,
+        sessionId: session.id,
+        date,
+        startTime,
+        requiredCount: Math.max(1, requiredCount),
+      });
+    }
+  }
+
+  return out;
+}
+
+/** @deprecated use listEventSessionsInWeek */
+export function listEventSlotsInWeek(
+  weekDates: string[],
+  events: EventItem[],
+): {
+  event: EventItem;
+  sessionId: string;
+  date: string;
+  slot: { id: string; start_time: string; capacity: number };
+}[] {
+  return listEventSessionsInWeek(weekDates, events).map((row) => ({
+    event: row.event,
+    sessionId: row.sessionId,
+    date: row.date,
+    slot: {
+      id: MERGED_SLOT_ID,
+      start_time: row.startTime,
+      capacity: row.requiredCount,
+    },
+  }));
+}
+
+/** ?§Ï?Ï§?events + ?∏Î†•Î∞∞Ï†ï Î¨∏ÏÑúÎ•???Ï£??¨Î†•?©ÏúºÎ°??©Ïπ©?àÎã§. */
+export function mergeWeekSchedulesWithEvents(
+  weekStart: string,
+  weekDates: string[],
+  events: EventItem[],
+  existing: WorkforceSchedule[],
+): WorkforceSchedule[] {
+  // ?∏ÏÖò ?®ÏúÑÎ°?existing Îß§Ïπ≠ (???¨Î°ØÎ≥?Î¨∏ÏÑú??Í∞ôÏ? ?∏ÏÖò?¥Î©¥ ?òÎÇòÎ°?Î¨∂Ïùå)
+  const existingBySession = new Map<string, WorkforceSchedule[]>();
+  for (const s of existing) {
+    if (!s.sourceEventId || !s.sourceSessionId) continue;
+    const key = sourceSessionKey(s.sourceEventId, s.sourceSessionId);
+    const list = existingBySession.get(key) ?? [];
+    list.push(s);
+    existingBySession.set(key, list);
+  }
+
+  const merged: WorkforceSchedule[] = [];
+  const usedIds = new Set<string>();
+  let colorIdx = 0;
+
+  for (const row of listEventSessionsInWeek(weekDates, events)) {
+    const key = sourceSessionKey(row.event.id, row.sessionId);
+    const linkedList = existingBySession.get(key) ?? [];
+    const color =
+      row.event.color?.trim() ||
+      linkedList[0]?.color ||
+      WORKFORCE_COLORS[colorIdx % WORKFORCE_COLORS.length];
+    colorIdx += 1;
+
+    if (linkedList.length > 0) {
+      // Î∞∞Ï†ï???©ÏπòÍ≥? ?Ä??Î¨∏ÏÑú??merged ?¨Î°Ø ?êÎäî Ï≤?Î¨∏ÏÑú
+      const primary =
+        linkedList.find((s) => s.sourceSlotId === MERGED_SLOT_ID) ??
+        linkedList[0]!;
+      const assigneeSet = new Set<string>();
+      for (const s of linkedList) {
+        usedIds.add(s.id);
+        for (const uid of s.assignedUserIds) assigneeSet.add(uid);
+      }
+      merged.push({
+        ...primary,
+        title: row.event.title || primary.title,
+        venue: row.event.venue || primary.venue,
+        startTime: row.startTime || primary.startTime,
+        requiredCount: row.requiredCount,
+        teamIds: normalizeTeamIds(row.event.team_ids),
+        note: row.event.notice?.trim() || primary.note,
+        color,
+        date: row.date,
+        assignedUserIds: [...assigneeSet],
+        sourceEventId: row.event.id,
+        sourceSessionId: row.sessionId,
+        sourceSlotId: MERGED_SLOT_ID,
+      });
+    } else {
+      merged.push({
+        id: `virtual:${key}`,
+        weekStart: getWeekStartMonday(parseYmd(row.date)),
+        date: row.date,
+        title: row.event.title,
+        startTime: row.startTime,
+        venue: row.event.venue,
+        requiredCount: row.requiredCount,
+        teamIds: normalizeTeamIds(row.event.team_ids),
+        note: row.event.notice?.trim() || "",
+        color,
+        assignedUserIds: [],
+        status: "draft",
+        sourceEventId: row.event.id,
+        sourceSessionId: row.sessionId,
+        sourceSlotId: MERGED_SLOT_ID,
+        createdAt: "",
+        updatedAt: "",
+        createdBy: "",
+      });
+    }
+  }
+
+  for (const s of existing) {
+    if (usedIds.has(s.id)) continue;
+    // ?§Ï?Ï§??∞Îèô?∏Îç∞ ?¥Î? ?∏ÏÖò Î≥ëÌï©???¨Ìï®???¨Î°Ø Î¨∏ÏÑú???§ÌÇµ
+    if (s.sourceEventId && s.sourceSessionId) {
+      const siblings =
+        existingBySession.get(
+          sourceSessionKey(s.sourceEventId, s.sourceSessionId),
+        ) ?? [];
+      if (siblings.some((x) => usedIds.has(x.id))) continue;
+    }
+    merged.push(s);
+  }
+
+  return merged.sort((a, b) =>
+    a.date === b.date
+      ? a.startTime.localeCompare(b.startTime)
+      : a.date.localeCompare(b.date),
+  );
+}
+
+/** ?¥Îãπ Ï£ºÏóê ?àÎäî events ?∏ÏÖò Ï§? ?ÑÏßÅ ?∏Î†•Î∞∞Ï†ï???ÜÎäî ??™©Îß?Í∞Ä?∏Ïòµ?àÎã§. */
+export async function importEventsForWeek(input: {
+  weekStart: string;
+  weekDates: string[];
+  events: EventItem[];
+  existing: WorkforceSchedule[];
+}): Promise<{ imported: number; skipped: number; cleaned: number }> {
+  const uid = await assertAdmin();
+  await ensureWeekMeta(input.weekStart, uid);
+
+  // Í∏∞Ï°¥ ?¨Î°ØÎ≥?Ï§ëÎ≥µ Î¨∏ÏÑú ???∏ÏÖò??1Í∞úÎ°ú ?ïÎ¶¨
+  const cleaned = await cleanupDuplicateSessionSchedules(input.existing);
+
+  const snap = await getDocs(
+    query(
+      collection(db, WORKFORCE_SCHEDULES),
+      where("weekStart", "==", input.weekStart),
+    ),
+  );
+  const freshExisting = snap.docs
+    .map((d) => docToSchedule(d.id, d.data() as Record<string, unknown>))
+    .filter((s) => s.status !== "cancelled");
+
+  const existingSessionKeys = new Set(
+    freshExisting
+      .filter((s) => s.sourceEventId && s.sourceSessionId)
+      .map((s) => sourceSessionKey(s.sourceEventId!, s.sourceSessionId!)),
+  );
+
+  let imported = 0;
+  let skipped = 0;
+  let colorIdx = 0;
+
+  for (const row of listEventSessionsInWeek(input.weekDates, input.events)) {
+    const key = sourceSessionKey(row.event.id, row.sessionId);
+    if (existingSessionKeys.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    const color =
+      row.event.color?.trim() ||
+      WORKFORCE_COLORS[colorIdx % WORKFORCE_COLORS.length];
+    colorIdx += 1;
+    await createWorkforceSchedule({
+      weekStart: input.weekStart,
+      date: row.date,
+      title: row.event.title,
+      startTime: row.startTime,
+      venue: row.event.venue,
+      requiredCount: row.requiredCount,
+      teamIds: normalizeTeamIds(row.event.team_ids),
+      note: row.event.notice?.trim() || "",
+      color,
+      sourceEventId: row.event.id,
+      sourceSessionId: row.sessionId,
+      sourceSlotId: MERGED_SLOT_ID,
+    });
+    existingSessionKeys.add(key);
+    imported += 1;
+  }
+
+  if (imported > 0 || cleaned > 0) {
+    await writeAssignmentLog({
+      weekStart: input.weekStart,
+      actorUserId: uid,
+      actorName: "",
+      action: "import_events",
+      detail: `Í∞Ä?∏Ïò¥ ${imported} ¬∑ Ï§ëÎ≥µ?§ÌÇµ ${skipped} ¬∑ ?ïÎ¶¨ ${cleaned}`,
+    });
+  }
+
+  return { imported, skipped, cleaned };
+}
+
+/** DB???∏ÏÖò??2Í∞??¥ÏÉÅ Î¨∏ÏÑúÍ∞Ä ?®ÏïÑ ?àÎäîÏßÄ */
+export function hasDuplicateSessionSchedules(
+  existing: WorkforceSchedule[],
+): boolean {
+  const seen = new Map<string, number>();
+  for (const s of existing) {
+    if (!s.sourceEventId || !s.sourceSessionId) continue;
+    const key = sourceSessionKey(s.sourceEventId, s.sourceSessionId);
+    const n = (seen.get(key) ?? 0) + 1;
+    if (n > 1) return true;
+    seen.set(key, n);
+    if (s.sourceSlotId && s.sourceSlotId !== MERGED_SLOT_ID) return true;
+  }
+  return false;
+}
+
+/** Í∞ôÏ? ?¥Î≤§???∏ÏÖò??Î¨∂Ïù∏ ?¨Î°ØÎ≥?Î¨∏ÏÑú?§ÏùÑ 1Í∞úÎ°ú Î≥ëÌï©¬∑??†ú */
+export async function cleanupDuplicateSessionSchedules(
+  existing: WorkforceSchedule[],
+): Promise<number> {
+  await assertAdmin();
+  const groups = new Map<string, WorkforceSchedule[]>();
+  for (const s of existing) {
+    if (!s.sourceEventId || !s.sourceSessionId) continue;
+    const key = sourceSessionKey(s.sourceEventId, s.sourceSessionId);
+    const list = groups.get(key) ?? [];
+    list.push(s);
+    groups.set(key, list);
+  }
+
+  let cleaned = 0;
+  for (const [, list] of groups) {
+    if (list.length <= 1) {
+      // ?¨Î°Ø idÎß????ïÏãù?¥Î©¥ MERGED Î°??ïÍ∑ú??      const only = list[0];
+      if (only && only.sourceSlotId !== MERGED_SLOT_ID) {
+        await updateDoc(doc(db, WORKFORCE_SCHEDULES, only.id), {
+          sourceSlotId: MERGED_SLOT_ID,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      continue;
+    }
+
+    const primary =
+      list.find((s) => s.sourceSlotId === MERGED_SLOT_ID) ?? list[0]!;
+    const assigneeSet = new Set<string>();
+    let required = 0;
+    let startTime = primary.startTime;
+    for (const s of list) {
+      for (const uid of s.assignedUserIds) assigneeSet.add(uid);
+      // ???¨Î°ØÎ≥?Î¨∏ÏÑú???ïÏõê ?©ÏÇ∞, ?¥Î? Î≥ëÌï©??Î¨∏ÏÑú???©ÏπòÏßÄ ?äÏùå
+      if (s.sourceSlotId === MERGED_SLOT_ID) {
+        required = Math.max(required, s.requiredCount);
+      } else {
+        required += Math.max(0, s.requiredCount);
+      }
+      if (s.startTime && (!startTime || s.startTime < startTime)) {
+        startTime = s.startTime;
+      }
+    }
+
+    await updateDoc(doc(db, WORKFORCE_SCHEDULES, primary.id), {
+      assignedUserIds: [...assigneeSet],
+      requiredCount: Math.max(1, required),
+      startTime,
+      sourceSlotId: MERGED_SLOT_ID,
+      updatedAt: serverTimestamp(),
+    });
+
+    for (const s of list) {
+      if (s.id === primary.id) continue;
+      await deleteDoc(doc(db, WORKFORCE_SCHEDULES, s.id));
+      cleaned += 1;
+    }
+  }
+  return cleaned;
+}
+
+/** ?¥Î≤à Ï£??§Ï?Ï§ÑÏóê ?ÑÏßÅ ?ÜÎäî ?¥Î≤§???∏ÏÖò Í∞úÏàò */
+export function countPendingEventImports(
+  weekDates: string[],
+  events: EventItem[],
+  existing: WorkforceSchedule[],
+): number {
+  const existingKeys = new Set(
+    existing
+      .filter((s) => s.sourceEventId && s.sourceSessionId)
+      .map((s) => sourceSessionKey(s.sourceEventId!, s.sourceSessionId!)),
+  );
+  let n = 0;
+  for (const row of listEventSessionsInWeek(weekDates, events)) {
+    if (!existingKeys.has(sourceSessionKey(row.event.id, row.sessionId))) {
+      n += 1;
+    }
+  }
+  return n;
+}
+
+export async function ensureWorkforceSchedulePersisted(
+  schedule: WorkforceSchedule,
+): Promise<string> {
+  if (!schedule.id.startsWith("virtual:")) return schedule.id;
+  return createWorkforceSchedule({
+    weekStart: schedule.weekStart,
+    date: schedule.date,
+    title: schedule.title,
+    startTime: schedule.startTime,
+    venue: schedule.venue,
+    requiredCount: schedule.requiredCount,
+    teamIds: schedule.teamIds,
+    note: schedule.note,
+    color: schedule.color,
+    sourceEventId: schedule.sourceEventId,
+    sourceSessionId: schedule.sourceSessionId,
+    sourceSlotId: schedule.sourceSlotId ?? MERGED_SLOT_ID,
+  });
+}
+
+
+===== lib\schedule-mutations.ts =====
+import type { AttendanceSettings } from "@/types/attendance";
+import type { EventItem, Session, Slot } from "@/types/schedule";
+
+export function updateEventMeta(
+  event: EventItem,
+  title: string,
+  venue: string,
+): EventItem {
+  return { ...event, title: title.trim(), venue: venue.trim() };
+}
+
+export function updateEventDetails(
+  event: EventItem,
+  details: {
+    title: string;
+    venue: string;
+    notice?: string;
+    color?: string;
+    attendance?: AttendanceSettings;
+  },
+): EventItem {
+  return {
+    ...event,
+    title: details.title.trim(),
+    venue: details.venue.trim(),
+    notice: details.notice?.trim() || undefined,
+    color: details.color?.trim() || undefined,
+    ...(details.attendance !== undefined
+      ? { attendance: details.attendance }
+      : {}),
+  };
+}
+
+export function addSession(event: EventItem, date: string): EventItem {
+  const session: Session = {
+    id: crypto.randomUUID(),
+    date,
+    slots: [],
+  };
+  return { ...event, sessions: [...event.sessions, session] };
+}
+
+export function removeSession(event: EventItem, sessionId: string): EventItem {
+  return {
+    ...event,
+    sessions: event.sessions.filter((s) => s.id !== sessionId),
+  };
+}
+
+export function setSessionDate(
+  event: EventItem,
+  sessionId: string,
+  date: string,
+): EventItem {
+  const d = date.trim();
+  return {
+    ...event,
+    sessions: event.sessions.map((s) =>
+      s.id === sessionId ? { ...s, date: d } : s,
+    ),
+  };
+}
+
+export function addSlot(
+  event: EventItem,
+  sessionId: string,
+  slot: { start_time: string; capacity: number; applied_count: number },
+): EventItem {
+  const newSlot: Slot = {
+    id: crypto.randomUUID(),
+    start_time: slot.start_time,
+    capacity: slot.capacity,
+    applied_count: slot.applied_count,
+  };
+  return {
+    ...event,
+    sessions: event.sessions.map((s) =>
+      s.id === sessionId ? { ...s, slots: [...s.slots, newSlot] } : s,
+    ),
+  };
+}
+
+export function updateSlot(
+  event: EventItem,
+  sessionId: string,
+  slotId: string,
+  patch: Partial<Pick<Slot, "start_time" | "capacity" | "applied_count">>,
+): EventItem {
+  return {
+    ...event,
+    sessions: event.sessions.map((s) => {
+      if (s.id !== sessionId) return s;
+      return {
+        ...s,
+        slots: s.slots.map((sl) =>
+          sl.id === slotId ? { ...sl, ...patch } : sl,
+        ),
+      };
+    }),
+  };
+}
+
+export function removeSlot(
+  event: EventItem,
+  sessionId: string,
+  slotId: string,
+): EventItem {
+  return {
+    ...event,
+    sessions: event.sessions.map((s) => {
+      if (s.id !== sessionId) return s;
+      return { ...s, slots: s.slots.filter((sl) => sl.id !== slotId) };
+    }),
+  };
+}
+
+
+===== lib\firestore-users.ts =====
+Ôªøimport {
+  type FirestoreError,
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { assertAdmin } from "@/lib/admin-access";
+import { db } from "@/lib/firebase";
+import { DEFAULT_TEAM_ID, normalizeTeamId } from "@/types/team";
+import type { UserApprovalStatus, UserProfileDoc, UserRole } from "@/types/user";
+import type { TeamId } from "@/types/team";
+
+export const USERS_COLLECTION = "users";
+
+export async function createMemberProfile(
+  uid: string,
+  email: string,
+  displayName?: string | null,
+) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  const existing = await getDoc(ref);
+  if (existing.exists()) return;
+
+  await setDoc(ref, {
+    email,
+    role: "member",
+    accountStatus: "pending",
+    team_id: DEFAULT_TEAM_ID,
+    displayName: typeof displayName === "string" ? displayName.trim() : "",
+    createdAt: serverTimestamp(),
+  });
+}
+
+/** Subscribe to a single user profile document. Caller handles missing docs. */
+export function subscribeUserProfile(
+  uid: string,
+  onData: (data: UserProfileDoc | null) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        onData(null);
+        return;
+      }
+      onData(snap.data() as UserProfileDoc);
+    },
+    (error) => onError?.(error),
+  );
+}
+
+export type ListedUserRow = UserProfileDoc & { uid: string };
+
+export async function listUsersForAdmin(): Promise<ListedUserRow[]> {
+  const snap = await getDocs(collection(db, USERS_COLLECTION));
+  const rows = snap.docs.map((d) => ({
+    uid: d.id,
+    ...(d.data() as UserProfileDoc),
+  }));
+  return rows.sort((a, b) => a.email.localeCompare(b.email, "ko"));
+}
+
+export async function setUserRole(uid: string, role: UserRole) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  await updateDoc(ref, { role });
+}
+
+export async function setUserApprovalStatus(
+  uid: string,
+  accountStatus: UserApprovalStatus,
+  teamId?: TeamId,
+) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  const patch: Record<string, unknown> = { accountStatus };
+  if (accountStatus === "approved") {
+    patch.team_id = normalizeTeamId(teamId);
+  }
+  await updateDoc(ref, patch);
+}
+
+export async function setUserTeamId(uid: string, teamId: TeamId) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  await updateDoc(ref, { team_id: normalizeTeamId(teamId) });
+}
+
+export async function listPendingUsersForAdmin(): Promise<ListedUserRow[]> {
+  await assertAdmin();
+  const snap = await getDocs(
+    query(collection(db, USERS_COLLECTION), where("accountStatus", "==", "pending")),
+  );
+  const rows = snap.docs.map((d) => ({
+    uid: d.id,
+    ...(d.data() as UserProfileDoc),
+  }));
+  return rows.sort((a, b) => a.email.localeCompare(b.email, "ko"));
+}
+
+/** Í¥ÄÎ¶¨Ïûê: Í∞Ä???πÏù∏ ?ÄÍ∏??¨Ïö©???§ÏãúÍ∞?Íµ¨ÎèÖ */
+export function subscribePendingUsersForAdmin(
+  onData: (rows: ListedUserRow[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, USERS_COLLECTION),
+        where("accountStatus", "==", "pending"),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const rows = snap.docs
+            .map((d) => ({
+              uid: d.id,
+              ...(d.data() as UserProfileDoc),
+            }))
+            .sort((a, b) => a.email.localeCompare(b.email, "ko"));
+          onData(rows);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "Í¥ÄÎ¶¨Ïûê Í∂åÌïú???ÑÏöî?©Îãà??",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
+/** Í¥ÄÎ¶¨Ïûê ?îÎ©¥?? ?¨Îü¨ uid???ÑÎ°ú???¥Î©î?º¬∑Îãâ?§ÏûÑ)????Î≤àÏóê Ï°∞Ìöå */
+export async function getUserProfilesByIds(
+  uids: string[],
+): Promise<
+  Map<string, { email: string; displayName: string; totalPoints: number }>
+> {
+  const unique = [...new Set(uids.map((u) => u.trim()).filter(Boolean))];
+  const map = new Map<
+    string,
+    { email: string; displayName: string; totalPoints: number }
+  >();
+  await Promise.all(
+    unique.map(async (uid) => {
+      const snap = await getDoc(doc(db, USERS_COLLECTION, uid));
+      if (!snap.exists()) return;
+      const data = snap.data() as UserProfileDoc;
+      map.set(uid, {
+        email: typeof data.email === "string" ? data.email : "",
+        displayName:
+          typeof data.displayName === "string" ? data.displayName.trim() : "",
+        totalPoints:
+          typeof data.total_points === "number" ? data.total_points : 0,
+      });
+    }),
+  );
+  return map;
+}
+
+/** Í¥ÄÎ¶¨Ïûê: ?ÑÏ≤¥ ?¨Ïö©??Î™©Î°ù ?§ÏãúÍ∞?Íµ¨ÎèÖ (??Çπ?? */
+export function subscribeAllUsersForAdmin(
+  onData: (rows: ListedUserRow[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  return onSnapshot(
+    collection(db, USERS_COLLECTION),
+    (snap) => {
+      const rows = snap.docs
+        .map((d) => ({
+          uid: d.id,
+          ...(d.data() as UserProfileDoc),
+        }))
+        .filter((r) => r.role !== "admin");
+      onData(rows);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** Î≥∏Ïù∏ ?ÑÎ°ú???ÑÎìúÎß?Í∞±Ïã† (??ï†¬∑?¥Î©î??Î≥ÄÍ≤??ÜÏùå) */
+export async function updateOwnProfile(
+  uid: string,
+  patch: { displayName: string; phone: string },
+) {
+  const ref = doc(db, USERS_COLLECTION, uid);
+  await updateDoc(ref, {
+    displayName: patch.displayName.trim(),
+    phone: patch.phone.trim(),
+  });
+}
+
+/** ?πÏù∏???ÑÏ≤¥ ?¥Ïö©??(Í≥µÏ? ?åÎ¶º ?Ä?? */
+export async function listAllApprovedUsers(): Promise<ListedUserRow[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, USERS_COLLECTION),
+      where("accountStatus", "==", "approved"),
+    ),
+  );
+
+  return snap.docs.map((d) => ({
+    uid: d.id,
+    ...(d.data() as UserProfileDoc),
+  }));
+}
+
+/** ?πÏù∏???Ä??Î™©Î°ù (?§Ï?Ï§??åÎ¶º ?Ä?? */
+export async function listApprovedMembersByTeamIds(
+  teamIds: TeamId[],
+): Promise<ListedUserRow[]> {
+  const normalized = [...new Set(teamIds.map((id) => normalizeTeamId(id)))];
+  if (normalized.length === 0) return [];
+
+  const snap = await getDocs(
+    query(
+      collection(db, USERS_COLLECTION),
+      where("accountStatus", "==", "approved"),
+      where("role", "==", "member"),
+    ),
+  );
+
+  return snap.docs
+    .map((d) => ({
+      uid: d.id,
+      ...(d.data() as UserProfileDoc),
+    }))
+    .filter((row) => normalized.includes(normalizeTeamId(row.team_id)));
+}
+
+export async function saveFcmToken(uid: string, token: string) {
+  const trimmed = token.trim();
+  if (!trimmed) return;
+  await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    fcmTokens: arrayUnion(trimmed),
+  });
+}
+
+export async function getUserFcmTokens(uid: string): Promise<string[]> {
+  const snap = await getDoc(doc(db, USERS_COLLECTION, uid));
+  if (!snap.exists()) return [];
+  const raw = (snap.data() as UserProfileDoc).fcmTokens;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((t): t is string => typeof t === "string" && t.length > 0);
+}
+
+export async function verifyFcmTokenSaved(uid: string, token: string): Promise<boolean> {
+  const tokens = await getUserFcmTokens(uid);
+  return tokens.includes(token.trim());
+}
+
+export async function removeFcmToken(uid: string, token: string) {
+  const trimmed = token.trim();
+  if (!trimmed) return;
+  await updateDoc(doc(db, USERS_COLLECTION, uid), {
+    fcmTokens: arrayRemove(trimmed),
+  });
+}
+
+/** Workforce scheduler: subscribe all users including admins */
+export function subscribeAllUsersForWorkforce(
+  onData: (rows: ListedUserRow[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  return onSnapshot(
+    collection(db, USERS_COLLECTION),
+    (snap) => {
+      const rows = snap.docs.map((d) => ({
+        uid: d.id,
+        ...(d.data() as UserProfileDoc),
+      }));
+      onData(rows);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+
+===== components\admin\workforce\workforce-scheduler-panel.tsx =====
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  LayoutGrid,
+  MapPin,
+  Minus,
+  Plus,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
+
+import { useAuth } from "@/components/providers/auth-provider";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { useEvents } from "@/hooks/use-events";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import {
+  subscribeAllUsersForAdmin,
+  subscribeAllUsersForWorkforce,
+  type ListedUserRow,
+} from "@/lib/firestore-users";
+import {
+  confirmWorkforceWeek,
+  createWorkforceSchedule,
+  deleteWorkforceSchedule,
+  deleteSchedulesInMonth,
+  ensureWeekMeta,
+  exportWeekToMonthlySheet,
+  importEventsForWeek,
+  countPendingEventImports,
+  hasDuplicateSessionSchedules,
+  mergeWeekSchedulesWithEvents,
+  ensureWorkforceSchedulePersisted,
+  resetWorkforceWeek,
+  saveWeekDraft,
+  setScheduleAssignees,
+  subscribeAllAvailability,
+  subscribeWorkforceSchedulesMulti,
+  subscribeWorkforceWeek,
+  updateWorkforceSchedule,
+  upsertAvailability,
+} from "@/lib/firestore-workforce";
+import {
+  buildCalendarWeeks,
+  formatDayHeader,
+  formatRangeLabel,
+  getRangeDates,
+  getWeekDates,
+  getWeekStartMonday,
+  getWeekStartsCoveringDates,
+  normalizeRangeCursor,
+  parseYmd,
+  shiftRangeCursor,
+  toYmd,
+  weekdayKeyFromYmd,
+  yearMonthFromYmd,
+  type WorkforceRangeSpan,
+} from "@/lib/workforce-dates";
+import {
+  computeWorkerStatus,
+  countAssignmentsInWeek,
+  findDuplicateSameDayPairs,
+  findSameDayAssignment,
+  findUnavailableAssignments,
+  isUserAvailableOnDate,
+  resolveAvailability,
+  summarizeWeek,
+} from "@/lib/workforce-logic";
+import {
+  notifyMemberWorkforce,
+  notifyWorkforceWeekConfirmed,
+} from "@/lib/firestore-notifications";
+import {
+  TEAM_IDS,
+  TEAM_LABELS,
+  normalizeTeamId,
+  type TeamFilterValue,
+  type TeamId,
+} from "@/types/team";
+import {
+  WEEKDAY_KEYS,
+  WEEKDAY_LABELS,
+  WEEKDAY_SHORT,
+  WORKFORCE_COLORS,
+  WORKFORCE_WORKER_STATUS_LABELS,
+  type WorkforceAvailability,
+  type WorkforceSchedule,
+  type WorkforceWeekMeta,
+  type WorkforceWorkerStatus,
+  type WeekdayKey,
+} from "@/types/workforce";
+
+const STATUS_DOT: Record<WorkforceWorkerStatus, string> = {
+  available: "bg-emerald-400",
+  partial: "bg-amber-400",
+  full: "bg-accent",
+  unavailable: "bg-red-400",
+  leave: "bg-zinc-400",
+};
+
+type ScheduleFormState = {
+  title: string;
+  date: string;
+  startTime: string;
+  venue: string;
+  requiredCount: number;
+  teamIds: TeamId[];
+  note: string;
+  color: string;
+};
+
+function emptyForm(date: string): ScheduleFormState {
+  return {
+    title: "",
+    date,
+    startTime: "10:00",
+    venue: "",
+    requiredCount: 1,
+    teamIds: [...TEAM_IDS],
+    note: "",
+    color: WORKFORCE_COLORS[0],
+  };
+}
+
+export function WorkforceSchedulerPanel({
+  standalone = false,
+}: {
+  standalone?: boolean;
+}) {
+  const { user, isAdmin } = useAuth();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const { events, loading: eventsLoading } = useEvents();
+  const [cursor, setCursor] = useState(() => getWeekStartMonday());
+  const [rangeSpan, setRangeSpan] = useState<WorkforceRangeSpan>("1w");
+  const [boardLayout, setBoardLayout] = useState<"columns" | "calendar">(
+    "columns",
+  );
+  const weekDates = useMemo(
+    () => getRangeDates(cursor, rangeSpan),
+    [cursor, rangeSpan],
+  );
+  const chipWeekDates = useMemo(
+    () => getWeekDates(getWeekStartMonday(parseYmd(cursor))),
+    [cursor],
+  );
+  const weekStarts = useMemo(
+    () => getWeekStartsCoveringDates(weekDates),
+    [weekDates],
+  );
+  const weekStartsKey = weekStarts.join(",");
+  const primaryWeekStart = weekStarts[0] ?? getWeekStartMonday(parseYmd(cursor));
+  const calendarWeeks = useMemo(
+    () => buildCalendarWeeks(weekDates),
+    [weekDates],
+  );
+  const [workersOpen, setWorkersOpen] = useState(true);
+  const autoSyncRef = useRef<string>("");
+  const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | WorkforceWorkerStatus>(
+    "all",
+  );
+  const [members, setMembers] = useState<ListedUserRow[]>([]);
+  const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
+    () => new Map(),
+  );
+  const [schedules, setSchedules] = useState<WorkforceSchedule[]>([]);
+  const schedulesRef = useRef<WorkforceSchedule[]>([]);
+  schedulesRef.current = schedules;
+  const [weekMeta, setWeekMeta] = useState<WorkforceWeekMeta | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
+  const [dragUserId, setDragUserId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<ScheduleFormState>(() =>
+    emptyForm(weekDates[0]!),
+  );
+  const [assignTarget, setAssignTarget] = useState<WorkforceSchedule | null>(
+    null,
+  );
+  const [warnOpen, setWarnOpen] = useState(false);
+  const [warnMessage, setWarnMessage] = useState("");
+  const [warnReason, setWarnReason] = useState("");
+  const [pendingAssign, setPendingAssign] = useState<{
+    scheduleId: string;
+    userIds: string[];
+    reasonRequired: boolean;
+  } | null>(null);
+  const [availEditUser, setAvailEditUser] = useState<ListedUserRow | null>(null);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    return subscribeAllUsersForWorkforce(
+      (rows) =>
+        setMembers(
+          rows.filter((r) => r.accountStatus === "approved" || r.role === "admin"),
+        ),
+      (e) => setError(e.message),
+    );
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    return subscribeAllAvailability(setAvailMap, (e) => setError(e.message));
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    return subscribeWorkforceSchedulesMulti(
+      weekStarts,
+      setSchedules,
+      (e) => setError(e.message),
+    );
+  }, [isAdmin, weekStartsKey, weekStarts]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    return subscribeWorkforceWeek(primaryWeekStart, setWeekMeta, (e) =>
+      setError(e.message),
+    );
+  }, [isAdmin, primaryWeekStart]);
+
+  useEffect(() => {
+    if (!isAdmin || !user) return;
+    for (const ws of weekStarts) {
+      void ensureWeekMeta(ws, user.uid).catch(() => {});
+    }
+  }, [isAdmin, user, weekStartsKey, weekStarts]);
+
+  const displaySchedules = useMemo(
+    () =>
+      mergeWeekSchedulesWithEvents(
+        primaryWeekStart,
+        weekDates,
+        events ?? [],
+        schedules,
+      ),
+    [primaryWeekStart, weekDates, events, schedules],
+  );
+
+  const pendingEventImports = useMemo(
+    () => countPendingEventImports(weekDates, events ?? [], schedules),
+    [weekDates, events, schedules],
+  );
+
+  const needsSessionCleanup = useMemo(
+    () => hasDuplicateSessionSchedules(schedules),
+    [schedules],
+  );
+
+  /** Î≤îÏúÑ Î≥ÄÍ≤Ω¬∑Ïä§ÏºÄÏ§?Î°úÎìú ???¥Î≤§???êÎèô ?ôÍ∏∞??+ ?¨Î°Ø Ï§ëÎ≥µ ?ïÎ¶¨ */
+  useEffect(() => {
+    if (!isAdmin || eventsLoading) return;
+    if (pendingEventImports <= 0 && !needsSessionCleanup) return;
+    const syncKey = `${weekStartsKey}:i${pendingEventImports}:c${needsSessionCleanup ? 1 : 0}`;
+    if (autoSyncRef.current === syncKey) return;
+    autoSyncRef.current = syncKey;
+    void (async () => {
+      try {
+        const current = schedulesRef.current;
+        for (const ws of weekStarts) {
+          await importEventsForWeek({
+            weekStart: ws,
+            weekDates: getWeekDates(ws),
+            events: events ?? [],
+            existing: current.filter((s) => s.weekStart === ws),
+          });
+        }
+      } catch (e) {
+        console.warn("[workforce] auto import", e);
+        autoSyncRef.current = "";
+      }
+    })();
+  }, [
+    isAdmin,
+    eventsLoading,
+    pendingEventImports,
+    needsSessionCleanup,
+    weekStartsKey,
+    weekStarts,
+    events,
+  ]);
+
+  const nameByUid = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of members) {
+      m.set(r.uid, r.displayName?.trim() || r.email.split("@")[0] || r.uid);
+    }
+    return m;
+  }, [members]);
+
+  const teamByUid = useMemo(() => {
+    const m = new Map<string, TeamId>();
+    for (const r of members) m.set(r.uid, normalizeTeamId(r.team_id));
+    return m;
+  }, [members]);
+
+  const workers = useMemo(() => {
+    return members
+      .filter((m) => {
+        if (teamFilter !== "all" && normalizeTeamId(m.team_id) !== teamFilter)
+          return false;
+        const name = (m.displayName || m.email).toLowerCase();
+        if (search.trim() && !name.includes(search.trim().toLowerCase()))
+          return false;
+        const avail = resolveAvailability(availMap, m.uid);
+        const count = countAssignmentsInWeek(displaySchedules, m.uid);
+        const status = computeWorkerStatus(avail, chipWeekDates, count);
+        if (statusFilter !== "all" && status !== statusFilter) return false;
+        return true;
+      })
+      .map((m) => {
+        const avail = resolveAvailability(availMap, m.uid);
+        const count = countAssignmentsInWeek(displaySchedules, m.uid);
+        const status = computeWorkerStatus(avail, chipWeekDates, count);
+        return { member: m, avail, count, status };
+      })
+      .sort((a, b) => {
+        const nameA = (a.member.displayName || a.member.email || "").trim();
+        const nameB = (b.member.displayName || b.member.email || "").trim();
+        return nameA.localeCompare(nameB, "ko", { sensitivity: "base" });
+      });
+  }, [
+    members,
+    teamFilter,
+    search,
+    statusFilter,
+    availMap,
+    displaySchedules,
+    chipWeekDates,
+  ]);
+
+  const summary = useMemo(
+    () => summarizeWeek(displaySchedules),
+    [displaySchedules],
+  );
+  const duplicates = useMemo(
+    () => findDuplicateSameDayPairs(displaySchedules),
+    [displaySchedules],
+  );
+  const unavailableHits = useMemo(
+    () => findUnavailableAssignments(displaySchedules, availMap),
+    [displaySchedules, availMap],
+  );
+  const unassignedWorkers = useMemo(
+    () =>
+      members.filter(
+        (m) =>
+          (teamFilter === "all" || normalizeTeamId(m.team_id) === teamFilter) &&
+          countAssignmentsInWeek(displaySchedules, m.uid) === 0,
+      ).length,
+    [members, displaySchedules, teamFilter],
+  );
+
+  const workerGroups = useMemo(() => {
+    if (workers.length === 0) return [];
+    const statusSuffix =
+      statusFilter !== "all"
+        ? ` ¬∑ ${WORKFORCE_WORKER_STATUS_LABELS[statusFilter]}`
+        : "";
+    const adminItems = workers.filter((w) => w.member.role === "admin");
+    const groups: Array<{ key: string; label: string; items: typeof workers }> =
+      TEAM_IDS.map((teamId) => ({
+        key: teamId as string,
+        label: `${TEAM_LABELS[teamId]}${statusSuffix}`,
+        items: workers.filter(
+          (w) => w.member.role !== "admin" && normalizeTeamId(w.member.team_id) === teamId,
+        ),
+      })).filter((g) => g.items.length > 0);
+    if (adminItems.length > 0) {
+      groups.unshift({ key: "admin", label: `Í¥ÄÎ¶¨Ïûê${statusSuffix}`, items: adminItems });
+    }
+    return groups;
+  }, [workers, statusFilter]);
+
+  const patchScheduleFields = async (
+    schedule: WorkforceSchedule,
+    patch: Partial<{ venue: string; requiredCount: number; title: string }>,
+  ) => {
+    try {
+      const id = await ensureWorkforceSchedulePersisted(schedule);
+      await updateWorkforceSchedule(id, patch);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "?ºÏ†ï ?òÏ†ï???§Ìå®?àÏäµ?àÎã§.");
+    }
+  };
+
+  const tryAssign = async (
+    schedule: WorkforceSchedule,
+    userIds: string[],
+    opts?: { force?: boolean; reason?: string },
+  ) => {
+    setError("");
+    const warnings: string[] = [];
+    let reasonRequired = false;
+
+    for (const uid of userIds) {
+      const name = nameByUid.get(uid) || uid;
+      const avail = resolveAvailability(availMap, uid);
+      const sameDay = findSameDayAssignment(
+        displaySchedules,
+        uid,
+        schedule.date,
+        schedule.id,
+      );
+      if (sameDay) {
+        warnings.push(
+          `${name}: Í∞ôÏ? ?†„Ä?{sameDay.title}?çÏóê ?¥Î? Î∞∞Ï†ï?òÏñ¥ ?àÏäµ?àÎã§.`,
+        );
+        reasonRequired = true;
+      }
+      if (!isUserAvailableOnDate(avail, schedule.date)) {
+        warnings.push(`${name}: Í∑ºÎ¨¥ Î∂àÍ??ºÎ°ú ?§Ï†ï???†ÏûÖ?àÎã§.`);
+        reasonRequired = true;
+      }
+      const count = countAssignmentsInWeek(displaySchedules, uid);
+      const alreadyHere = schedule.assignedUserIds.includes(uid);
+      const nextCount = alreadyHere ? count : count + 1;
+      if (nextCount > avail.weeklyMaxAssignments) {
+        warnings.push(
+          `${name}: Ï£ºÍ∞Ñ ÏµúÎ? Î∞∞Ï†ï(${avail.weeklyMaxAssignments}????Ï¥àÍ≥º?©Îãà??`,
+        );
+        reasonRequired = true;
+      }
+    }
+
+    if (warnings.length > 0 && !opts?.force) {
+      setWarnMessage(warnings.join("\n"));
+      setWarnReason("");
+      setPendingAssign({
+        scheduleId: schedule.id,
+        userIds,
+        reasonRequired,
+      });
+      setWarnOpen(true);
+      return;
+    }
+
+    if (reasonRequired && !opts?.reason?.trim()) {
+      setError("?àÏô∏ Î∞∞Ï†ï ?¨Ïú†Î•??ÖÎ†•??Ï£ºÏÑ∏??");
+      return;
+    }
+
+    const next = [...new Set([...schedule.assignedUserIds, ...userIds])];
+    setBusy(true);
+    try {
+      const scheduleId = await ensureWorkforceSchedulePersisted(schedule);
+      const baseIds = schedule.id.startsWith("virtual:")
+        ? []
+        : schedule.assignedUserIds;
+      const assignees = [...new Set([...baseIds, ...userIds])];
+      await setScheduleAssignees(scheduleId, assignees, {
+        action: "assign",
+        targetUserId: userIds[0],
+        targetUserName: nameByUid.get(userIds[0]!),
+        reason: opts?.reason,
+        detail: schedule.title,
+      });
+      if (weekMeta?.status === "confirmed" && user) {
+        for (const uid of userIds) {
+          await notifyMemberWorkforce({
+            targetUserId: uid,
+            createdByUserId: user.uid,
+            type: "workforce_updated",
+            title: "Í∑ºÎ¨¥ Î∞∞Ï†ï??Î≥ÄÍ≤ΩÎêò?àÏäµ?àÎã§",
+            message: `${schedule.date} ${schedule.title} ?ºÏ†ï??Î∞∞Ï†ï?òÏóà?µÎãà??`,
+            eventTitle: schedule.title,
+            eventDate: schedule.date,
+            slotTime: schedule.startTime,
+            location: schedule.venue,
+            scheduleId,
+          });
+        }
+      }
+      setSelectedWorkerIds([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Î∞∞Ï†ï???§Ìå®?àÏäµ?àÎã§.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeAssignee = async (schedule: WorkforceSchedule, uid: string) => {
+    if (schedule.id.startsWith("virtual:")) return;
+    setBusy(true);
+    try {
+      await setScheduleAssignees(
+        schedule.id,
+        schedule.assignedUserIds.filter((id) => id !== uid),
+        {
+          action: "unassign",
+          targetUserId: uid,
+          targetUserName: nameByUid.get(uid),
+          detail: schedule.title,
+        },
+      );
+      if (weekMeta?.status === "confirmed" && user) {
+        await notifyMemberWorkforce({
+          targetUserId: uid,
+          createdByUserId: user.uid,
+          type: "workforce_cancelled",
+          title: "Í∑ºÎ¨¥ Î∞∞Ï†ï??Ï∑®ÏÜå?òÏóà?µÎãà??,
+          message: `${schedule.date} ${schedule.title} Î∞∞Ï†ï??Ï∑®ÏÜå?òÏóà?µÎãà??`,
+          eventTitle: schedule.title,
+          eventDate: schedule.date,
+          slotTime: schedule.startTime,
+          location: schedule.venue,
+          scheduleId: schedule.id,
+        });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "?¥Ï†ú???§Ìå®?àÏäµ?àÎã§.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openCreate = (date: string) => {
+    setEditingId(null);
+    setForm(emptyForm(date));
+    setFormOpen(true);
+  };
+
+  const openEdit = async (s: WorkforceSchedule) => {
+    let target = s;
+    if (s.id.startsWith("virtual:")) {
+      setBusy(true);
+      try {
+        const id = await ensureWorkforceSchedulePersisted(s);
+        target = { ...s, id };
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "?ºÏ†ï ?Ä?•Ïóê ?§Ìå®?àÏäµ?àÎã§.");
+        setBusy(false);
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+    setEditingId(target.id);
+    setForm({
+      title: target.title,
+      date: target.date,
+      startTime: target.startTime,
+      venue: target.venue,
+      requiredCount: target.requiredCount,
+      teamIds: target.teamIds,
+      note: target.note,
+      color: target.color,
+    });
+    setFormOpen(true);
+  };
+
+  const submitForm = async () => {
+    if (!form.title.trim()) {
+      setError("?ºÏ†ïÎ™ÖÏùÑ ?ÖÎ†•??Ï£ºÏÑ∏??");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      if (editingId) {
+        const prev = schedules.find((s) => s.id === editingId);
+        await updateWorkforceSchedule(editingId, {
+          title: form.title,
+          date: form.date,
+          startTime: form.startTime,
+          venue: form.venue,
+          requiredCount: form.requiredCount,
+          teamIds: form.teamIds,
+          note: form.note,
+          color: form.color,
+        });
+        if (weekMeta?.status === "confirmed" && prev && user) {
+          const timeChanged = prev.startTime !== form.startTime;
+          const venueChanged = prev.venue !== form.venue;
+          if (timeChanged || venueChanged) {
+            for (const uid of prev.assignedUserIds) {
+              await notifyMemberWorkforce({
+                targetUserId: uid,
+                createdByUserId: user.uid,
+                type: "workforce_updated",
+                title: timeChanged
+                  ? "Ï∂úÍ∑º ?úÍ∞Ñ??Î≥ÄÍ≤ΩÎêò?àÏäµ?àÎã§"
+                  : "Í∑ºÎ¨¥ ?•ÏÜåÍ∞Ä Î≥ÄÍ≤ΩÎêò?àÏäµ?àÎã§",
+                message: `${form.date} ${form.title}: ${form.startTime} / ${form.venue}`,
+                eventTitle: form.title,
+                eventDate: form.date,
+                slotTime: form.startTime,
+                location: form.venue,
+                scheduleId: editingId,
+              });
+            }
+          }
+        }
+      } else {
+        await createWorkforceSchedule({
+          weekStart: getWeekStartMonday(parseYmd(form.date)),
+          ...form,
+        });
+      }
+      setFormOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "?Ä?•Ïóê ?§Ìå®?àÏäµ?àÎã§.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Í¥ÄÎ¶¨ÏûêÎß??∏Î†• Î∞∞Ï†ï ?§Ï?Ï§ÑÎü¨Î•??¨Ïö©?????àÏäµ?àÎã§.
+      </p>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-3", standalone && "pb-6")}>
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/80 p-3 shadow-sm sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            {standalone ? null : (
+              <h1 className="text-base font-semibold tracking-tight sm:text-lg">
+                ?∏Î†• Î∞∞Ïπò ?§Ï?Ï§ÑÎü¨
+              </h1>
+            )}
+            <Badge
+              variant={
+                weekMeta?.status === "confirmed" ? "success" : "warning"
+              }
+            >
+              {weekMeta?.status === "confirmed" ? "?ïÏ†ï" : "?ÑÏãú"}
+            </Badge>
+            <span className="text-sm tabular-nums text-muted-foreground">
+              {formatRangeLabel(cursor, rangeSpan)}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-border bg-muted/30 p-0.5">
+              {(
+                [
+                  ["1w", "1Ï£?],
+                  ["2w", "2Ï£?],
+                  ["1m", "1??],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                    rangeSpan === key
+                      ? "bg-accent/20 text-accent"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => {
+                    setRangeSpan(key);
+                    setCursor((c) => normalizeRangeCursor(c, key));
+                    if (key === "1m") setBoardLayout("calendar");
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-xl border border-border bg-muted/30 p-0.5">
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                  boardLayout === "columns"
+                    ? "bg-accent/20 text-accent"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setBoardLayout("columns")}
+              >
+                <LayoutGrid className="size-3.5" /> Î≥¥Îìú
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                  boardLayout === "calendar"
+                    ? "bg-accent/20 text-accent"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setBoardLayout("calendar")}
+              >
+                <CalendarDays className="size-3.5" /> ?¨Î†•
+              </button>
+            </div>
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-background/60 p-0.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() =>
+                  setCursor((c) => shiftRangeCursor(c, rangeSpan, -1))
+                }
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="min-w-[7.5rem] text-center text-sm font-medium tabular-nums">
+                {formatRangeLabel(cursor, rangeSpan)}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() =>
+                  setCursor((c) => shiftRangeCursor(c, rangeSpan, 1))
+                }
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-xl"
+              onClick={() => {
+                const today = toYmd(new Date());
+                setCursor(normalizeRangeCursor(today, rangeSpan));
+              }}
+            >
+              ?§Îäò
+            </Button>
+            <select
+              className="h-8 rounded-xl border border-border bg-background px-2 text-xs"
+              value={teamFilter}
+              onChange={(e) =>
+                setTeamFilter(e.target.value as TeamFilterValue)
+              }
+            >
+              <option value="all">?ÑÏ≤¥ ?Ä</option>
+              {TEAM_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {TEAM_LABELS[id]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl"
+            disabled={busy || pendingEventImports === 0}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  let imported = 0;
+                  let skipped = 0;
+                  let cleaned = 0;
+                  for (const ws of weekStarts) {
+                    const result = await importEventsForWeek({
+                      weekStart: ws,
+                      weekDates: getWeekDates(ws),
+                      events,
+                      existing: schedules.filter((s) => s.weekStart === ws),
+                    });
+                    imported += result.imported;
+                    skipped += result.skipped;
+                    cleaned += result.cleaned;
+                  }
+                  alert(
+                    `?§Ï?Ï§ÑÏóê??${imported}Í∞??ºÏ†ï??Í∞Ä?∏Ïôî?µÎãà??` +
+                      (skipped > 0
+                        ? ` (?¥Î? ?∞Í≤∞??${skipped}Í∞úÎäî Í±¥ÎÑà?Ä)`
+                        : "") +
+                      (cleaned > 0
+                        ? ` ¬∑ Ï§ëÎ≥µ Ïπ¥Îìú ${cleaned}Í∞??ïÎ¶¨`
+                        : ""),
+                  );
+                } catch (e) {
+                  setError(
+                    e instanceof Error
+                      ? e.message
+                      : "?§Ï?Ï§?Î∂àÎü¨?§Í∏∞???§Ìå®?àÏäµ?àÎã§.",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            ?§Ï?Ï§ÑÏóê??Î∂àÎü¨?§Í∏∞
+            {pendingEventImports > 0 ? ` (${pendingEventImports})` : ""}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                try {
+                  for (const ws of weekStarts) {
+                    await saveWeekDraft(ws);
+                  }
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "?ÑÏãú?Ä???§Ìå®");
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            ?ÑÏãú?Ä??
+          </Button>
+          <Button
+            type="button"
+            variant="accent"
+            size="sm"
+            className="h-8 rounded-xl"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                if (
+                  !confirm(
+                    "?úÏãú Ï§ëÏù∏ Í∏∞Í∞Ñ??Î∞∞Ï†ï???ïÏ†ï?òÎ©¥ Î∞∞Ï†ï???†Ï??êÍ≤å Í≥µÍ∞ú¬∑?åÎ¶º?©Îãà?? Í≥ÑÏÜç?†Íπå??",
+                  )
+                )
+                  return;
+                setBusy(true);
+                try {
+                  for (const s of displaySchedules) {
+                    if (s.id.startsWith("virtual:")) {
+                      await ensureWorkforceSchedulePersisted(s);
+                    }
+                  }
+                  const allConfirmed: WorkforceSchedule[] = [];
+                  for (const ws of weekStarts) {
+                    const { schedules: confirmed } =
+                      await confirmWorkforceWeek(ws);
+                    allConfirmed.push(...confirmed);
+                  }
+                  if (user) {
+                    await notifyWorkforceWeekConfirmed({
+                      createdByUserId: user.uid,
+                      schedules: allConfirmed,
+                    });
+                  }
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "?ïÏ†ï???§Ìå®?àÏäµ?àÎã§.",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            Ï£ºÍ∞Ñ Î∞∞Ï†ï ?ïÏ†ï
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl text-red-300 hover:text-red-200"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                const ym = yearMonthFromYmd(cursor);
+                if (
+                  !confirm(
+                    `${ym} ?îÏóê ?çÌïú ?∏Î†• Î∞∞Ï†ï ?ºÏ†ï??Î™®Îëê ??†ú?©Îãà?? Í∞Ä?•Ïùº ?§Ï†ï?Ä ?†Ï??©Îãà?? Í≥ÑÏÜç?†Íπå??`,
+                  )
+                )
+                  return;
+                setBusy(true);
+                try {
+                  const n = await deleteSchedulesInMonth(ym);
+                  alert(`${ym} ???ºÏ†ï ${n}Í±¥ÏùÑ ??†ú?àÏäµ?àÎã§.`);
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "???ºÏ†ï ??†ú ?§Ìå®",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            ?¥Î≤à ???ºÏ†ï ??†ú
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl text-red-300 hover:text-red-200"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                if (
+                  !confirm(
+                    "?úÏãú Ï§ëÏù∏ Í∏∞Í∞Ñ???ºÏ†ï¬∑Î∞∞Ï†ï??Î™®Îëê ??†ú?©Îãà?? Í≥ÑÏÜç?†Íπå??",
+                  )
+                )
+                  return;
+                setBusy(true);
+                try {
+                  for (const ws of weekStarts) {
+                    await resetWorkforceWeek(ws);
+                  }
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Ï¥àÍ∏∞???§Ìå®");
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            ?ÑÏ≤¥ Ï¥àÍ∏∞??
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-xl"
+            disabled={busy || schedules.length === 0}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                try {
+                  const id = await exportWeekToMonthlySheet({
+                    weekStart: primaryWeekStart,
+                    schedules,
+                    nameByUid,
+                    teamByUid,
+                    yearMonth: yearMonthFromYmd(cursor),
+                  });
+                  alert(
+                    `Ï∑®Ìï©???ÑÎã¨ ?∞Ïù¥?∞Î? ?Ä?•Ìñà?µÎãà?? (export: ${id.slice(0, 8)}??`,
+                  );
+                } catch (e) {
+                  setError(
+                    e instanceof Error ? e.message : "Ï∑®Ìï©???ÑÎã¨ ?§Ìå®",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            Ï∑®Ìï©?úÎ°ú Î≥¥ÎÇ¥Í∏?
+          </Button>
+        </div>
+      </div>
+
+      {error ? (
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Worker sidebar */}
+        <aside className="rounded-2xl border border-border bg-card/80 lg:max-h-[calc(100dvh-200px)] lg:overflow-hidden">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <Users className="size-4 text-accent" />
+              <p className="text-sm font-semibold">Í∑ºÎ¨¥??Î™©Î°ù</p>
+              {selectedWorkerIds.length > 0 ? (
+                <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] text-accent">
+                  ?†ÌÉù {selectedWorkerIds.length}
+                </span>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[11px] lg:hidden"
+              onClick={() => setWorkersOpen((o) => !o)}
+            >
+              {workersOpen ? "?ëÍ∏∞" : "?ºÏπòÍ∏?}
+            </Button>
+          </div>
+
+          <div
+            className={cn(
+              "space-y-3 p-3",
+              !workersOpen && "hidden lg:block",
+              "lg:max-h-[calc(100dvh-260px)] lg:overflow-y-auto",
+            )}
+          >
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="?¥Î¶Ñ Í≤Ä??
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 rounded-xl pl-8 text-sm"
+              />
+            </div>
+            <select
+              className="h-8 w-full rounded-xl border border-border bg-background px-2 text-xs"
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as typeof statusFilter)
+              }
+            >
+              <option value="all">?ÑÏ≤¥</option>
+              {(
+                Object.keys(
+                  WORKFORCE_WORKER_STATUS_LABELS,
+                ) as WorkforceWorkerStatus[]
+              ).map((k) => (
+                <option key={k} value={k}>
+                  {WORKFORCE_WORKER_STATUS_LABELS[k]}
+                </option>
+              ))}
+            </select>
+
+            {workerGroups.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                Ï°∞Í±¥??ÎßûÎäî Í∑ºÎ¨¥?êÍ? ?ÜÏäµ?àÎã§.
+              </p>
+            ) : (
+              <>
+              <p className="px-0.5 text-[10px] text-muted-foreground">
+                ?îÏùº Ïπ? Í≥®Îìú=Í∞Ä??¬∑ Îπ®Í∞ï=Î∂àÍ? (Î©§Î≤Ñ ¬´Í∑ºÎ¨¥ Í∞Ä?•Ïùº¬ª Î∞òÏòÅ)
+              </p>
+              {workerGroups.map((group) => (
+                <div key={group.key} className="space-y-2">
+                  <p className="sticky top-0 z-[1] -mx-1 border-b border-border/60 bg-card/95 px-1.5 py-1 text-[11px] font-semibold tracking-wide text-foreground backdrop-blur-sm">
+                    {group.label}
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      ({group.items.length})
+                    </span>
+                  </p>
+                  {group.items.map(({ member, avail, count, status }) => {
+                    const selected = selectedWorkerIds.includes(member.uid);
+                    return (
+                      <div
+                        key={member.uid}
+                        draggable={isDesktop}
+                        onDragStart={() => setDragUserId(member.uid)}
+                        onDragEnd={() => setDragUserId(null)}
+                        className={cn(
+                          "rounded-xl border border-border/80 bg-background/50 p-2.5 transition-colors",
+                          selected && "border-accent/50 bg-accent/10",
+                          isDesktop && "cursor-grab active:cursor-grabbing",
+                        )}
+                        onClick={() => {
+                          setSelectedWorkerIds((prev) =>
+                            prev.includes(member.uid)
+                              ? prev.filter((id) => id !== member.uid)
+                              : [...prev, member.uid],
+                          );
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {nameByUid.get(member.uid)}
+                            </p>
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {member.email}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              ?¥Î≤àÏ£?{count}/{avail.weeklyMaxAssignments}??
+                            </p>
+                          </div>
+                          <span
+                            className={cn(
+                              "mt-1 size-2 shrink-0 rounded-full",
+                              STATUS_DOT[status],
+                            )}
+                            title={WORKFORCE_WORKER_STATUS_LABELS[status]}
+                          />
+                        </div>
+                        <div className="mt-2 flex gap-1">
+                          {WEEKDAY_KEYS.map((k, i) => {
+                            const date = chipWeekDates[i]!;
+                            const on = isUserAvailableOnDate(avail, date);
+                            return (
+                              <span
+                                key={k}
+                                className={cn(
+                                  "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
+                                  on
+                                    ? "bg-accent/25 text-accent"
+                                    : "bg-red-500/20 text-red-300",
+                                )}
+                                title={`${WEEKDAY_LABELS[k]} ${date} ¬∑ ${on ? "Í∞Ä?? : "Î∂àÍ?"}`}
+                              >
+                                {WEEKDAY_LABELS[k]}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-1.5 flex gap-2">
+                          <button
+                            type="button"
+                            className="text-[11px] text-accent hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAvailEditUser(member);
+                            }}
+                          >
+                            ?òÏ†ï
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              </>
+            )}
+          </div>
+        </aside>
+
+        {/* Board / Calendar */}
+        <div className="min-w-0 overflow-x-auto rounded-2xl border border-border bg-muted/20 p-2 sm:p-3">
+          {boardLayout === "calendar" ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-7 gap-1.5">
+                {WEEKDAY_KEYS.map((k) => (
+                  <div
+                    key={k}
+                    className="py-1 text-center text-[11px] font-semibold text-muted-foreground"
+                  >
+                    {WEEKDAY_LABELS[k]}
+                  </div>
+                ))}
+              </div>
+              {calendarWeeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-1.5">
+                  {week.map((date, di) => {
+                    if (!date) {
+                      return (
+                        <div
+                          key={`empty-${wi}-${di}`}
+                          className="min-h-[110px] rounded-xl bg-transparent"
+                        />
+                      );
+                    }
+                    const daySchedules = displaySchedules.filter(
+                      (s) => s.date === date,
+                    );
+                    const dayRequired = daySchedules.reduce(
+                      (a, s) => a + s.requiredCount,
+                      0,
+                    );
+                    const dayAssigned = daySchedules.reduce(
+                      (a, s) => a + s.assignedUserIds.length,
+                      0,
+                    );
+                    const shortage = Math.max(0, dayRequired - dayAssigned);
+                    const { label } = formatDayHeader(date);
+                    const isToday = date === toYmd(new Date());
+                    return (
+                      <div
+                        key={date}
+                        className={cn(
+                          "flex min-h-[120px] flex-col rounded-xl border border-border/70 bg-card/90 p-1.5 shadow-sm",
+                          shortage > 0 && "border-red-300/50",
+                          isToday && "ring-2 ring-accent/50",
+                        )}
+                        onDragOver={(e) => {
+                          if (isDesktop) e.preventDefault();
+                        }}
+                      >
+                        <div className="mb-1 flex items-center justify-between gap-1 px-0.5">
+                          <span
+                            className={cn(
+                              "text-xs font-semibold tabular-nums",
+                              isToday ? "text-accent" : "text-foreground",
+                            )}
+                          >
+                            {label}
+                          </span>
+                          <button
+                            type="button"
+                            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-accent"
+                            onClick={() => openCreate(date)}
+                            aria-label="?ºÏ†ï Ï∂îÍ?"
+                          >
+                            <Plus className="size-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
+                          {daySchedules.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              className="rounded-md px-1.5 py-1 text-left text-[10px] font-medium text-white"
+                              style={{ backgroundColor: s.color }}
+                              onClick={() => void openEdit(s)}
+                              onDragOver={(e) => {
+                                if (isDesktop) e.preventDefault();
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                if (!dragUserId) return;
+                                void tryAssign(s, [dragUserId]);
+                                setDragUserId(null);
+                              }}
+                            >
+                              <span className="block truncate">
+                                {s.startTime} {s.title}
+                              </span>
+                              <span className="opacity-90">
+                                {s.assignedUserIds.length}/{s.requiredCount}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              className={cn(
+                "grid gap-2",
+                rangeSpan === "2w"
+                  ? "min-w-[1180px] grid-cols-7"
+                  : "min-w-[1180px] grid-cols-7",
+              )}
+            >
+              {weekDates.map((date) => {
+                const daySchedules = displaySchedules.filter(
+                  (s) => s.date === date,
+                );
+                const dayRequired = daySchedules.reduce(
+                  (a, s) => a + s.requiredCount,
+                  0,
+                );
+                const dayAssigned = daySchedules.reduce(
+                  (a, s) => a + s.assignedUserIds.length,
+                  0,
+                );
+                const shortage = Math.max(0, dayRequired - dayAssigned);
+                const hasShortage = shortage > 0 && dayRequired > 0;
+                const emptyDay = daySchedules.length === 0;
+                const { label } = formatDayHeader(date);
+                const weekdayKey = weekdayKeyFromYmd(date);
+
+                return (
+                  <section
+                    key={date}
+                    className={cn(
+                      "flex min-h-[160px] flex-col rounded-2xl border border-border/70 shadow-sm",
+                      hasShortage || emptyDay
+                        ? "bg-[repeating-linear-gradient(-45deg,rgba(22,26,34,0.92),rgba(22,26,34,0.92)_7px,rgba(167,175,191,0.08)_7px,rgba(167,175,191,0.08)_14px)]"
+                        : "bg-card/90",
+                    )}
+                  >
+                    <header className="space-y-1.5 border-b border-border/60 px-2.5 py-2.5">
+                      <div className="flex items-baseline justify-between gap-1">
+                        <p className="text-sm font-semibold">
+                          {WEEKDAY_LABELS[weekdayKey]}?îÏùº
+                        </p>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          {label}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
+                          ?ºÏ†ï {daySchedules.length}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            dayAssigned >= dayRequired && dayRequired > 0
+                              ? "bg-emerald-500/15 text-emerald-300"
+                              : "bg-amber-500/15 text-amber-200",
+                          )}
+                        >
+                          Î∞∞Ïπò {dayAssigned}/{dayRequired || 0}
+                        </span>
+                        {hasShortage ? (
+                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                            Î∂ÄÏ°?{shortage}
+                          </span>
+                        ) : null}
+                      </div>
+                    </header>
+
+                    <div className="flex flex-1 flex-col gap-2 p-2">
+                      {daySchedules.map((s) => (
+                        <ScheduleCard
+                          key={s.id}
+                          schedule={s}
+                          nameByUid={nameByUid}
+                          defaultExpanded={daySchedules.length <= 2}
+                          onEdit={() => void openEdit(s)}
+                          onDelete={() =>
+                            void (async () => {
+                              if (s.id.startsWith("virtual:")) {
+                                setError(
+                                  "?§Ï?Ï§??êÎ≥∏ ?ºÏ†ï?Ä Î∞∞Ï†ï ?îÎ©¥?êÏÑú ??†ú?????ÜÏäµ?àÎã§. ?îÍ∞Ñ Ï∑®Ìï©?úÏóê???òÏ†ï?òÏÑ∏??",
+                                );
+                                return;
+                              }
+                              if (!confirm("???ºÏ†ï????†ú?†Íπå??")) return;
+                              await deleteWorkforceSchedule(s.id);
+                            })()
+                          }
+                          onDropWorker={() => {
+                            if (!dragUserId) return;
+                            void tryAssign(s, [dragUserId]);
+                            setDragUserId(null);
+                          }}
+                          onClickAssign={() => {
+                            if (selectedWorkerIds.length > 0) {
+                              void tryAssign(s, selectedWorkerIds);
+                              return;
+                            }
+                            setAssignTarget(s);
+                          }}
+                          onRemoveUser={(uid) => void removeAssignee(s, uid)}
+                          onPatch={(patch) =>
+                            void patchScheduleFields(s, patch)
+                          }
+                          isDesktop={isDesktop}
+                        />
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => openCreate(date)}
+                        className="mt-auto flex h-10 items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-background/40 text-xs font-medium text-muted-foreground transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent"
+                      >
+                        <Plus className="size-3.5" /> ?ºÏ†ï Ï∂îÍ?
+                      </button>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer summary */}
+      <Card>
+        <CardContent className="grid gap-3 py-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+          <SummaryStat label="Ï¥??ÑÏöî ?∏Ïõê" value={summary.required} />
+          <SummaryStat label="Ï¥?Î∞∞Ï†ï ?∏Ïõê" value={summary.assigned} />
+          <SummaryStat label="Î∂ÄÏ°??∏Ïõê" value={summary.shortage} danger />
+          <SummaryStat label="Ï¥àÍ≥º ?∏Ïõê" value={summary.excess} />
+          <SummaryStat label="Î∞∞Ï†ï ?àÎêú ?∏Ïõê" value={unassignedWorkers} />
+          <SummaryStat label="Ï§ëÎ≥µ Î∞∞Ï†ï" value={duplicates.length} danger />
+          <SummaryStat
+            label="Í∑ºÎ¨¥ Î∂àÍ???Î∞∞Ï†ï"
+            value={unavailableHits.length}
+            danger
+          />
+        </CardContent>
+      </Card>
+
+      {/* Schedule form dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingId ? "?ºÏ†ï ?òÏ†ï" : "?ºÏ†ï Ï∂îÍ?"}
+            </DialogTitle>
+            <DialogDescription>
+              ?¨Ï????ÜÏù¥ ?ºÏ†ï ?®ÏúÑÎ°??ÑÏöî ?∏ÏõêÍ≥?Î∞∞Ï†ï?êÎ? Í¥ÄÎ¶¨Ìï©?àÎã§.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Field label="?ºÏ†ïÎ™?>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="?†Ïßú">
+                <Input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, date: e.target.value }))
+                  }
+                />
+              </Field>
+              <Field label="Ï∂úÍ∑º?úÍ∞Ñ">
+                <Input
+                  type="time"
+                  value={form.startTime}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, startTime: e.target.value }))
+                  }
+                />
+              </Field>
+            </div>
+            <Field label="Í∑ºÎ¨¥ ?•ÏÜå">
+              <Input
+                value={form.venue}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, venue: e.target.value }))
+                }
+              />
+            </Field>
+            <Field label="?ÑÏöî ?∏Ïõê">
+              <Input
+                type="number"
+                min={0}
+                value={form.requiredCount}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    requiredCount: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="?Ä???Ä">
+              <div className="flex gap-3 text-sm">
+                {TEAM_IDS.map((id) => (
+                  <label key={id} className="inline-flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={form.teamIds.includes(id)}
+                      onChange={(e) => {
+                        setForm((f) => ({
+                          ...f,
+                          teamIds: e.target.checked
+                            ? [...f.teamIds, id]
+                            : f.teamIds.filter((t) => t !== id),
+                        }));
+                      }}
+                    />
+                    {TEAM_LABELS[id]}
+                  </label>
+                ))}
+              </div>
+            </Field>
+            <Field label="?πÏù¥?¨Ìï≠">
+              <Textarea
+                value={form.note}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, note: e.target.value }))
+                }
+              />
+            </Field>
+            <Field label="?âÏÉÅ">
+              <div className="flex flex-wrap gap-2">
+                {WORKFORCE_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={cn(
+                      "size-7 rounded-full border-2",
+                      form.color === c ? "border-foreground" : "border-transparent",
+                    )}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setForm((f) => ({ ...f, color: c }))}
+                  />
+                ))}
+              </div>
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
+              Ï∑®ÏÜå
+            </Button>
+            <Button
+              type="button"
+              variant="accent"
+              disabled={busy}
+              onClick={() => void submitForm()}
+            >
+              ?Ä??
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Warning / force assign */}
+      <Dialog open={warnOpen} onOpenChange={setWarnOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Î∞∞Ï†ï Í≤ΩÍ≥†</DialogTitle>
+            <DialogDescription className="whitespace-pre-wrap">
+              {warnMessage}
+            </DialogDescription>
+          </DialogHeader>
+          {pendingAssign?.reasonRequired ? (
+            <Textarea
+              placeholder="?àÏô∏ Î∞∞Ï†ï ?¨Ïú† (?ÑÏàò)"
+              value={warnReason}
+              onChange={(e) => setWarnReason(e.target.value)}
+            />
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setWarnOpen(false)}>
+              Ï∑®ÏÜå
+            </Button>
+            <Button
+              type="button"
+              variant="accent"
+              disabled={busy}
+              onClick={() =>
+                void (async () => {
+                  if (!pendingAssign) return;
+                  const s = displaySchedules.find(
+                    (x) => x.id === pendingAssign.scheduleId,
+                  );
+                  if (!s) return;
+                  setWarnOpen(false);
+                  await tryAssign(s, pendingAssign.userIds, {
+                    force: true,
+                    reason: warnReason,
+                  });
+                  setPendingAssign(null);
+                })()
+              }
+            >
+              Í∞ïÏ†ú Î∞∞Ï†ï
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Click assign picker (mobile / no selection) */}
+      <Dialog
+        open={!!assignTarget}
+        onOpenChange={(o) => {
+          if (!o) setAssignTarget(null);
+        }}
+      >
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Í∑ºÎ¨¥??Î∞∞Ï†ï</DialogTitle>
+            <DialogDescription>
+              {assignTarget
+                ? `${assignTarget.date} ${assignTarget.title}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {workers.map(({ member, status }) => (
+              <button
+                key={member.uid}
+                type="button"
+                className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-muted/50"
+                onClick={() => {
+                  if (!assignTarget) return;
+                  void tryAssign(assignTarget, [member.uid]);
+                  setAssignTarget(null);
+                }}
+              >
+                <span>
+                  {nameByUid.get(member.uid)} ¬∑{" "}
+                  {TEAM_LABELS[normalizeTeamId(member.team_id)]}
+                </span>
+                <span className={cn("size-2 rounded-full", STATUS_DOT[status])} />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Availability editor */}
+      <AvailabilityDialog
+        member={availEditUser}
+        avail={
+          availEditUser
+            ? resolveAvailability(availMap, availEditUser.uid)
+            : null
+        }
+        weekDates={chipWeekDates}
+        onClose={() => setAvailEditUser(null)}
+        onSave={async (patch) => {
+          if (!availEditUser) return;
+          await upsertAvailability(availEditUser.uid, patch);
+          setAvailEditUser(null);
+        }}
+        onUnlockWeek={async (weekStart) => {
+          if (!availEditUser) return;
+          const current = resolveAvailability(availMap, availEditUser.uid);
+          await upsertAvailability(availEditUser.uid, {
+            memberSubmittedWeeks: current.memberSubmittedWeeks.filter(
+              (w) => w !== weekStart,
+            ),
+          });
+        }}
+      />
+    </div>
+  );
+}
+
+function SummaryStat({
+  label,
+  value,
+  danger,
+}: {
+  label: string;
+  value: number;
+  danger?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "text-lg font-semibold tabular-nums",
+          danger && value > 0 && "text-red-300",
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block space-y-1 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ScheduleCard({
+  schedule,
+  nameByUid,
+  defaultExpanded = true,
+  onEdit,
+  onDelete,
+  onDropWorker,
+  onClickAssign,
+  onRemoveUser,
+  onPatch,
+  isDesktop,
+}: {
+  schedule: WorkforceSchedule;
+  nameByUid: Map<string, string>;
+  defaultExpanded?: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDropWorker: () => void;
+  onClickAssign: () => void;
+  onRemoveUser: (uid: string) => void;
+  onPatch: (patch: Partial<{ venue: string; requiredCount: number }>) => void;
+  isDesktop: boolean;
+}) {
+  const [open, setOpen] = useState(defaultExpanded);
+  const [venueOpen, setVenueOpen] = useState(false);
+  const [venueDraft, setVenueDraft] = useState(schedule.venue);
+  useEffect(() => {
+    setOpen(defaultExpanded);
+  }, [schedule.id, defaultExpanded]);
+  useEffect(() => {
+    setVenueDraft(schedule.venue);
+  }, [schedule.id, schedule.venue]);
+
+  const filled = schedule.assignedUserIds.length;
+  const need = schedule.requiredCount;
+  const full = need > 0 && filled >= need;
+  const short = Math.max(0, need - filled);
+
+  return (
+    <div
+      className="overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
+      style={{ borderTopColor: schedule.color, borderTopWidth: 3 }}
+      onDragOver={(e) => {
+        if (isDesktop) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropWorker();
+      }}
+    >
+      <div className="flex items-start justify-between gap-1.5 px-2.5 pt-2">
+        <button
+          type="button"
+          className="min-w-0 flex-1 truncate text-left text-sm font-semibold leading-snug hover:text-accent"
+          onClick={onEdit}
+          title={schedule.title || "Í∑ºÎ¨¥"}
+        >
+          {schedule.title || "Í∑ºÎ¨¥"}
+        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? "?ëÍ∏∞" : "?ºÏπòÍ∏?}
+            title={open ? "?ëÍ∏∞" : "?ºÏπòÍ∏?}
+          >
+            {open ? (
+              <ChevronUp className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
+          </button>
+          <button
+            type="button"
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-red-300"
+            onClick={onDelete}
+            aria-label="??†ú"
+            title="??†ú"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 px-2.5 pb-2 pt-1.5">
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {schedule.startTime}
+          </span>
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
+              full
+                ? "bg-emerald-500/15 text-emerald-300"
+                : "bg-amber-500/15 text-amber-200",
+            )}
+          >
+            {full ? "??" : ""}
+            {filled}/{need}Î™?
+            {full ? " ¬∑ Ï∂©Ïõê ?ÑÎ£å" : short > 0 ? ` ¬∑ Î∂ÄÏ°?${short}` : ""}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-1.5">
+          <button
+            type="button"
+            className={cn(
+              "flex size-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
+              venueOpen
+                ? "border-accent/50 bg-accent/10 text-accent"
+                : schedule.venue?.trim()
+                  ? "border-accent/40 bg-accent/5 text-accent"
+                  : "border-border bg-background/60 text-muted-foreground hover:border-accent/40 hover:text-accent",
+            )}
+            title={schedule.venue?.trim() || "Í∑ºÎ¨¥ ?•ÏÜå ?ÖÎ†•"}
+            aria-label={schedule.venue?.trim() || "Í∑ºÎ¨¥ ?•ÏÜå ?ÖÎ†•"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setVenueOpen((v) => !v);
+            }}
+          >
+            <MapPin className="size-3.5" />
+          </button>
+          <div
+            className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-muted/30 px-1 py-0.5"
+            title="?ÑÏöî ?∏Ïõê"
+          >
+            <button
+              type="button"
+              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() =>
+                onPatch({
+                  requiredCount: Math.max(0, schedule.requiredCount - 1),
+                })
+              }
+            >
+              <Minus className="size-3" />
+            </button>
+            <span className="min-w-[1.25rem] text-center text-xs font-semibold tabular-nums">
+              {need}
+            </span>
+            <button
+              type="button"
+              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() =>
+                onPatch({ requiredCount: schedule.requiredCount + 1 })
+              }
+            >
+              <Plus className="size-3" />
+            </button>
+          </div>
+        </div>
+
+        {venueOpen ? (
+          <Input
+            autoFocus
+            value={venueDraft}
+            placeholder="Í∑ºÎ¨¥ ?•ÏÜå ?ÅÏÑ∏ ?ÖÎ†•"
+            className="h-8 w-full rounded-lg text-xs"
+            onChange={(e) => setVenueDraft(e.target.value)}
+            onBlur={() => {
+              if (venueDraft.trim() !== schedule.venue.trim()) {
+                onPatch({ venue: venueDraft.trim() });
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (venueDraft.trim() !== schedule.venue.trim()) {
+                  onPatch({ venue: venueDraft.trim() });
+                }
+                setVenueOpen(false);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : null}
+
+        {open ? (
+          <div className="space-y-2 pt-0.5">
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 p-2">
+              {schedule.assignedUserIds.length === 0 ? (
+                <p className="py-1.5 text-center text-[10px] text-muted-foreground">
+                  Î∞∞Ï†ï??Í∑ºÎ¨¥???ÜÏùå
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {schedule.assignedUserIds.map((uid) => (
+                    <span
+                      key={uid}
+                      className="inline-flex max-w-full items-center gap-0.5 rounded-md bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium text-accent"
+                    >
+                      <span className="truncate">
+                        {nameByUid.get(uid) || uid}
+                      </span>
+                      <button
+                        type="button"
+                        className="shrink-0 opacity-70 hover:opacity-100"
+                        onClick={() => onRemoveUser(uid)}
+                        aria-label="Î∞∞Ï†ï ?¥Ï†ú"
+                      >
+                        √ó
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onClickAssign}
+              className="flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-accent/20 text-[11px] font-medium text-accent hover:bg-accent/30"
+            >
+              <Users className="size-3" /> Í∑ºÎ¨¥??Î∞∞Ï†ï
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+
+function AvailabilityDialog({
+  member,
+  avail,
+  weekDates,
+  onClose,
+  onSave,
+  onUnlockWeek,
+}: {
+  member: ListedUserRow | null;
+  avail: WorkforceAvailability | null;
+  weekDates: string[];
+  onClose: () => void;
+  onSave: (patch: {
+    weeklyMaxAssignments: number;
+    availableWeekdays: Record<WeekdayKey, boolean>;
+    dateExceptions: Record<string, "available" | "unavailable">;
+  }) => Promise<void>;
+  onUnlockWeek: (weekStart: string) => Promise<void>;
+}) {
+  const [max, setMax] = useState(5);
+  const [weekdays, setWeekdays] = useState<Record<WeekdayKey, boolean>>({
+    mon: true,
+    tue: true,
+    wed: true,
+    thu: true,
+    fri: true,
+    sat: true,
+    sun: true,
+  });
+  const [exceptions, setExceptions] = useState<
+    Record<string, "available" | "unavailable">
+  >({});
+  const [busy, setBusy] = useState(false);
+
+  const dialogWeekStart =
+    weekDates[0] != null ? getWeekStartMonday(parseYmd(weekDates[0])) : "";
+  const memberLocked =
+    !!avail &&
+    !!dialogWeekStart &&
+    avail.memberSubmittedWeeks.includes(dialogWeekStart);
+
+  useEffect(() => {
+    if (!avail) return;
+    setMax(avail.weeklyMaxAssignments);
+    setWeekdays({ ...avail.availableWeekdays });
+    setExceptions({ ...avail.dateExceptions });
+  }, [avail]);
+
+  return (
+    <Dialog
+      open={!!member}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Í∑ºÎ¨¥ Í∞Ä???§Ï†ï</DialogTitle>
+          <DialogDescription>
+            {member
+              ? `${member.displayName || member.email} ¬∑ Í∏∞Î≥∏ ?îÏùº + ?†Ïßú ?àÏô∏`
+              : ""}
+          </DialogDescription>
+        </DialogHeader>
+        {memberLocked ? (
+          <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            <p>
+              Î©§Î≤ÑÍ∞Ä ??Ï£?Í∞Ä?•Ïùº???†Ï≤≠???†Í∏¥ ?ÅÌÉú?ÖÎãà?? Í¥ÄÎ¶¨Ïûê???ÑÎûò?êÏÑú
+              Î∞îÎ°ú ?òÏ†ï?????àÍ≥†, ?†Í∏à???¥Ï†ú?òÎ©¥ Î©§Î≤ÑÍ∞Ä ?§Ïãú ?†Ï≤≠????
+              ?àÏäµ?àÎã§.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              disabled={busy}
+              onClick={() =>
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    await onUnlockWeek(dialogWeekStart);
+                  } finally {
+                    setBusy(false);
+                  }
+                })()
+              }
+            >
+              Î©§Î≤Ñ ?†Ï≤≠ ?†Í∏à ?¥Ï†ú
+            </Button>
+          </div>
+        ) : null}
+        <Field label="Ï£ºÍ∞Ñ ÏµúÎ? Î∞∞Ï†ï">
+          <Input
+            type="number"
+            min={0}
+            value={max}
+            onChange={(e) => setMax(Number(e.target.value) || 0)}
+          />
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          {WEEKDAY_KEYS.map((k) => (
+            <label
+              key={k}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs"
+            >
+              <input
+                type="checkbox"
+                checked={weekdays[k]}
+                onChange={(e) =>
+                  setWeekdays((w) => ({ ...w, [k]: e.target.checked }))
+                }
+              />
+              {WEEKDAY_LABELS[k]}
+            </label>
+          ))}
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">?úÏãú Ï£??†Ïßú ?àÏô∏</p>
+          {weekDates.map((d) => (
+            <div
+              key={d}
+              className="flex items-center justify-between gap-2 text-xs"
+            >
+              <span className="tabular-nums">{d}</span>
+              <select
+                className="h-8 rounded-md border border-border bg-background px-2"
+                value={exceptions[d] || "default"}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setExceptions((prev) => {
+                    const next = { ...prev };
+                    if (v === "default") delete next[d];
+                    else next[d] = v as "available" | "unavailable";
+                    return next;
+                  });
+                }}
+              >
+                <option value="default">Í∏∞Î≥∏</option>
+                <option value="available">Í∞Ä??/option>
+                <option value="unavailable">Î∂àÍ?</option>
+              </select>
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Ï∑®ÏÜå
+          </Button>
+          <Button
+            type="button"
+            variant="accent"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                try {
+                  await onSave({
+                    weeklyMaxAssignments: max,
+                    availableWeekdays: weekdays,
+                    dateExceptions: exceptions,
+                  });
+                } finally {
+                  setBusy(false);
+                }
+              })()
+            }
+          >
+            ?Ä??
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+===== components\member\schedule\schedule-list.tsx (NOT FOUND) =====
+

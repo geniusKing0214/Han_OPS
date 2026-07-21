@@ -40,7 +40,7 @@ import {
   type WeekdayKey,
 } from "@/types/workforce";
 import { normalizeTeamIds, type TeamId } from "@/types/team";
-import type { EventItem } from "@/types/schedule";
+import type { EventItem, PositionDef } from "@/types/schedule";
 
 export const WORKFORCE_WEEKS = "workforceWeeks";
 export const WORKFORCE_SCHEDULES = "workforceSchedules";
@@ -101,6 +101,15 @@ export function docToSchedule(
     assignedUserIds: Array.isArray(data.assignedUserIds)
       ? data.assignedUserIds.filter((x): x is string => typeof x === "string")
       : [],
+    positions: Array.isArray(data.positions)
+      ? (data.positions as PositionDef[])
+      : undefined,
+    assigneePositions:
+      data.assigneePositions &&
+      typeof data.assigneePositions === "object" &&
+      !Array.isArray(data.assigneePositions)
+        ? (data.assigneePositions as Record<string, string>)
+        : undefined,
     status:
       data.status === "confirmed" ||
       data.status === "cancelled" ||
@@ -331,6 +340,7 @@ export async function createWorkforceSchedule(input: {
   sourceEventId?: string;
   sourceSessionId?: string;
   sourceSlotId?: string;
+  positions?: PositionDef[];
 }): Promise<string> {
   const uid = await assertAdmin();
   await ensureWeekMeta(input.weekStart, uid);
@@ -345,6 +355,7 @@ export async function createWorkforceSchedule(input: {
     note: input.note.trim(),
     color: input.color,
     assignedUserIds: [],
+    ...(input.positions?.length ? { positions: input.positions } : {}),
     status: "draft",
     ...(input.sourceEventId
       ? {
@@ -457,6 +468,8 @@ export async function setScheduleAssignees(
     targetUserName?: string;
     reason?: string;
     detail?: string;
+    /** userId → positionLabel 패치 (기존 값과 병합) */
+    assigneePositionsPatch?: Record<string, string | null>;
   },
 ): Promise<void> {
   const uid = await assertAdmin();
@@ -465,8 +478,37 @@ export async function setScheduleAssignees(
   if (!snap.exists()) throw new Error("일정을 찾을 수 없습니다.");
   const prev = docToSchedule(scheduleId, snap.data() as Record<string, unknown>);
   const unique = [...new Set(assignedUserIds)];
+
+  // 포지션 패치 처리: null이면 삭제, 값이면 업데이트
+  let mergedPositions: Record<string, string> | undefined;
+  if (meta?.assigneePositionsPatch) {
+    const base: Record<string, string> = { ...(prev.assigneePositions ?? {}) };
+    for (const [userId, pos] of Object.entries(meta.assigneePositionsPatch)) {
+      if (pos === null) {
+        delete base[userId];
+      } else {
+        base[userId] = pos;
+      }
+    }
+    // 배정 해제된 유저의 포지션도 제거
+    for (const userId of Object.keys(base)) {
+      if (!unique.includes(userId)) delete base[userId];
+    }
+    mergedPositions = base;
+  } else if (prev.assigneePositions) {
+    // 배정 해제된 유저 포지션만 정리
+    const base = { ...prev.assigneePositions };
+    for (const userId of Object.keys(base)) {
+      if (!unique.includes(userId)) delete base[userId];
+    }
+    mergedPositions = base;
+  }
+
   await updateDoc(ref, {
     assignedUserIds: unique,
+    ...(mergedPositions !== undefined
+      ? { assigneePositions: mergedPositions }
+      : {}),
     updatedAt: serverTimestamp(),
   });
   await writeAssignmentLog({
@@ -1106,6 +1148,9 @@ export async function importEventsForWeek(input: {
       sourceEventId: row.event.id,
       sourceSessionId: row.sessionId,
       sourceSlotId: MERGED_SLOT_ID,
+      ...(row.event.usePositions && row.event.positions?.length
+        ? { positions: row.event.positions }
+        : {}),
     });
     existingSessionKeys.add(key);
     imported += 1;

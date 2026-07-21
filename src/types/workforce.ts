@@ -1,4 +1,5 @@
 import type { TeamId } from "@/types/team";
+import type { PositionDef } from "@/types/schedule";
 
 /** 월=0 … 일=6 (주간 달력 기준) */
 export type WeekdayKey =
@@ -104,6 +105,10 @@ export type WorkforceSchedule = {
   note: string;
   color: string;
   assignedUserIds: string[];
+  /** 포지션 정의 목록 (이벤트에서 usePositions=true일 때 복사) */
+  positions?: PositionDef[];
+  /** userId → positionLabel (e.g. "딜러") */
+  assigneePositions?: Record<string, string>;
   status: WorkforceAssignStatus;
   /** 기존 events 스케줄과 연동 시 */
   sourceEventId?: string;

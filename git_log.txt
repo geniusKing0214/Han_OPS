@@ -1,0 +1,8 @@
+PATCHED
+[main e7ed5ee] fix: add subscribeAllUsersForWorkforce
+ 1 file changed, 18 insertions(+)
+From https://github.com/geniusKing0214/Han_OPS
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+To https://github.com/geniusKing0214/Han_OPS.git
+   cfa8239..e7ed5ee  main -> main

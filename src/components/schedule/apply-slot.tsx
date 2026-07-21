@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { createApplication } from "@/lib/firestore-applications";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import type { PositionDef } from "@/types/schedule";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,8 @@ export type ApplySlotContext = {
   slotStart: string;
   capacity: number;
   applied: number;
+  usePositions?: boolean;
+  positions?: PositionDef[];
 };
 
 export function ApplySlotSurface({
@@ -47,18 +50,26 @@ export function ApplySlotSurface({
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const { user, profile } = useAuth();
   const [note, setNote] = useState("");
+  const [selectedPositionId, setSelectedPositionId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     if (open) {
       setSubmitError("");
+      setSelectedPositionId("");
+      setNote("");
     }
   }, [open]);
 
   if (!ctx) return null;
 
   const remaining = Math.max(0, ctx.capacity - ctx.applied);
+  const hasPositions = ctx.usePositions && ctx.positions && ctx.positions.length > 0;
+  const selectedPosition = hasPositions
+    ? ctx.positions!.find((p) => p.id === selectedPositionId)
+    : undefined;
+
   const body = (
     <>
       <div className="space-y-2 text-sm text-muted-foreground">
@@ -81,6 +92,34 @@ export function ApplySlotSurface({
           )}
         </p>
       </div>
+
+      {hasPositions && (
+        <div className="mt-4 space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">
+            포지션 선택 *
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {ctx.positions!.map((pos) => (
+              <button
+                key={pos.id}
+                type="button"
+                onClick={() => setSelectedPositionId(pos.id)}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  selectedPositionId === pos.id
+                    ? "border-accent bg-accent text-accent-foreground"
+                    : "border-border bg-muted text-muted-foreground hover:border-accent/50 hover:text-foreground"
+                }`}
+              >
+                {pos.label}
+                {pos.capacity > 0 ? (
+                  <span className="ml-1 text-xs opacity-70">({pos.capacity})</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4">
         <label className="text-xs font-medium text-muted-foreground">
           메모 (선택)
@@ -105,6 +144,10 @@ export function ApplySlotSurface({
       setSubmitError("로그인이 필요합니다.");
       return;
     }
+    if (hasPositions && !selectedPositionId) {
+      setSubmitError("포지션을 선택해 주세요.");
+      return;
+    }
     setSubmitError("");
     setSubmitting(true);
     try {
@@ -124,8 +167,15 @@ export function ApplySlotSurface({
         date: ctx.date,
         slotTime: ctx.slotStart,
         note: note.trim(),
+        ...(selectedPosition
+          ? {
+              positionId: selectedPosition.id,
+              positionLabel: selectedPosition.label,
+            }
+          : {}),
       });
       setNote("");
+      setSelectedPositionId("");
       onOpenChange(false);
     } catch (e) {
       setSubmitError(
@@ -137,6 +187,8 @@ export function ApplySlotSurface({
       setSubmitting(false);
     }
   };
+
+  const canSubmit = remaining > 0 && !submitting && (!hasPositions || !!selectedPositionId);
 
   const footer = (
     <>
@@ -151,7 +203,7 @@ export function ApplySlotSurface({
       <Button
         type="button"
         variant="accent"
-        disabled={remaining === 0 || submitting}
+        disabled={!canSubmit}
         onClick={() => void handleSubmit()}
       >
         {submitting ? "제출 중..." : "신청하기"}

@@ -35,6 +35,10 @@ export type ApplicationItem = {
   pointsAwarded?: boolean;
   completedAt?: string;
   completedByAdmin?: string;
+  /** 신청 포지션 ID (e.g. "dealer") */
+  positionId?: string;
+  /** 신청 포지션 라벨 스냅샷 (e.g. "딜러") */
+  positionLabel?: string;
 };
 
 export const statusLabels: Record<ApplicationStatus, string> = {

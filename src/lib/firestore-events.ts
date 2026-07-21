@@ -18,7 +18,7 @@ import {
 import { computeTeam2ApplyOpensAt } from "@/lib/application-window";
 import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
-import type { EventItem } from "@/types/schedule";
+import type { EventItem, PositionDef } from "@/types/schedule";
 
 export const EVENTS_COLLECTION = "events";
 const APPLICATIONS_COLLECTION = "applications";
@@ -60,6 +60,10 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
   const attendance = parseAttendanceSettings(data.attendance);
   const createdAt = timestampToIso(data.createdAt);
   const team2ApplyOpensAt = timestampToIso(data.team2ApplyOpensAt);
+  const usePositions = data.usePositions === true;
+  const positions: PositionDef[] = Array.isArray(data.positions)
+    ? (data.positions as PositionDef[])
+    : [];
   return {
     id,
     title,
@@ -71,6 +75,8 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     ...(color !== undefined ? { color } : {}),
     attendance,
     sessions: sessions as EventItem["sessions"],
+    usePositions,
+    positions,
   };
 }
 
@@ -122,6 +128,8 @@ export async function saveEvent(event: EventItem): Promise<void> {
     attendance: serializeAttendanceSettings(
       parseAttendanceSettings(event.attendance),
     ),
+    usePositions: event.usePositions ?? false,
+    positions: event.positions ?? [],
     updatedAt: serverTimestamp(),
   };
   if (event.createdAt) payload.createdAt = event.createdAt;
@@ -163,6 +171,8 @@ export async function createScheduleEvent(
       attendance: serializeAttendanceSettings(
         parseAttendanceSettings(withMeta.attendance),
       ),
+      usePositions: withMeta.usePositions ?? false,
+      positions: withMeta.positions ?? [],
       createdAt: serverTimestamp(),
       ...(isTeam1Only(teamIds)
         ? { team2ApplyOpensAt: withMeta.team2ApplyOpensAt }
