@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type ReactNode } from "react";
-import { Calendar, CheckCircle2, ClipboardList, Timer } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Calendar, CalendarDays, ClipboardList, Timer } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader } from "@/components/layout/page-header";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
 import { ImportantNoticeDialog } from "@/components/dashboard/important-notice-dialog";
+import { MyAvailabilityDialog } from "@/components/availability/my-availability-dialog";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
@@ -21,6 +22,12 @@ import {
   formatApplicationMonthLabel,
 } from "@/lib/application-grouping";
 import { countAvailableApplicationEvents } from "@/lib/schedule-availability";
+import { subscribeMyAvailability } from "@/lib/firestore-workforce";
+import {
+  getNextWeekStart,
+  getWeekDates,
+} from "@/lib/workforce-dates";
+import { isUserAvailableOnDate } from "@/lib/workforce-logic";
 import { normalizeTeamId } from "@/lib/team-utils";
 import { cn } from "@/lib/utils";
 import { statusLabels } from "@/types/application";
@@ -33,40 +40,68 @@ function StatCard({
   hint,
   icon,
   href,
+  onClick,
 }: {
   title: string;
   value: number;
   hint: string;
   icon: ReactNode;
   href?: string;
+  onClick?: () => void;
 }) {
+  const interactive = Boolean(href || onClick);
   const card = (
     <Card
       className={cn(
-        href &&
+        "flex h-full min-h-[7.5rem] flex-col",
+        interactive &&
           "transition-colors hover:border-accent/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
       )}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="truncate text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
           {icon}
         </span>
       </CardHeader>
-      <CardContent>
+      <CardContent className="mt-auto flex flex-1 flex-col justify-end">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+        <p
+          className="mt-0.5 line-clamp-2 min-h-[2rem] text-xs leading-4 text-muted-foreground"
+          title={hint}
+        >
+          {hint}
+        </p>
       </CardContent>
     </Card>
   );
 
-  if (!href) return card;
+  const shellClass =
+    "block h-full min-w-0 w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
-  return (
-    <Link href={href} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-      {card}
-    </Link>
-  );
+  if (href) {
+    return (
+      <Link href={href} className={shellClass}>
+        {card}
+      </Link>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(shellClass, "appearance-none border-0 bg-transparent p-0 text-left")}
+      >
+        {card}
+      </button>
+    );
+  }
+
+  return <div className="h-full min-w-0 w-full">{card}</div>;
 }
 
 const RECENT_NOTICES_LIMIT = 3;
@@ -87,7 +122,7 @@ function formatNoticeDate(iso: string): string {
 }
 
 export default function DashboardPage() {
-  const { isAdmin, profile } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const { items: rawApplications, loading: appsLoading } = useMyApplications();
   const { events } = useEvents();
   const { rows: notices, loading: noticesLoading } = useNotices();
@@ -99,6 +134,35 @@ export default function DashboardPage() {
   const today = toYmd(new Date());
   const thisMonth = currentMonthKey();
   const thisMonthLabel = formatApplicationMonthLabel(thisMonth);
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  const [availableDays, setAvailableDays] = useState(0);
+
+  const nextWeekStart = useMemo(() => getNextWeekStart(), []);
+  const nextWeekDates = useMemo(
+    () => getWeekDates(nextWeekStart),
+    [nextWeekStart],
+  );
+
+  useEffect(() => {
+    if (!user) return;
+    return subscribeMyAvailability(
+      user.uid,
+      (row) => {
+        if (!row) {
+          setAvailableDays(0);
+          return;
+        }
+        setAvailableDays(
+          nextWeekDates.filter((d) => isUserAvailableOnDate(row, d)).length,
+        );
+      },
+      () => setAvailableDays(0),
+    );
+  }, [user, nextWeekDates]);
+
+  const handleAvailableCountChange = useCallback((count: number) => {
+    setAvailableDays(count);
+  }, []);
 
   const stats = useMemo(() => {
     const approvedApps = myApplications.filter((a) => a.status === "approved");
@@ -109,12 +173,6 @@ export default function DashboardPage() {
     );
     const todayCount = uniqApprovedToday.size;
     const pending = myApplications.filter((a) => a.status === "pending").length;
-    const uniqApprovedMonth = new Set(
-      approvedApps
-        .filter((a) => a.date.startsWith(thisMonth))
-        .map((a) => a.eventId ?? a.eventTitle),
-    );
-    const monthWorked = uniqApprovedMonth.size;
 
     const appliedEventIds = new Set(
       myApplications
@@ -141,9 +199,8 @@ export default function DashboardPage() {
       openSlotsTeamLabel: isAdmin
         ? "전체 팀"
         : TEAM_LABELS[normalizeTeamId(profile?.teamId)],
-      monthWorked,
     };
-  }, [events, isAdmin, myApplications, profile?.teamId, thisMonth, today]);
+  }, [events, isAdmin, myApplications, profile?.teamId, today]);
 
   const myBlocks = useMemo(
     () =>
@@ -161,12 +218,17 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <ImportantNoticeDialog />
+      <MyAvailabilityDialog
+        open={availabilityOpen}
+        onOpenChange={setAvailabilityOpen}
+        onAvailableCountChange={handleAvailableCountChange}
+      />
       <PageHeader
         title="Dashboard"
         description="운영 현황 개요 · 데이터 연동 전에는 빈 화면으로 테스트할 수 있습니다."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <StatCard
           title="오늘 일정"
           value={stats.todayShiftCount}
@@ -189,10 +251,11 @@ export default function DashboardPage() {
           href="/schedule"
         />
         <StatCard
-          title="이번 달 근무"
-          value={stats.monthWorked}
-          hint="확정/완료 기준"
-          icon={<CheckCircle2 className="size-4 text-emerald-400/90" />}
+          title="근무 가능일"
+          value={availableDays}
+          hint="익주 가능 일수 · 탭하여 신청"
+          icon={<CalendarDays className="size-4 text-emerald-400/90" />}
+          onClick={() => setAvailabilityOpen(true)}
         />
       </div>
 

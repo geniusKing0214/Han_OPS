@@ -41,13 +41,14 @@ import {
   subscribeAllUsersForWorkforce,
   type ListedUserRow,
 } from "@/lib/firestore-users";
+import { subscribeAllApplicationsForAdmin } from "@/lib/firestore-applications";
+import type { ApplicationItem } from "@/types/application";
 import {
   confirmWorkforceWeek,
   createWorkforceSchedule,
   deleteWorkforceSchedule,
   deleteSchedulesInMonth,
   ensureWeekMeta,
-  exportWeekToMonthlySheet,
   importEventsForWeek,
   countPendingEventImports,
   hasDuplicateSessionSchedules,
@@ -86,7 +87,6 @@ import {
   findUnavailableAssignments,
   isUserAvailableOnDate,
   resolveAvailability,
-  summarizeWeek,
 } from "@/lib/workforce-logic";
 import {
   notifyMemberWorkforce,
@@ -119,6 +119,8 @@ const STATUS_DOT: Record<WorkforceWorkerStatus, string> = {
   unavailable: "bg-red-400",
   leave: "bg-zinc-400",
 };
+
+type ApprovedApplicant = { uid?: string; name: string };
 
 type ScheduleFormState = {
   title: string;
@@ -186,6 +188,7 @@ export function WorkforceSchedulerPanel({
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
     () => new Map(),
   );
+  const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [schedules, setSchedules] = useState<WorkforceSchedule[]>([]);
   const schedulesRef = useRef<WorkforceSchedule[]>([]);
   schedulesRef.current = schedules;
@@ -226,6 +229,13 @@ export function WorkforceSchedulerPanel({
   useEffect(() => {
     if (!isAdmin) return;
     return subscribeAllAvailability(setAvailMap, (e) => setError(e.message));
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    return subscribeAllApplicationsForAdmin(setApplications, (e) =>
+      setError(e.message),
+    );
   }, [isAdmin]);
 
   useEffect(() => {
@@ -313,12 +323,6 @@ export function WorkforceSchedulerPanel({
     return m;
   }, [members]);
 
-  const teamByUid = useMemo(() => {
-    const m = new Map<string, TeamId>();
-    for (const r of members) m.set(r.uid, normalizeTeamId(r.team_id));
-    return m;
-  }, [members]);
-
   const workers = useMemo(() => {
     return members
       .filter((m) => {
@@ -354,10 +358,63 @@ export function WorkforceSchedulerPanel({
     chipWeekDates,
   ]);
 
-  const summary = useMemo(
-    () => summarizeWeek(displaySchedules),
-    [displaySchedules],
-  );
+  /** 스케줄 연동 카드에 표시할 승인·완료 신청자 (이미 배정된 유저 제외) */
+  const approvedApplicantsByScheduleId = useMemo(() => {
+    const bySession = new Map<string, ApplicationItem[]>();
+    for (const app of applications) {
+      if (app.status !== "approved" && app.status !== "completed") continue;
+      if (!app.eventId || !app.sessionId) continue;
+      const key = `${app.eventId}::${app.sessionId}`;
+      const list = bySession.get(key) ?? [];
+      list.push(app);
+      bySession.set(key, list);
+    }
+    const result = new Map<string, ApprovedApplicant[]>();
+    for (const s of displaySchedules) {
+      if (!s.sourceEventId || !s.sourceSessionId) continue;
+      const apps =
+        bySession.get(`${s.sourceEventId}::${s.sourceSessionId}`) ?? [];
+      if (apps.length === 0) continue;
+      const assigned = new Set(s.assignedUserIds);
+      const seen = new Set<string>();
+      const rows: ApprovedApplicant[] = [];
+      for (const app of apps) {
+        if (app.userId && assigned.has(app.userId)) continue;
+        const name =
+          (app.userId ? nameByUid.get(app.userId) : undefined) ||
+          app.applicantDisplayName?.trim() ||
+          app.applicantEmail?.split("@")[0] ||
+          "이름 없음";
+        const dedupeKey = app.userId || name;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+        rows.push({ uid: app.userId, name });
+      }
+      if (rows.length > 0) result.set(s.id, rows);
+    }
+    return result;
+  }, [applications, displaySchedules, nameByUid]);
+
+  const filledCountOf = (s: WorkforceSchedule) =>
+    s.assignedUserIds.length +
+    (approvedApplicantsByScheduleId.get(s.id)?.length ?? 0);
+
+  const summary = useMemo(() => {
+    let required = 0;
+    let assigned = 0;
+    let shortage = 0;
+    let excess = 0;
+    for (const s of displaySchedules) {
+      required += s.requiredCount;
+      const n =
+        s.assignedUserIds.length +
+        (approvedApplicantsByScheduleId.get(s.id)?.length ?? 0);
+      assigned += n;
+      if (n < s.requiredCount) shortage += s.requiredCount - n;
+      if (n > s.requiredCount) excess += n - s.requiredCount;
+    }
+    return { required, assigned, shortage, excess };
+  }, [displaySchedules, approvedApplicantsByScheduleId]);
   const duplicates = useMemo(
     () => findDuplicateSameDayPairs(displaySchedules),
     [displaySchedules],
@@ -966,38 +1023,6 @@ export function WorkforceSchedulerPanel({
           >
             전체 초기화
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-xl"
-            disabled={busy || schedules.length === 0}
-            onClick={() =>
-              void (async () => {
-                setBusy(true);
-                try {
-                  const id = await exportWeekToMonthlySheet({
-                    weekStart: primaryWeekStart,
-                    schedules,
-                    nameByUid,
-                    teamByUid,
-                    yearMonth: yearMonthFromYmd(cursor),
-                  });
-                  alert(
-                    `취합표 전달 데이터를 저장했습니다. (export: ${id.slice(0, 8)}…)`,
-                  );
-                } catch (e) {
-                  setError(
-                    e instanceof Error ? e.message : "취합표 전달 실패",
-                  );
-                } finally {
-                  setBusy(false);
-                }
-              })()
-            }
-          >
-            취합표로 보내기
-          </Button>
         </div>
       </div>
 
@@ -1199,7 +1224,7 @@ export function WorkforceSchedulerPanel({
                       0,
                     );
                     const dayAssigned = daySchedules.reduce(
-                      (a, s) => a + s.assignedUserIds.length,
+                      (a, s) => a + filledCountOf(s),
                       0,
                     );
                     const shortage = Math.max(0, dayRequired - dayAssigned);
@@ -1257,7 +1282,7 @@ export function WorkforceSchedulerPanel({
                                 {s.startTime} {s.title}
                               </span>
                               <span className="opacity-90">
-                                {s.assignedUserIds.length}/{s.requiredCount}
+                                {filledCountOf(s)}/{s.requiredCount}
                               </span>
                             </button>
                           ))}
@@ -1286,7 +1311,7 @@ export function WorkforceSchedulerPanel({
                   0,
                 );
                 const dayAssigned = daySchedules.reduce(
-                  (a, s) => a + s.assignedUserIds.length,
+                  (a, s) => a + filledCountOf(s),
                   0,
                 );
                 const shortage = Math.max(0, dayRequired - dayAssigned);
@@ -1342,6 +1367,9 @@ export function WorkforceSchedulerPanel({
                           key={s.id}
                           schedule={s}
                           nameByUid={nameByUid}
+                          approvedApplicants={
+                            approvedApplicantsByScheduleId.get(s.id) ?? []
+                          }
                           defaultExpanded={daySchedules.length <= 2}
                           onEdit={() => void openEdit(s)}
                           onDelete={() =>
@@ -1689,6 +1717,7 @@ function Field({
 function ScheduleCard({
   schedule,
   nameByUid,
+  approvedApplicants,
   defaultExpanded = true,
   onEdit,
   onDelete,
@@ -1701,6 +1730,8 @@ function ScheduleCard({
 }: {
   schedule: WorkforceSchedule;
   nameByUid: Map<string, string>;
+  /** 이벤트 신청에서 승인·완료된 유저 (배정 목록과 별도 표시) */
+  approvedApplicants: ApprovedApplicant[];
   defaultExpanded?: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -1721,7 +1752,7 @@ function ScheduleCard({
     setVenueDraft(schedule.venue);
   }, [schedule.id, schedule.venue]);
 
-  const filled = schedule.assignedUserIds.length;
+  const filled = schedule.assignedUserIds.length + approvedApplicants.length;
   const need = schedule.requiredCount;
   const full = need > 0 && filled >= need;
   const short = Math.max(0, need - filled);
@@ -1870,12 +1901,25 @@ function ScheduleCard({
         {open ? (
           <div className="space-y-2 pt-0.5">
             <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 p-2">
-              {schedule.assignedUserIds.length === 0 ? (
+              {schedule.assignedUserIds.length === 0 &&
+              approvedApplicants.length === 0 ? (
                 <p className="py-1.5 text-center text-[10px] text-muted-foreground">
                   배정된 근무자 없음
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-1">
+                  {approvedApplicants.map((a, i) => (
+                    <span
+                      key={a.uid || `${a.name}:${i}`}
+                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
+                      title="이벤트 신청 승인"
+                    >
+                      <span className="rounded-sm bg-emerald-500/25 px-1 text-[9px] leading-4">
+                        신청
+                      </span>
+                      <span className="truncate">{a.name}</span>
+                    </span>
+                  ))}
                   {schedule.assignedUserIds.map((uid) => (
                     <span
                       key={uid}

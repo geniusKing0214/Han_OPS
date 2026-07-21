@@ -57,27 +57,30 @@ export function AdminAvailabilityPanel() {
     [],
   );
 
-  const approvedMembers = useMemo(
-    () => users.filter((u) => u.accountStatus === "approved"),
+  const trackedMembers = useMemo(
+    () =>
+      users.filter(
+        (u) => u.accountStatus === "approved" || u.role === "admin",
+      ),
     [users],
   );
 
   const submitted = useMemo(
     () =>
-      approvedMembers.filter((u) => {
+      trackedMembers.filter((u) => {
         const avail = resolveAvailability(availMap, u.uid);
         return avail.memberSubmittedWeeks.includes(weekStart);
       }),
-    [approvedMembers, availMap, weekStart],
+    [trackedMembers, availMap, weekStart],
   );
 
   const notSubmitted = useMemo(
     () =>
-      approvedMembers.filter((u) => {
+      trackedMembers.filter((u) => {
         const avail = resolveAvailability(availMap, u.uid);
         return !avail.memberSubmittedWeeks.includes(weekStart);
       }),
-    [approvedMembers, availMap, weekStart],
+    [trackedMembers, availMap, weekStart],
   );
 
   const dayBuckets = useMemo(
@@ -145,7 +148,7 @@ export function AdminAvailabilityPanel() {
           <CardContent className="space-y-1 p-4">
             <p className="text-xs text-muted-foreground">전체 인원</p>
             <p className="text-2xl font-semibold tabular-nums">
-              {approvedMembers.length}
+              {trackedMembers.length}
             </p>
           </CardContent>
         </Card>
