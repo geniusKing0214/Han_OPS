@@ -80,6 +80,12 @@ export function MyApplicationRow({
                 : `${app.date} ${app.slotTime}`}
             </span>
           </p>
+          {app.positionLabel ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              포지션:{" "}
+              <span className="font-medium text-foreground">{app.positionLabel}</span>
+            </p>
+          ) : null}
           {!compact && app.note ? (
             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
               메모: {app.note}

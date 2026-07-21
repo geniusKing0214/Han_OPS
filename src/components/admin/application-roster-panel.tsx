@@ -192,6 +192,12 @@ function SlotRosterRow({
                       <p className="text-xs text-muted-foreground tabular-nums">
                         신청 {formatSubmittedAt(a.submittedAt)}
                       </p>
+                      {a.positionLabel ? (
+                        <p className="text-xs text-muted-foreground">
+                          포지션:{" "}
+                          <span className="font-medium text-foreground">{a.positionLabel}</span>
+                        </p>
+                      ) : null}
                       <p className="text-xs text-muted-foreground">
                         <span className="text-foreground/70">메모</span>{" "}
                         {adminMemoDisplay(a)}

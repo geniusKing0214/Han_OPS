@@ -1,5 +1,5 @@
 import type { AttendanceSettings } from "@/types/attendance";
-import type { EventItem, Session, Slot } from "@/types/schedule";
+import type { EventItem, PositionDef, Session, Slot } from "@/types/schedule";
 
 export function updateEventMeta(
   event: EventItem,
@@ -17,6 +17,8 @@ export function updateEventDetails(
     notice?: string;
     color?: string;
     attendance?: AttendanceSettings;
+    usePositions?: boolean;
+    positions?: PositionDef[];
   },
 ): EventItem {
   return {
@@ -28,6 +30,8 @@ export function updateEventDetails(
     ...(details.attendance !== undefined
       ? { attendance: details.attendance }
       : {}),
+    usePositions: details.usePositions ?? event.usePositions ?? false,
+    positions: details.positions ?? event.positions ?? [],
   };
 }
 

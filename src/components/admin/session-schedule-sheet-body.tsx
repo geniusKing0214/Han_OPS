@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 
-import type { EventItem } from "@/types/schedule";
+import type { EventItem, PositionDef } from "@/types/schedule";
+import { DEFAULT_POSITIONS } from "@/types/schedule";
 import {
   DEFAULT_ATTENDANCE_SETTINGS,
   type AttendanceSettings,
@@ -86,6 +87,8 @@ export function SessionScheduleSheetBody({
   const [metaAttendance, setMetaAttendance] = useState<AttendanceSettings>({
     ...DEFAULT_ATTENDANCE_SETTINGS,
   });
+  const [metaUsePositions, setMetaUsePositions] = useState(false);
+  const [metaPositions, setMetaPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [saveError, setSaveError] = useState("");
   const [addSessionDatePick, setAddSessionDatePick] = useState("");
   const [sessionDateDraft, setSessionDateDraft] = useState("");
@@ -112,6 +115,8 @@ export function SessionScheduleSheetBody({
     setMetaNotice(live.notice ?? "");
     setMetaColor(live.color ?? "#C8A96B");
     setMetaAttendance(parseAttendanceSettings(live.attendance));
+    setMetaUsePositions(live.usePositions ?? false);
+    setMetaPositions(live.positions?.length ? live.positions : DEFAULT_POSITIONS);
     setSaveError("");
   }, [resetKey, live?.id]);
 
@@ -216,6 +221,10 @@ export function SessionScheduleSheetBody({
           notice: metaNotice.trim() || undefined,
           color: metaColor.trim() || undefined,
           attendance: metaAttendance,
+          usePositions: metaUsePositions,
+          positions: metaUsePositions
+            ? metaPositions.filter((p) => p.label.trim())
+            : [],
         }),
       );
     } catch (err) {
@@ -300,6 +309,91 @@ export function SessionScheduleSheetBody({
             value={metaAttendance}
             onChange={setMetaAttendance}
           />
+
+          {/* 포지션 설정 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">포지션 사용</p>
+                <p className="text-[11px] text-muted-foreground">딜러·플로어·레지 등 포지션별 신청</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={metaUsePositions}
+                onClick={() => setMetaUsePositions((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  metaUsePositions ? "bg-accent" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    metaUsePositions ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+            {metaUsePositions && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-2">
+                {metaPositions.map((pos, idx) => (
+                  <div key={pos.id} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1 text-sm"
+                      placeholder="포지션 이름"
+                      value={pos.label}
+                      onChange={(e) =>
+                        setMetaPositions((prev) =>
+                          prev.map((p, i) =>
+                            i === idx ? { ...p, label: e.target.value } : p,
+                          ),
+                        )
+                      }
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      className="w-20 text-sm"
+                      placeholder="정원(0=무제한)"
+                      value={pos.capacity}
+                      onChange={(e) =>
+                        setMetaPositions((prev) =>
+                          prev.map((p, i) =>
+                            i === idx
+                              ? { ...p, capacity: Math.max(0, Number.parseInt(e.target.value, 10) || 0) }
+                              : p,
+                          ),
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 text-muted-foreground hover:text-red-400"
+                      onClick={() =>
+                        setMetaPositions((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-xs"
+                  onClick={() =>
+                    setMetaPositions((prev) => [
+                      ...prev,
+                      { id: crypto.randomUUID(), label: "", capacity: 0 },
+                    ])
+                  }
+                >
+                  + 포지션 추가
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-2 pt-1">
             <Button
               type="button"
