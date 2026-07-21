@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { statusBadgeVariant } from "@/lib/admin-application-roster";
 import { cn } from "@/lib/utils";
 import type { SheetDayBundle, SheetSlotRow } from "@/types/monthly-sheet";
+import type { EventItem } from "@/types/schedule";
 import { TEAM_LABELS } from "@/types/team";
+import type { ApplySlotContext } from "@/components/schedule/apply-slot";
 
 function statusLabel(status: string): string {
   if (status === "approved") return "승인";
@@ -27,12 +29,18 @@ export function MonthlySheetDayDetail({
   dateLabel,
   showTeamBadge,
   onEditSchedule,
+  onApply,
+  events,
+  myAppliedEventIds,
   className,
 }: {
   bundle: SheetDayBundle | null;
   dateLabel: string;
   showTeamBadge?: boolean;
   onEditSchedule?: (row: SheetSlotRow) => void;
+  onApply?: (ctx: ApplySlotContext) => void;
+  events?: EventItem[];
+  myAppliedEventIds?: Set<string>;
   className?: string;
 }) {
   // 첫 번째 항목만 기본으로 열림
@@ -146,6 +154,61 @@ export function MonthlySheetDayDetail({
               {isOpen ? (
                 <div className="border-t border-border bg-muted/10 px-3 py-3 md:px-4 md:py-4">
                   {/* 상세 정보 */}
+                  {(() => {
+                    const ev = events?.find((e) => e.id === row.eventId);
+                    const alreadyApplied = myAppliedEventIds?.has(row.eventId);
+                    const hasPositions =
+                      ev?.usePositions &&
+                      ev.positions?.some((p) => p.slots && p.slots.length > 0);
+                    if (onApply && ev) {
+                      return (
+                        <div className="mb-3">
+                          {alreadyApplied ? (
+                            <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
+                              신청 완료
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="accent"
+                              className="w-full md:w-auto"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (hasPositions) {
+                                  onApply({
+                                    eventId: ev.id,
+                                    sessionId: row.sessionId,
+                                    eventTitle: row.eventTitle,
+                                    venue: row.venue,
+                                    date: row.date,
+                                    usePositions: true,
+                                    positions: ev.positions,
+                                  });
+                                } else {
+                                  onApply({
+                                    eventId: ev.id,
+                                    sessionId: row.sessionId,
+                                    slotId: row.slotId,
+                                    eventTitle: row.eventTitle,
+                                    venue: row.venue,
+                                    date: row.date,
+                                    slotStart: row.slotTime,
+                                    capacity: row.capacity,
+                                    applied: row.headcount,
+                                    usePositions: ev.usePositions,
+                                    positions: ev.positions,
+                                  });
+                                }
+                              }}
+                            >
+                              신청
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   <div className="mb-2 space-y-1 text-xs text-muted-foreground md:mb-3 md:space-y-1.5 md:text-sm">
                     <p>
                       <span className="inline-block w-10 font-medium text-foreground/60 md:w-12">

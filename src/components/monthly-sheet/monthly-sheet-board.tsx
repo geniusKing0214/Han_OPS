@@ -16,6 +16,11 @@ import { MonthlySheetCalendarGrid, toYmd } from "@/components/monthly-sheet/mont
 import { MonthlySheetDayDetail } from "@/components/monthly-sheet/monthly-sheet-day-detail";
 import { MonthlySheetDayEditor } from "@/components/monthly-sheet/monthly-sheet-day-editor";
 import { useAuth } from "@/components/providers/auth-provider";
+import {
+  ApplySlotSurface,
+  type ApplySlotContext,
+} from "@/components/schedule/apply-slot";
+import { useMyApplications } from "@/hooks/use-my-applications";
 import { TeamFilter } from "@/components/team/team-filter";
 import { useEvents } from "@/hooks/use-events";
 import { useMonthlySheetData } from "@/hooks/use-monthly-sheet";
@@ -86,9 +91,26 @@ export function MonthlySheetBoard(_props: Props = {}) {
   const [scheduleError, setScheduleError] = useState("");
   const [memoDraft, setMemoDraft] = useState("");
   const [memoSaving, setMemoSaving] = useState(false);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [applyCtx, setApplyCtx] = useState<ApplySlotContext | null>(null);
 
   const { events, loading: eventsLoading } = useEvents();
   const memberTeamId = profile?.teamId ?? DEFAULT_TEAM_ID;
+  const { items: myApplications } = useMyApplications();
+  const myAppliedEventIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const app of myApplications) {
+      if (
+        (app.status === "pending" ||
+          app.status === "approved" ||
+          app.status === "completed") &&
+        app.eventId
+      ) {
+        set.add(app.eventId);
+      }
+    }
+    return set;
+  }, [myApplications]);
   const {
     days,
     appsLoading,
@@ -359,6 +381,12 @@ export function MonthlySheetBoard(_props: Props = {}) {
                       bundle={selectedBundle}
                       dateLabel={formatDateLabel(selected)}
                       showTeamBadge={effectiveTeamFilter === "all"}
+                      events={events}
+                      myAppliedEventIds={myAppliedEventIds}
+                      onApply={(ctx) => {
+                        setApplyCtx(ctx);
+                        setApplyOpen(true);
+                      }}
                       onEditSchedule={
                         canEdit
                           ? (row) =>
@@ -393,6 +421,12 @@ export function MonthlySheetBoard(_props: Props = {}) {
                       bundle={selectedBundle}
                       dateLabel={formatDateLabel(selected)}
                       showTeamBadge={effectiveTeamFilter === "all"}
+                      events={events}
+                      myAppliedEventIds={myAppliedEventIds}
+                      onApply={(ctx) => {
+                        setApplyCtx(ctx);
+                        setApplyOpen(true);
+                      }}
                       onEditSchedule={
                         canEdit
                           ? (row) =>
@@ -459,6 +493,13 @@ export function MonthlySheetBoard(_props: Props = {}) {
           onSave={handleCreateSchedule}
         />
       ) : null}
+
+      {/* 유저 신청 다이얼로그 */}
+      <ApplySlotSurface
+        open={applyOpen}
+        onOpenChange={setApplyOpen}
+        ctx={applyCtx}
+      />
 
       {canEdit ? (
         <Sheet
