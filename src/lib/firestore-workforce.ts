@@ -936,12 +936,30 @@ export function listEventSessionsInWeek(
 
       const slots = session.slots ?? [];
       if (slots.length === 0) {
+        // 포지션 기반 이벤트: 전체 포지션 정원 합산, 가장 이른 시간
+        const totalCapacity =
+          event.usePositions && event.positions?.length
+            ? event.positions.reduce(
+                (sum, pos) =>
+                  sum +
+                  (pos.slots?.reduce(
+                    (s, sl) => s + (sl.capacity ?? 0),
+                    0,
+                  ) ?? 0),
+                0,
+              )
+            : 0;
+        const allTimes = (event.positions ?? [])
+          .flatMap((p) => p.slots?.map((s) => s.time) ?? [])
+          .filter(Boolean)
+          .sort();
+        const startTime = allTimes[0] ?? "10:00";
         out.push({
           event,
           sessionId: session.id,
           date,
-          startTime: "10:00",
-          requiredCount: 1,
+          startTime: startTime || "10:00",
+          requiredCount: Math.max(1, totalCapacity),
         });
         continue;
       }

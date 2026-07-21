@@ -123,6 +123,75 @@ function applyEntryOverride(
   };
 }
 
+/** 포지션 기반 이벤트(slots 없음) 전용 행 빌더 */
+function buildPositionSessionRow(
+  event: EventItem,
+  session: Session,
+  applications: ApplicationItem[],
+  teamId: TeamId,
+  includePending: boolean,
+  entryOverride?: SheetEntryOverride,
+): SheetSlotRow | null {
+  const sessionApps = applications.filter(
+    (a) =>
+      a.eventId === event.id &&
+      a.sessionId === session.id &&
+      normalizeAppTeam(a) === teamId,
+  );
+
+  const visibleApps = sessionApps.filter((a) =>
+    statusIncluded(a.status, includePending),
+  );
+  if (visibleApps.length === 0 && !entryOverride) {
+    if (!eventVisibleToTeam(event, teamId)) return null;
+    // 일정은 있지만 신청자 없음 — 빈 행 표시
+  }
+
+  // 전체 포지션 정원 합산
+  const totalCapacity =
+    event.positions?.reduce(
+      (sum, p) =>
+        sum + (p.slots?.reduce((s, sl) => s + (sl.capacity ?? 0), 0) ?? 0),
+      0,
+    ) ?? 0;
+
+  // 가장 이른 시간 슬롯 시간
+  const allTimes = (event.positions ?? [])
+    .flatMap((p) => p.slots?.map((s) => s.time) ?? [])
+    .filter(Boolean)
+    .sort();
+  const slotTime = allTimes[0] ?? "—";
+
+  const applicants = visibleApps.map((a) => ({
+    name: applicantName(a),
+    status: a.status,
+  }));
+
+  const approvedCount = applicants.filter(
+    (a) => a.status === "approved" || a.status === "completed",
+  ).length;
+
+  const entryKey = `pos:${event.id}:${session.id}:${teamId}`;
+  const base = {
+    entryKey,
+    eventId: event.id,
+    sessionId: session.id,
+    slotId: "",
+    date: session.date,
+    teamId,
+    eventTitle: event.title,
+    venue: event.venue,
+    slotTime,
+    capacity: totalCapacity,
+    headcount: approvedCount || applicants.length,
+    applicants,
+    eventNotice: event.notice,
+    eventColor: event.color,
+  };
+
+  return applyEntryOverride(base, entryOverride);
+}
+
 function buildSlotRow(
   event: EventItem,
   session: Session,
@@ -282,6 +351,27 @@ function buildDayBundle(
         // 스케줄러에 연결되어 실제 배정이 있으면 슬롯 신청 행 대신
         // 아래의 인력 배정 행 하나로 표시하여 중복을 방지한다.
         if (linkedSessionKeys.has(`${event.id}:${session.id}`)) continue;
+        // 포지션 기반 이벤트: slots가 비어 있으면 전체 신청을 하나의 행으로
+        if (session.slots.length === 0) {
+          const posEntryKey = `pos:${event.id}:${session.id}:${teamId}`;
+          const posEntryOverride = dayOverride?.entryOverrides?.[posEntryKey];
+          const row = buildPositionSessionRow(
+            event,
+            session,
+            applications,
+            teamId,
+            includePending,
+            posEntryOverride,
+          );
+          if (row) {
+            rows.push(
+              teamFilter === "all"
+                ? { ...row, displayLines: [`[${TEAM_LABELS[teamId]}]`, ...row.displayLines] }
+                : row,
+            );
+          }
+          continue;
+        }
         for (const slot of session.slots) {
           const entryOverride = dayOverride?.entryOverrides?.[
             slotKey(event.id, session.id, slot.id)
