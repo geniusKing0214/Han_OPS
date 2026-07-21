@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 
 import type { EventItem, PositionDef } from "@/types/schedule";
@@ -12,12 +12,9 @@ import {
 import { parseAttendanceSettings } from "@/lib/attendance-settings";
 import {
   addSession,
-  addSlot,
   removeSession,
-  removeSlot,
   setSessionDate,
   updateEventDetails,
-  updateSlot,
 } from "@/lib/schedule-mutations";
 import { EventAttendanceSettingsFields } from "@/components/admin/event-attendance-settings-fields";
 import { Button } from "@/components/ui/button";
@@ -30,30 +27,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-function parsePositiveInt(value: string, fallback: number) {
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) && n >= 0 ? n : fallback;
-}
-
-/** 빈 입력·잘못된 입력은 0으로 저장(blur 시) */
-function parseNonNegInt(value: string): number {
-  const n = Number.parseInt(value.trim(), 10);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
-}
-
-type SlotFieldDraft = { start: string; cap: string; applied: string };
-
-function openTimePickerIfSupported(target: EventTarget | null) {
-  const el = target as HTMLInputElement | null;
-  if (!el || el.type !== "time") return;
-  if (typeof el.showPicker === "function") {
-    try {
-      el.showPicker();
-    } catch {
-      // gesture restrictions in some browsers
-    }
-  }
-}
 
 export type SessionScheduleSheetBodyProps = {
   /** 증가 시 메타 입력란을 현재 Firestore 값으로 초기화 */
@@ -92,21 +65,8 @@ export function SessionScheduleSheetBody({
   const [saveError, setSaveError] = useState("");
   const [addSessionDatePick, setAddSessionDatePick] = useState("");
   const [sessionDateDraft, setSessionDateDraft] = useState("");
-  const [newSlotDraft, setNewSlotDraft] = useState({ time: "09:00", cap: "4" });
-  const [slotDrafts, setSlotDrafts] = useState<Record<string, SlotFieldDraft>>(
-    {},
-  );
-  const slotDraftsRef = useRef(slotDrafts);
-  slotDraftsRef.current = slotDrafts;
   const sessionDateDraftRef = useRef(sessionDateDraft);
   sessionDateDraftRef.current = sessionDateDraft;
-
-  const sessionReady = Boolean(live && session);
-  const slotIdsKey =
-    session?.slots
-      .map((s) => s.id)
-      .sort()
-      .join(",") ?? "";
 
   useEffect(() => {
     if (!live) return;
@@ -120,52 +80,6 @@ export function SessionScheduleSheetBody({
     setSaveError("");
   }, [resetKey, live?.id]);
 
-  /** 시트를 열거나 세션을 바꿀 때 슬롯 입력값 초기화(Firestore 스냅샷마다는 초기화하지 않음) */
-  useEffect(() => {
-    if (!sessionReady) return;
-    const ln = events.find((e) => e.id === eventId);
-    const sn = ln?.sessions.find((s) => s.id === sessionId);
-    if (!ln || !sn) return;
-    const init: Record<string, SlotFieldDraft> = {};
-    for (const sl of sn.slots) {
-      init[sl.id] = {
-        start: sl.start_time,
-        cap: String(sl.capacity),
-        applied: String(sl.applied_count),
-      };
-    }
-    setSlotDrafts(init);
-  }, [resetKey, eventId, sessionId, sessionReady]);
-
-  /** 슬롯 행이 추가·삭제될 때만 드래프트 병합 */
-  useEffect(() => {
-    if (!slotIdsKey) return;
-    const ln = events.find((e) => e.id === eventId);
-    const sn = ln?.sessions.find((s) => s.id === sessionId);
-    if (!ln || !sn) return;
-    setSlotDrafts((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const sl of sn.slots) {
-        if (next[sl.id] === undefined) {
-          next[sl.id] = {
-            start: sl.start_time,
-            cap: String(sl.capacity),
-            applied: String(sl.applied_count),
-          };
-          changed = true;
-        }
-      }
-      for (const id of Object.keys(next)) {
-        if (!sn.slots.some((s) => s.id === id)) {
-          delete next[id];
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [slotIdsKey, eventId, sessionId]);
-
   const sessionDateSyncKey = live && session ? `${sessionId}:${session.date}` : "";
 
   useEffect(() => {
@@ -176,38 +90,6 @@ export function SessionScheduleSheetBody({
     if (!sn?.date) return;
     setSessionDateDraft(sn.date);
   }, [resetKey, sessionDateSyncKey, eventId, sessionId]);
-
-  const flushSlotDraft = useCallback(
-    (slotId: string) => {
-      const draft = slotDraftsRef.current[slotId];
-      const ln = events.find((e) => e.id === eventId);
-      const sn = ln?.sessions.find((s) => s.id === sessionId);
-      if (!draft || !ln || !sn) return;
-      const slot = sn.slots.find((s) => s.id === slotId);
-      if (!slot) return;
-
-      const cap = parseNonNegInt(draft.cap);
-      const applied = parseNonNegInt(draft.applied);
-      const start = draft.start.trim() || slot.start_time;
-
-      if (
-        cap === slot.capacity &&
-        applied === slot.applied_count &&
-        start === slot.start_time
-      ) {
-        return;
-      }
-
-      void onPersist(
-        updateSlot(ln, sessionId, slotId, {
-          start_time: start,
-          capacity: cap,
-          applied_count: applied,
-        }),
-      );
-    },
-    [eventId, sessionId, events, onPersist],
-  );
 
   const handleSaveMeta = async () => {
     if (!live) return false;
@@ -518,169 +400,6 @@ export function SessionScheduleSheetBody({
             </p>
           </div>
 
-          <Separator />
-
-          <p className="text-xs text-muted-foreground">
-            슬롯별 시작 시간·정원·신청 인원은 입력 후 다른 칸으로 이동하거나
-            키보드의「완료」를 누르면 저장됩니다.
-          </p>
-          <div className="space-y-3">
-            {session.slots.map((slot) => {
-              const d = slotDrafts[slot.id] ?? {
-                start: slot.start_time,
-                cap: String(slot.capacity),
-                applied: String(slot.applied_count),
-              };
-              return (
-              <div
-                key={slot.id}
-                className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 sm:flex-row sm:flex-wrap sm:items-end"
-              >
-                <div className="grid gap-2 sm:grid-cols-3 sm:gap-3 flex-1">
-                  <div className="space-y-1">
-                    <span className="text-[11px] text-muted-foreground">시작</span>
-                    <Input
-                      type="time"
-                      step={60}
-                      value={d.start}
-                      onClick={(e) => openTimePickerIfSupported(e.currentTarget)}
-                      onTouchStart={(e) =>
-                        openTimePickerIfSupported(e.currentTarget)
-                      }
-                      onChange={(e) =>
-                        setSlotDrafts((p) => {
-                          const cur = p[slot.id] ?? {
-                            start: slot.start_time,
-                            cap: String(slot.capacity),
-                            applied: String(slot.applied_count),
-                          };
-                          return {
-                            ...p,
-                            [slot.id]: { ...cur, start: e.target.value },
-                          };
-                        })
-                      }
-                      onBlur={() => flushSlotDraft(slot.id)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[11px] text-muted-foreground">
-                      모집 인원 (정원)
-                    </span>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      value={d.cap}
-                      onChange={(e) =>
-                        setSlotDrafts((p) => {
-                          const cur = p[slot.id] ?? {
-                            start: slot.start_time,
-                            cap: String(slot.capacity),
-                            applied: String(slot.applied_count),
-                          };
-                          return {
-                            ...p,
-                            [slot.id]: { ...cur, cap: e.target.value },
-                          };
-                        })
-                      }
-                      onBlur={() => flushSlotDraft(slot.id)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[11px] text-muted-foreground">신청 인원</span>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      value={d.applied}
-                      onChange={(e) =>
-                        setSlotDrafts((p) => {
-                          const cur = p[slot.id] ?? {
-                            start: slot.start_time,
-                            cap: String(slot.capacity),
-                            applied: String(slot.applied_count),
-                          };
-                          return {
-                            ...p,
-                            [slot.id]: { ...cur, applied: e.target.value },
-                          };
-                        })
-                      }
-                      onBlur={() => flushSlotDraft(slot.id)}
-                    />
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="sm:ml-auto"
-                  disabled={saving}
-                  onClick={() => {
-                    if (!confirm("이 슬롯을 삭제할까요?")) return;
-                    void onPersist(removeSlot(live, sessionId, slot.id));
-                  }}
-                >
-                  슬롯 삭제
-                </Button>
-              </div>
-            );
-            })}
-          </div>
-
-          <Separator />
-
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="grid gap-2 sm:grid-cols-2 flex-1">
-              <div className="space-y-1">
-                <span className="text-[11px] text-muted-foreground">새 슬롯 · 시작</span>
-                <Input
-                  type="time"
-                  step={60}
-                  value={newSlotDraft.time}
-                  onClick={(e) => openTimePickerIfSupported(e.currentTarget)}
-                  onTouchStart={(e) => openTimePickerIfSupported(e.currentTarget)}
-                  onChange={(e) =>
-                    setNewSlotDraft((p) => ({ ...p, time: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <span className="text-[11px] text-muted-foreground">모집 인원</span>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={newSlotDraft.cap}
-                  onChange={(e) =>
-                    setNewSlotDraft((p) => ({ ...p, cap: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="accent"
-              disabled={saving}
-              onClick={() =>
-                void onPersist(
-                  addSlot(live, sessionId, {
-                    start_time: newSlotDraft.time,
-                    capacity: Math.max(
-                      1,
-                      parsePositiveInt(newSlotDraft.cap, 4),
-                    ),
-                    applied_count: 0,
-                  }),
-                )
-              }
-            >
-              슬롯 추가
-            </Button>
-          </div>
         </div>
 
         <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-2">

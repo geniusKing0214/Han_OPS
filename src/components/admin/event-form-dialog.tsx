@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { EventItem, PositionDef, Session, Slot } from "@/types/schedule";
+import type { EventItem, PositionDef, Session } from "@/types/schedule";
 import { DEFAULT_POSITIONS } from "@/types/schedule";
 import {
   TEAM_EXPOSURE_OPTIONS,
@@ -27,20 +27,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
-type SlotDraft = { id: string; start_time: string; capacity: string };
-type SessionDraft = { id: string; date: string; slots: SlotDraft[] };
+type SessionDraft = { id: string; date: string };
 
 function emptySession(): SessionDraft {
-  return {
-    id: crypto.randomUUID(),
-    date: "",
-    slots: [{ id: crypto.randomUUID(), start_time: "09:00", capacity: "1" }],
-  };
-}
-
-function parsePositiveInt(v: string, fallback: number) {
-  const n = Number.parseInt(v, 10);
-  return Number.isFinite(n) && n >= 1 ? n : fallback;
+  return { id: crypto.randomUUID(), date: "" };
 }
 
 export type CreateScheduleDialogProps = {
@@ -66,7 +56,7 @@ export function CreateScheduleDialog({
   });
   const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [sessions, setSessions] = useState<SessionDraft[]>([emptySession()]);
-  const [usePositions, setUsePositions] = useState(false);
+  const [usePositions, setUsePositions] = useState(true);
   const [positions, setPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [error, setError] = useState("");
 
@@ -79,7 +69,7 @@ export function CreateScheduleDialog({
     setAttendance({ ...DEFAULT_ATTENDANCE_SETTINGS });
     setTeamExposure("team_1");
     setSessions([emptySession()]);
-    setUsePositions(false);
+    setUsePositions(true);
     setPositions(DEFAULT_POSITIONS);
     setError("");
   }, [open]);
@@ -99,50 +89,6 @@ export function CreateScheduleDialog({
     );
   };
 
-  const addSlot = (sid: string) => {
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === sid
-          ? {
-              ...s,
-              slots: [
-                ...s.slots,
-                { id: crypto.randomUUID(), start_time: "09:00", capacity: "1" },
-              ],
-            }
-          : s,
-      ),
-    );
-  };
-
-  const removeSlot = (sid: string, slotId: string) => {
-    setSessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== sid) return s;
-        if (s.slots.length <= 1) return s;
-        return { ...s, slots: s.slots.filter((sl) => sl.id !== slotId) };
-      }),
-    );
-  };
-
-  const updateSlot = (
-    sid: string,
-    slotId: string,
-    patch: Partial<Pick<SlotDraft, "start_time" | "capacity">>,
-  ) => {
-    setSessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== sid) return s;
-        return {
-          ...s,
-          slots: s.slots.map((sl) =>
-            sl.id === slotId ? { ...sl, ...patch } : sl,
-          ),
-        };
-      }),
-    );
-  };
-
   const handleSubmit = async () => {
     setError("");
     if (!title.trim() || !venue.trim()) {
@@ -154,30 +100,21 @@ export function CreateScheduleDialog({
         setError("모든 세션에 날짜를 입력하세요.");
         return;
       }
-      for (const sl of sess.slots) {
-        if (!sl.start_time) {
-          setError("모든 슬롯에 시작 시간을 입력하세요.");
-          return;
-        }
-        const cap = parsePositiveInt(sl.capacity, 0);
-        if (cap < 1) {
-          setError("정원은 1 이상이어야 합니다.");
-          return;
-        }
+    }
+    if (usePositions) {
+      const hasAnySlot = positions.some(
+        (p) => p.label.trim() && p.slots.length > 0,
+      );
+      if (!hasAnySlot) {
+        setError("포지션에 최소 1개 이상의 시간 슬롯을 추가하세요.");
+        return;
       }
     }
 
     const builtSessions: Session[] = sessions.map((sess) => ({
       id: sess.id,
       date: sess.date,
-      slots: sess.slots.map(
-        (sl): Slot => ({
-          id: sl.id,
-          start_time: sl.start_time,
-          capacity: parsePositiveInt(sl.capacity, 1),
-          applied_count: 0,
-        }),
-      ),
+      slots: [], // 포지션 기반 이벤트: 세션 슬롯 없음
     }));
 
     const payload: Omit<EventItem, "id"> = {
@@ -206,7 +143,7 @@ export function CreateScheduleDialog({
         <DialogHeader>
           <DialogTitle>스케줄 생성</DialogTitle>
           <DialogDescription>
-            필수: 날짜, 이벤트명, 장소, 시간, 정원 · 특이사항은 선택입니다.
+            이벤트명, 장소, 날짜, 포지션별 시간·정원을 설정합니다.
           </DialogDescription>
         </DialogHeader>
 
@@ -461,91 +398,30 @@ export function CreateScheduleDialog({
           {sessions.map((sess, si) => (
             <div
               key={sess.id}
-              className="rounded-lg border border-border bg-muted/30 p-4"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
             >
-              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">
-                    날짜 *
-                  </label>
-                  <Input
-                    type="date"
-                    className="w-[180px]"
-                    value={sess.date}
-                    onChange={(e) => updateSessionDate(sess.id, e.target.value)}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="text-red-400"
-                  disabled={sessions.length <= 1}
-                  onClick={() => removeSession(sess.id)}
-                >
-                  이 날짜 삭제
-                </Button>
+              <div className="flex-1 min-w-[160px] space-y-1">
+                <label className="text-xs text-muted-foreground">날짜 *</label>
+                <Input
+                  type="date"
+                  className="w-full"
+                  value={sess.date}
+                  onChange={(e) => updateSessionDate(sess.id, e.target.value)}
+                />
               </div>
-
-              <div className="space-y-2">
-                {sess.slots.map((sl) => (
-                  <div
-                    key={sl.id}
-                    className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 sm:flex-row sm:items-end"
-                  >
-                    <div className="grid flex-1 gap-2 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <span className="text-[11px] text-muted-foreground">
-                          시작 *
-                        </span>
-                        <Input
-                          type="time"
-                          value={sl.start_time}
-                          onChange={(e) =>
-                            updateSlot(sess.id, sl.id, {
-                              start_time: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[11px] text-muted-foreground">
-                          정원 *
-                        </span>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={sl.capacity}
-                          onChange={(e) =>
-                            updateSlot(sess.id, sl.id, {
-                              capacity: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={sess.slots.length <= 1}
-                      onClick={() => removeSlot(sess.id, sl.id)}
-                    >
-                      슬롯 삭제
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="accent"
-                  className="w-full sm:w-auto"
-                  onClick={() => addSlot(sess.id)}
-                >
-                  시간 슬롯 추가
-                </Button>
-              </div>
-              {si < sessions.length - 1 ? <Separator className="my-4" /> : null}
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-red-400 shrink-0"
+                disabled={sessions.length <= 1}
+                onClick={() => removeSession(sess.id)}
+              >
+                삭제
+              </Button>
+              {si < sessions.length - 1 ? (
+                <div className="w-full" />
+              ) : null}
             </div>
           ))}
         </div>
