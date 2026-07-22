@@ -1460,7 +1460,7 @@ export function WorkforceSchedulerPanel({
         open={createEventOpen}
         onOpenChange={setCreateEventOpen}
         saving={createEventSaving}
-        onSave={(payload) => void handleCreateEvent(payload)}
+        onSave={(payload) => handleCreateEvent(payload)}
       />
 
       {/* Schedule form dialog (수정 전용) */}
