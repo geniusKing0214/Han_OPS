@@ -120,7 +120,7 @@ const STATUS_DOT: Record<WorkforceWorkerStatus, string> = {
   leave: "bg-zinc-400",
 };
 
-type ApprovedApplicant = { uid?: string; name: string };
+type ApprovedApplicant = { uid?: string; name: string; positionLabel?: string };
 
 type ScheduleFormState = {
   title: string;
@@ -388,7 +388,7 @@ export function WorkforceSchedulerPanel({
         const dedupeKey = app.userId || name;
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
-        rows.push({ uid: app.userId, name });
+        rows.push({ uid: app.userId, name, positionLabel: app.positionLabel?.trim() || undefined });
       }
       if (rows.length > 0) result.set(s.id, rows);
     }
@@ -1919,7 +1919,7 @@ function ScheduleCard({
                       title="이벤트 신청 승인"
                     >
                       <span className="rounded-sm bg-emerald-500/25 px-1 text-[9px] leading-4">
-                        신청
+                        {a.positionLabel ?? "신청"}
                       </span>
                       <span className="truncate">{a.name}</span>
                     </span>
