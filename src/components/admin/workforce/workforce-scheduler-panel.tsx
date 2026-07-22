@@ -19,6 +19,9 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useEvents } from "@/hooks/use-events";
+import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
+import { createScheduleEvent } from "@/lib/firestore-events";
+import type { EventItem } from "@/types/schedule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -199,6 +202,8 @@ export function WorkforceSchedulerPanel({
   const [dragUserId, setDragUserId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
+  const [createEventSaving, setCreateEventSaving] = useState(false);
   const [form, setForm] = useState<ScheduleFormState>(() =>
     emptyForm(weekDates[0]!),
   );
@@ -613,10 +618,19 @@ export function WorkforceSchedulerPanel({
     }
   };
 
-  const openCreate = (date: string) => {
-    setEditingId(null);
-    setForm(emptyForm(date));
-    setFormOpen(true);
+  const openCreate = (_date: string) => {
+    setCreateEventOpen(true);
+  };
+
+  const handleCreateEvent = async (payload: Omit<EventItem, "id">) => {
+    if (!user) throw new Error("로그인이 필요합니다.");
+    setCreateEventSaving(true);
+    try {
+      await createScheduleEvent({ ...payload, id: crypto.randomUUID() }, user.uid);
+      setCreateEventOpen(false);
+    } finally {
+      setCreateEventSaving(false);
+    }
   };
 
   const openEdit = async (s: WorkforceSchedule) => {
@@ -1441,13 +1455,19 @@ export function WorkforceSchedulerPanel({
         </CardContent>
       </Card>
 
-      {/* Schedule form dialog */}
+      {/* 이벤트 생성 다이얼로그 (취합표와 동일한 폼) */}
+      <CreateScheduleDialog
+        open={createEventOpen}
+        onOpenChange={setCreateEventOpen}
+        saving={createEventSaving}
+        onSave={(payload) => void handleCreateEvent(payload)}
+      />
+
+      {/* Schedule form dialog (수정 전용) */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingId ? "일정 수정" : "일정 추가"}
-            </DialogTitle>
+            <DialogTitle>일정 수정</DialogTitle>
             <DialogDescription>
               포지션 없이 일정 단위로 필요 인원과 배정자를 관리합니다.
             </DialogDescription>
