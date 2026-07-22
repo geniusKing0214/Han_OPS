@@ -44,6 +44,27 @@ export function applicationsForSlot(
     .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
+/** 포지션 기반 이벤트 — 특정 positionId 신청자 목록 */
+export function applicationsForPosition(
+  apps: ApplicationItem[],
+  eventId: string,
+  positionId: string,
+): ApplicationItem[] {
+  return apps
+    .filter((a) => a.eventId === eventId && a.positionId === positionId)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+}
+
+/** 포지션 기반 이벤트 — 이벤트 전체 신청자 (포지션 미지정 포함) */
+export function allApplicationsForEvent(
+  apps: ApplicationItem[],
+  eventId: string,
+): ApplicationItem[] {
+  return apps
+    .filter((a) => a.eventId === eventId)
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+}
+
 export function eventsWithSessionsOnDate(
   events: EventItem[],
   date: string,

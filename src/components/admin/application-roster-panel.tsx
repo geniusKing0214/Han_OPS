@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, ChevronUp, Users } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   applicationsForSlot,
+  applicationsForPosition,
   countApplicationsByStatus,
   eventsWithSessionsOnDate,
   formatSlotTimeLabel,
@@ -43,7 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import type { EventItem, Session, Slot } from "@/types/schedule";
+import type { EventItem, PositionDef, Session, Slot } from "@/types/schedule";
 import { subscribeAttendancesByWorkDate, pickLatestAttendance } from "@/lib/firestore-attendance";
 import {
   LOCATION_STATUS_LABELS,
@@ -193,12 +194,190 @@ function SlotRosterRow({
                         신청 {formatSubmittedAt(a.submittedAt)}
                       </p>
                       {a.positionLabel ? (
-                        <p className="text-xs text-muted-foreground">
-                          포지션:{" "}
-                          <span className="font-medium text-foreground">{a.positionLabel}</span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center rounded-md bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent ring-1 ring-accent/30">
+                            {a.positionLabel}
+                          </span>
                           {a.positionSlotTime ? (
-                            <span className="ml-1 tabular-nums text-accent">· {a.positionSlotTime}</span>
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              {a.positionSlotTime}
+                            </span>
                           ) : null}
+                        </div>
+                      ) : null}
+                      <p className="text-xs text-muted-foreground">
+                        <span className="text-foreground/70">메모</span>{" "}
+                        {adminMemoDisplay(a)}
+                      </p>
+                      {(() => {
+                        const att = pickLatestAttendance(attendances, a.id);
+                        const attendanceOn =
+                          event.attendance?.attendanceEnabled === true;
+                        if (!attendanceOn) return null;
+                        if (!att) {
+                          return (
+                            <p className="text-xs text-amber-300/90">
+                              출근 인증 미완료
+                            </p>
+                          );
+                        }
+                        return (
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <p>
+                              인증{" "}
+                              {att.actualCheckInAt
+                                ? formatAttendanceDateTime(att.actualCheckInAt)
+                                : "—"}{" "}
+                              · {TIME_STATUS_LABELS[att.timeStatus]}
+                            </p>
+                            <p>
+                              {LOCATION_STATUS_LABELS[att.locationStatus]}
+                              {att.distanceFromVenueMeters != null
+                                ? ` · ${att.distanceFromVenueMeters}m`
+                                : ""}{" "}
+                              · {REVIEW_STATUS_LABELS[att.reviewStatus]}
+                            </p>
+                            <Link
+                              href="/admin/attendance"
+                              className="text-accent hover:underline"
+                            >
+                              인증 상세 보기
+                            </Link>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <ApplicationWorkActions
+                      application={a}
+                      busy={busyId === a.id}
+                      onApprove={() => onApprove(a.id)}
+                      onReject={() => onReject(a)}
+                      onWorkStatus={(ws) => onWorkStatus(a.id, ws)}
+                    />
+                  </div>
+                  <div className="mt-2">
+                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      관리자 메모
+                    </label>
+                    <Textarea
+                      key={`${a.id}-${a.adminMemo ?? ""}`}
+                      className="mt-1 min-h-[52px] text-xs"
+                      defaultValue={a.adminMemo ?? ""}
+                      placeholder="관리자 메모 (저장: 포커스 아웃)"
+                      onBlur={(e) => onMemoBlur(a.id, e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type PositionRosterProps = {
+  event: EventItem;
+  position: PositionDef;
+  applications: ApplicationItem[];
+  profiles: Map<string, { email: string; displayName: string }>;
+  attendances: AttendanceRecord[];
+  expanded: boolean;
+  onToggle: () => void;
+  busyId: string | null;
+  onApprove: (id: string) => void;
+  onReject: (app: ApplicationItem) => void;
+  onWorkStatus: (id: string, status: WorkStatus) => void;
+  onMemoBlur: (id: string, memo: string) => void;
+  highlightApplicationId?: string | null;
+};
+
+function PositionRosterRow({
+  event,
+  position,
+  applications,
+  profiles,
+  attendances,
+  expanded,
+  onToggle,
+  busyId,
+  onApprove,
+  onReject,
+  onWorkStatus,
+  onMemoBlur,
+  highlightApplicationId,
+}: PositionRosterProps) {
+  const posApps = useMemo(
+    () => applicationsForPosition(applications, event.id, position.id),
+    [applications, event.id, position.id],
+  );
+  const counts = useMemo(() => countApplicationsByStatus(posApps), [posApps]);
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/20">
+      <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center rounded-md bg-accent/15 px-2.5 py-0.5 text-sm font-semibold text-accent ring-1 ring-accent/30">
+              {position.label}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            신청 {counts.total}명 / 승인 {counts.approved}명 / 대기{" "}
+            {counts.pending}명 / 거절 {counts.rejected}명
+            {counts.completed > 0 ? ` / 완료 ${counts.completed}명` : ""}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0 gap-1.5"
+          onClick={onToggle}
+        >
+          <Users className="size-3.5" />
+          신청자 보기
+          {expanded ? (
+            <ChevronDown className="size-3.5" />
+          ) : (
+            <ChevronRight className="size-3.5" />
+          )}
+        </Button>
+      </div>
+
+      {expanded ? (
+        <div className="border-t border-border px-3 pb-3">
+          {posApps.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              이 포지션에 신청자가 없습니다.
+            </p>
+          ) : (
+            <div className="max-h-72 space-y-2 overflow-y-auto pt-3">
+              {posApps.map((a) => (
+                <div
+                  key={a.id}
+                  id={`roster-app-${a.id}`}
+                  className={cn(
+                    "rounded-md border border-border bg-background/60 px-3 py-2.5",
+                    highlightApplicationId === a.id &&
+                      "border-accent/50 bg-accent/10 ring-1 ring-accent/30",
+                  )}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 space-y-1">
+                      <p className="text-sm font-medium">
+                        {resolveName(a, profiles)}
+                      </p>
+                      <p className="break-all text-xs text-muted-foreground">
+                        {resolveEmail(a, profiles)}
+                      </p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        신청 {formatSubmittedAt(a.submittedAt)}
+                      </p>
+                      {a.positionSlotTime ? (
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          시간대: {a.positionSlotTime}
                         </p>
                       ) : null}
                       <p className="text-xs text-muted-foreground">
@@ -540,46 +719,86 @@ export function ApplicationRosterPanel() {
                     </CardHeader>
                     {eventOpen ? (
                       <CardContent className="space-y-4 px-4 pb-4 pt-0">
-                        {sessions.map((session) => (
-                          <div key={session.id} className="space-y-2">
-                            <p className="text-xs font-medium text-muted-foreground">
-                              세션 · {session.date}
-                            </p>
-                            <div className="space-y-2">
-                              {session.slots.map((slot) => {
-                                const key = slotKey(event.id, session.id, slot.id);
-                                return (
-                                  <SlotRosterRow
-                                    key={key}
-                                    event={event}
-                                    session={session}
-                                    slot={slot}
-                                    applications={applications}
-                                    profiles={profiles}
-                                    attendances={attendances}
-                                    expanded={!!expandedSlots[key]}
-                                    onToggle={() => toggleSlot(key)}
-                                    busyId={busyId}
-                                    onApprove={(id) => void setStatus(id, "approved")}
-                                    onReject={setRejectTarget}
-                                    onWorkStatus={(id, ws) =>
-                                      void handleWorkStatus(id, ws)
-                                    }
-                                    onMemoBlur={(id, memo) =>
-                                      void handleMemoBlur(id, memo)
-                                    }
-                                    highlightApplicationId={focusAppId}
-                                  />
-                                );
-                              })}
-                              {session.slots.length === 0 ? (
-                                <p className="text-xs text-muted-foreground">
-                                  슬롯이 없습니다.
-                                </p>
-                              ) : null}
-                            </div>
+                        {event.usePositions &&
+                        event.positions &&
+                        event.positions.length > 0 ? (
+                          <div className="space-y-2">
+                            {event.positions.map((pos) => {
+                              const key = `pos:${event.id}:${pos.id}`;
+                              return (
+                                <PositionRosterRow
+                                  key={key}
+                                  event={event}
+                                  position={pos}
+                                  applications={applications}
+                                  profiles={profiles}
+                                  attendances={attendances}
+                                  expanded={!!expandedSlots[key]}
+                                  onToggle={() => toggleSlot(key)}
+                                  busyId={busyId}
+                                  onApprove={(id) =>
+                                    void setStatus(id, "approved")
+                                  }
+                                  onReject={setRejectTarget}
+                                  onWorkStatus={(id, ws) =>
+                                    void handleWorkStatus(id, ws)
+                                  }
+                                  onMemoBlur={(id, memo) =>
+                                    void handleMemoBlur(id, memo)
+                                  }
+                                  highlightApplicationId={focusAppId}
+                                />
+                              );
+                            })}
                           </div>
-                        ))}
+                        ) : (
+                          sessions.map((session) => (
+                            <div key={session.id} className="space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                세션 · {session.date}
+                              </p>
+                              <div className="space-y-2">
+                                {session.slots.map((slot) => {
+                                  const key = slotKey(
+                                    event.id,
+                                    session.id,
+                                    slot.id,
+                                  );
+                                  return (
+                                    <SlotRosterRow
+                                      key={key}
+                                      event={event}
+                                      session={session}
+                                      slot={slot}
+                                      applications={applications}
+                                      profiles={profiles}
+                                      attendances={attendances}
+                                      expanded={!!expandedSlots[key]}
+                                      onToggle={() => toggleSlot(key)}
+                                      busyId={busyId}
+                                      onApprove={(id) =>
+                                        void setStatus(id, "approved")
+                                      }
+                                      onReject={setRejectTarget}
+                                      onWorkStatus={(id, ws) =>
+                                        void handleWorkStatus(id, ws)
+                                      }
+                                      onMemoBlur={(id, memo) =>
+                                        void handleMemoBlur(id, memo)
+                                      }
+                                      highlightApplicationId={focusAppId}
+                                    />
+                                  );
+                                })}
+                                {session.slots.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    슬롯이 없습니다.
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </CardContent>
                     ) : null}
                   </Card>
