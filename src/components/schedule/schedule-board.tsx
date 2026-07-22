@@ -186,57 +186,62 @@ export function ScheduleBoard({
                           거절 처리된 신청은 같은 이벤트에 다시 신청할 수 있습니다.
                         </p>
                         {/* Option B: 포지션 기반 표시 */}
-                        {event.usePositions &&
-                        event.positions?.some((p) => p.slots && p.slots.length > 0) ? (
+                        {event.usePositions && event.positions && event.positions.length > 0 ? (
                           <div className="space-y-2">
-                            {event.positions!.filter((p) => p.slots && p.slots.length > 0).map((pos) => {
+                            {event.positions!.map((pos) => {
                               const alreadyAppliedEvent = appliedEventIds.has(event.id);
+                              const hasSlots = pos.slots && pos.slots.length > 0;
                               return (
                                 <div key={pos.id} className="rounded-md border border-border bg-card px-3 py-2.5 space-y-2">
                                   <p className="text-xs font-semibold text-foreground">{pos.label}</p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {pos.slots.map((slot) => {
-                                      const slotRemaining = Math.max(0, slot.capacity - slot.applied_count);
-                                      const full = slotRemaining === 0;
-                                      const blocked = full || alreadyAppliedEvent || teamApplyLocked;
-                                      return (
-                                        <div key={slot.id} className="flex items-center gap-1.5">
-                                          <span className="text-xs tabular-nums text-muted-foreground">
-                                            {slot.time}
-                                            <span className="ml-1 opacity-70">
-                                              {full ? "마감" : `잔여${slotRemaining}/${slot.capacity}`}
-                                            </span>
-                                          </span>
-                                          {full && <Badge variant="warning" className="text-[10px] px-1.5 py-0">마감</Badge>}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                  {/* 이 포지션에 열린 슬롯이 하나라도 있으면 신청 버튼 */}
-                                  {!alreadyAppliedEvent && !teamApplyLocked &&
-                                  pos.slots.some((s) => s.applied_count < s.capacity) ? (
-                                    <Button
-                                      size="sm"
-                                      variant="accent"
-                                      className="w-full"
-                                      onClick={() => {
-                                        setApplyCtx({
-                                          eventId: event.id,
-                                          sessionId: session.id,
-                                          eventTitle: event.title,
-                                          venue: event.venue,
-                                          date: session.date,
-                                          usePositions: true,
-                                          positions: event.positions,
-                                        });
-                                        setApplyOpen(true);
-                                      }}
-                                    >
-                                      신청
-                                    </Button>
-                                  ) : alreadyAppliedEvent ? (
-                                    <Button size="sm" variant="outline" disabled className="w-full">신청 완료</Button>
-                                  ) : null}
+                                  {hasSlots ? (
+                                    <>
+                                      <div className="flex flex-wrap gap-2">
+                                        {pos.slots.map((slot) => {
+                                          const slotRemaining = Math.max(0, slot.capacity - slot.applied_count);
+                                          const full = slotRemaining === 0;
+                                          return (
+                                            <div key={slot.id} className="flex items-center gap-1.5">
+                                              <span className="text-xs tabular-nums text-muted-foreground">
+                                                {slot.time}
+                                                <span className="ml-1 opacity-70">
+                                                  {full ? "마감" : `잔여${slotRemaining}/${slot.capacity}`}
+                                                </span>
+                                              </span>
+                                              {full && <Badge variant="warning" className="text-[10px] px-1.5 py-0">마감</Badge>}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                      {/* 이 포지션에 열린 슬롯이 하나라도 있으면 신청 버튼 */}
+                                      {!alreadyAppliedEvent && !teamApplyLocked &&
+                                      pos.slots.some((s) => s.applied_count < s.capacity) ? (
+                                        <Button
+                                          size="sm"
+                                          variant="accent"
+                                          className="w-full"
+                                          onClick={() => {
+                                            setApplyCtx({
+                                              eventId: event.id,
+                                              sessionId: session.id,
+                                              eventTitle: event.title,
+                                              venue: event.venue,
+                                              date: session.date,
+                                              usePositions: true,
+                                              positions: event.positions,
+                                            });
+                                            setApplyOpen(true);
+                                          }}
+                                        >
+                                          신청
+                                        </Button>
+                                      ) : alreadyAppliedEvent ? (
+                                        <Button size="sm" variant="outline" disabled className="w-full">신청 완료</Button>
+                                      ) : null}
+                                    </>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">시간 슬롯 준비 중</p>
+                                  )}
                                 </div>
                               );
                             })}

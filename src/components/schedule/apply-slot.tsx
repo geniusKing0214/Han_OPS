@@ -79,7 +79,7 @@ export function ApplySlotSurface({
   const hasPositionSlots =
     ctx.usePositions &&
     ctx.positions &&
-    ctx.positions.some((p) => p.slots && p.slots.length > 0);
+    ctx.positions.length > 0;
 
   // 일반 슬롯용
   const hasSimplePositions =
@@ -162,47 +162,54 @@ export function ApplySlotSurface({
       <div className="mt-4 space-y-1">
         <p className="text-xs font-medium text-muted-foreground">포지션 · 시간 선택 *</p>
         <div className="rounded-lg border border-border bg-muted/20 overflow-hidden">
-          {ctx.positions!.filter((p) => p.slots && p.slots.length > 0).map((pos, pi, arr) => (
-            <div
-              key={pos.id}
-              className={`px-3 py-2.5 ${pi !== arr.length - 1 ? "border-b border-border" : ""}`}
-            >
-              <p className="text-xs font-semibold text-foreground mb-2">{pos.label}</p>
-              <div className="flex flex-wrap gap-2">
-                {pos.slots.map((slot) => {
-                  const isSelected =
-                    selectedCombo?.position.id === pos.id &&
-                    selectedCombo?.slot.id === slot.id;
-                  const slotRemaining = Math.max(0, slot.capacity - slot.applied_count);
-                  const full = slotRemaining === 0;
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      disabled={full}
-                      onClick={() =>
-                        setSelectedCombo(
-                          isSelected ? null : { position: pos, slot },
-                        )
-                      }
-                      className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                        isSelected
-                          ? "border-accent bg-accent text-accent-foreground"
-                          : full
-                            ? "border-border bg-muted/30 text-muted-foreground"
-                            : "border-border bg-muted text-muted-foreground hover:border-accent/50 hover:text-foreground"
-                      }`}
-                    >
-                      <span className="tabular-nums">{slot.time}</span>
-                      <span className="ml-1.5 text-xs opacity-70">
-                        {full ? "마감" : `잔여 ${slotRemaining}/${slot.capacity}`}
-                      </span>
-                    </button>
-                  );
-                })}
+          {ctx.positions!.map((pos, pi, arr) => {
+            const hasSlots = pos.slots && pos.slots.length > 0;
+            return (
+              <div
+                key={pos.id}
+                className={`px-3 py-2.5 ${pi !== arr.length - 1 ? "border-b border-border" : ""}`}
+              >
+                <p className="text-xs font-semibold text-foreground mb-2">{pos.label}</p>
+                {hasSlots ? (
+                  <div className="flex flex-wrap gap-2">
+                    {pos.slots.map((slot) => {
+                      const isSelected =
+                        selectedCombo?.position.id === pos.id &&
+                        selectedCombo?.slot.id === slot.id;
+                      const slotRemaining = Math.max(0, slot.capacity - slot.applied_count);
+                      const full = slotRemaining === 0;
+                      return (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          disabled={full}
+                          onClick={() =>
+                            setSelectedCombo(
+                              isSelected ? null : { position: pos, slot },
+                            )
+                          }
+                          className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            isSelected
+                              ? "border-accent bg-accent text-accent-foreground"
+                              : full
+                                ? "border-border bg-muted/30 text-muted-foreground"
+                                : "border-border bg-muted text-muted-foreground hover:border-accent/50 hover:text-foreground"
+                          }`}
+                        >
+                          <span className="tabular-nums">{slot.time}</span>
+                          <span className="ml-1.5 text-xs opacity-70">
+                            {full ? "마감" : `잔여 ${slotRemaining}/${slot.capacity}`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">시간 슬롯 준비 중</p>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {selectedCombo && (
           <p className="text-xs text-accent mt-1">

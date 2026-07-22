@@ -307,23 +307,39 @@ export function CreateScheduleDialog({
                             }
                           />
                           <Input
-                            type="number"
-                            min={1}
+                            type="text"
+                            inputMode="numeric"
                             className="w-20 h-8 text-sm"
                             placeholder="정원"
-                            value={slot.capacity}
-                            onChange={(e) =>
+                            value={slot.capacity === 0 ? "" : String(slot.capacity)}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/[^0-9]/g, "");
+                              const val = raw === "" ? 0 : Math.min(9999, Number.parseInt(raw, 10));
                               setPositions((prev) =>
                                 prev.map((p, i) =>
                                   i !== idx ? p : {
                                     ...p,
                                     slots: p.slots.map((s, j) =>
-                                      j === si ? { ...s, capacity: Math.max(1, Number.parseInt(e.target.value, 10) || 1) } : s,
+                                      j === si ? { ...s, capacity: val } : s,
                                     ),
                                   },
                                 ),
-                              )
-                            }
+                              );
+                            }}
+                            onBlur={() => {
+                              if (slot.capacity < 1) {
+                                setPositions((prev) =>
+                                  prev.map((p, i) =>
+                                    i !== idx ? p : {
+                                      ...p,
+                                      slots: p.slots.map((s, j) =>
+                                        j === si ? { ...s, capacity: 1 } : s,
+                                      ),
+                                    },
+                                  ),
+                                );
+                              }
+                            }}
                           />
                           <span className="text-xs text-muted-foreground">명</span>
                           <button
