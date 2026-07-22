@@ -165,6 +165,18 @@ export function AdminConsole({
                         {a.date} {a.slotTime}
                       </span>
                     </p>
+                    {a.positionLabel ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center rounded-md bg-accent/15 px-2 py-0.5 text-xs font-semibold text-accent ring-1 ring-accent/30">
+                          {a.positionLabel}
+                        </span>
+                        {a.positionSlotTime ? (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {a.positionSlotTime}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {a.note ? (
                       <p className="mt-1 text-xs text-muted-foreground">
                         메모: {a.note}
