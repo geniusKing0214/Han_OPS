@@ -7,6 +7,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 
@@ -144,6 +145,14 @@ export async function saveEvent(event: EventItem): Promise<void> {
     payload.team2ApplyOpensAt = event.team2ApplyOpensAt;
   }
   await setDoc(doc(db, EVENTS_COLLECTION, event.id), payload, { merge: true });
+}
+
+/** 이벤트 마감 처리 토글 */
+export async function toggleEventClosed(
+  eventId: string,
+  closed: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, EVENTS_COLLECTION, eventId), { closed });
 }
 
 /** 신규 스케줄 저장 + 해당 팀 멤버 알림 */

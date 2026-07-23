@@ -162,7 +162,11 @@ export function ScheduleBoard({
                               {event.notice}
                             </p>
                           ) : null}
-                          {teamApplyLocked ? (
+                          {event.closed ? (
+                            <p className="mt-2 text-xs font-semibold text-red-400">
+                              신청 마감
+                            </p>
+                          ) : teamApplyLocked ? (
                             <p className="mt-2 text-xs text-amber-700 dark:text-amber-200">
                               2팀 신청 대기 ·{" "}
                               {team2Countdown ??
@@ -214,7 +218,9 @@ export function ScheduleBoard({
                                         })}
                                       </div>
                                       {/* 이 포지션에 열린 슬롯이 하나라도 있으면 신청 버튼 */}
-                                      {!alreadyAppliedEvent && !teamApplyLocked &&
+                                      {event.closed ? (
+                                        <Button size="sm" variant="outline" disabled className="w-full">신청 마감</Button>
+                                      ) : !alreadyAppliedEvent && !teamApplyLocked &&
                                       pos.slots.some((s) => s.applied_count < s.capacity) ? (
                                         <Button
                                           size="sm"
@@ -251,7 +257,7 @@ export function ScheduleBoard({
                           session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
                           const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                          const blocked = full || alreadyAppliedEvent || teamApplyLocked;
+                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed;
                           return (
                             <div
                               key={slot.id}
@@ -288,7 +294,7 @@ export function ScheduleBoard({
                                   setApplyOpen(true);
                                 }}
                               >
-                                {alreadyAppliedEvent ? "신청 완료" : full ? "마감" : teamApplyLocked ? "대기 중" : "신청"}
+                                {alreadyAppliedEvent ? "신청 완료" : event.closed ? "신청 마감" : full ? "마감" : teamApplyLocked ? "대기 중" : "신청"}
                               </Button>
                             </div>
                           );

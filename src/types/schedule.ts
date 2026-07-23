@@ -61,5 +61,7 @@ export type EventItem = {
   usePositions?: boolean;
   /** 포지션 목록 (usePositions=true 일 때만 유효) */
   positions?: PositionDef[];
+  /** 마감 처리 여부 — true 이면 신청 불가 */
+  closed?: boolean;
 };
 

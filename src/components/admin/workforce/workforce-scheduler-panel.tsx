@@ -20,7 +20,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useEvents } from "@/hooks/use-events";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
-import { createScheduleEvent } from "@/lib/firestore-events";
+import { createScheduleEvent, toggleEventClosed } from "@/lib/firestore-events";
 import type { EventItem } from "@/types/schedule";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1418,6 +1418,22 @@ export function WorkforceSchedulerPanel({
                           onPatch={(patch) =>
                             void patchScheduleFields(s, patch)
                           }
+                          isClosed={
+                            s.sourceEventId
+                              ? (events ?? []).find((e) => e.id === s.sourceEventId)?.closed
+                              : undefined
+                          }
+                          onToggleClosed={
+                            s.sourceEventId
+                              ? () => {
+                                  const ev = (events ?? []).find(
+                                    (e) => e.id === s.sourceEventId,
+                                  );
+                                  if (!ev) return;
+                                  void toggleEventClosed(ev.id, !ev.closed);
+                                }
+                              : undefined
+                          }
                           isDesktop={isDesktop}
                         />
                       ))}
@@ -1748,6 +1764,8 @@ function ScheduleCard({
   onRemoveUser,
   onSetPosition,
   onPatch,
+  onToggleClosed,
+  isClosed,
   isDesktop,
 }: {
   schedule: WorkforceSchedule;
@@ -1764,6 +1782,8 @@ function ScheduleCard({
   onRemoveUser: (uid: string) => void;
   onSetPosition: (uid: string, positionLabel: string | null) => void;
   onPatch: (patch: Partial<{ venue: string; requiredCount: number }>) => void;
+  onToggleClosed?: () => void;
+  isClosed?: boolean;
   isDesktop: boolean;
 }) {
   const [open, setOpen] = useState(defaultExpanded);
@@ -1794,14 +1814,29 @@ function ScheduleCard({
       }}
     >
       <div className="flex items-start justify-between gap-1.5 px-2.5 pt-2">
-        <button
-          type="button"
-          className="min-w-0 flex-1 truncate text-left text-sm font-semibold leading-snug hover:text-accent"
-          onClick={onEdit}
-          title={schedule.title || "근무"}
-        >
-          {schedule.title || "근무"}
-        </button>
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            className="w-full truncate text-left text-sm font-semibold leading-snug hover:text-accent"
+            onClick={onEdit}
+            title={schedule.title || "근무"}
+          >
+            {schedule.title || "근무"}
+          </button>
+          {onToggleClosed ? (
+            <button
+              type="button"
+              className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 transition-colors ${
+                isClosed
+                  ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
+                  : "bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25"
+              }`}
+              onClick={onToggleClosed}
+            >
+              {isClosed ? "마감 해제" : "마감"}
+            </button>
+          ) : null}
+        </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"

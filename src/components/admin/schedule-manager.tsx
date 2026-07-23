@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
 import { TeamFilter } from "@/components/team/team-filter";
-import { deleteEvent, createScheduleEvent, saveEvent } from "@/lib/firestore-events";
+import { deleteEvent, createScheduleEvent, saveEvent, toggleEventClosed } from "@/lib/firestore-events";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useEvents } from "@/hooks/use-events";
 import { filterEventsByTeamFilter } from "@/lib/team-utils";
@@ -271,39 +271,62 @@ export function ScheduleManager() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {rows.map(({ event, session }) => (
-                  <button
+                  <div
                     key={`${event.id}-${session.id}`}
-                    type="button"
-                    onClick={() => {
-                      setDetailCtx({ date, event, session });
-                      setSheetEditorKey((k) => k + 1);
-                      setDetailOpen(true);
-                    }}
-                    className="w-full rounded-lg border border-border bg-muted/30 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                    className="relative rounded-lg border border-border bg-muted/30 transition-colors hover:bg-muted/50"
                   >
-                    <div className="flex items-start gap-2">
-                      {event.color ? (
-                        <span
-                          className="mt-1 inline-block size-2.5 shrink-0 rounded-full ring-1 ring-border"
-                          style={{ backgroundColor: event.color }}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <div className="min-w-0 flex-1">
-                            <p className="font-medium">{event.title}</p>
-                            <p className="text-sm text-muted-foreground">{event.venue}</p>
-                            <Badge variant="outline" className="mt-1.5 text-[10px]">
-                              {formatTeamIdsLabel(event.team_ids ?? ["team_1"])}
-                              {hasTeam2Stagger(event)
-                                ? ` · 2팀 ${formatTeam2ApplyOpensAt(event) ?? "24시간 후"}`
-                                : ""}
-                            </Badge>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          슬롯 {session.slots.length}개 · 탭하여 편집
-                        </p>
+                    {event.closed ? (
+                      <span className="absolute right-2 top-2 z-10 rounded-md bg-red-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-red-300 ring-1 ring-red-500/30">
+                        마감
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailCtx({ date, event, session });
+                        setSheetEditorKey((k) => k + 1);
+                        setDetailOpen(true);
+                      }}
+                      className="w-full px-4 py-3 text-left"
+                    >
+                      <div className="flex items-start gap-2">
+                        {event.color ? (
+                          <span
+                            className="mt-1 inline-block size-2.5 shrink-0 rounded-full ring-1 ring-border"
+                            style={{ backgroundColor: event.color }}
+                            aria-hidden
+                          />
+                        ) : null}
+                        <div className="min-w-0 flex-1 pr-12">
+                          <p className="font-medium">{event.title}</p>
+                          <p className="text-sm text-muted-foreground">{event.venue}</p>
+                          <Badge variant="outline" className="mt-1.5 text-[10px]">
+                            {formatTeamIdsLabel(event.team_ids ?? ["team_1"])}
+                            {hasTeam2Stagger(event)
+                              ? ` · 2팀 ${formatTeam2ApplyOpensAt(event) ?? "24시간 후"}`
+                              : ""}
+                          </Badge>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            슬롯 {session.slots.length}개 · 탭하여 편집
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      className={`absolute bottom-2 right-2 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
+                        event.closed
+                          ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
+                          : "bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25"
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void toggleEventClosed(event.id, !event.closed);
+                      }}
+                    >
+                      {event.closed ? "마감 해제" : "마감"}
+                    </button>
+                  </div>
                 ))}
               </CardContent>
             </Card>
