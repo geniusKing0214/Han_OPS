@@ -1312,7 +1312,7 @@ export function WorkforceSchedulerPanel({
           ) : (
             <div
               className={cn(
-                "grid gap-2",
+                "grid items-start gap-2",
                 rangeSpan === "2w"
                   ? "min-w-[1180px] grid-cols-7"
                   : "min-w-[1180px] grid-cols-7",
