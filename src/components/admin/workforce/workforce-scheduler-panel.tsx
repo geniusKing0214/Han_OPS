@@ -189,6 +189,7 @@ export function WorkforceSchedulerPanel({
     "all",
   );
   const [dayFilter, setDayFilter] = useState<WeekdayKey | "all">("all");
+  const [roleFilter, setRoleFilter] = useState<"admin" | "worker">("admin");
   const [members, setMembers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
     () => new Map(),
@@ -337,6 +338,8 @@ export function WorkforceSchedulerPanel({
   const workers = useMemo(() => {
     return members
       .filter((m) => {
+        if (roleFilter === "admin" && m.role !== "admin") return false;
+        if (roleFilter === "worker" && m.role === "admin") return false;
         if (teamFilter !== "all" && normalizeTeamId(m.team_id) !== teamFilter)
           return false;
         const name = (m.displayName || m.email).toLowerCase();
@@ -363,6 +366,7 @@ export function WorkforceSchedulerPanel({
       });
   }, [
     members,
+    roleFilter,
     teamFilter,
     search,
     statusFilter,
@@ -370,6 +374,43 @@ export function WorkforceSchedulerPanel({
     displaySchedules,
     chipWeekDates,
     dayFilterDate,
+  ]);
+
+  /** 요일 탭·요약에 쓰일 요일별 관리자/근무자 가능 인원 수 (검색·팀·상태 필터만 반영, 역할·요일 필터는 미반영) */
+  const dayAvailabilityCounts = useMemo(() => {
+    const compute = (date: string | null) => {
+      let admin = 0;
+      let worker = 0;
+      for (const m of members) {
+        if (teamFilter !== "all" && normalizeTeamId(m.team_id) !== teamFilter)
+          continue;
+        const name = (m.displayName || m.email).toLowerCase();
+        if (search.trim() && !name.includes(search.trim().toLowerCase()))
+          continue;
+        const avail = resolveAvailability(availMap, m.uid);
+        const count = countAssignmentsInWeek(displaySchedules, m.uid);
+        const status = computeWorkerStatus(avail, chipWeekDates, count);
+        if (statusFilter !== "all" && status !== statusFilter) continue;
+        if (date && !isUserAvailableOnDate(avail, date)) continue;
+        if (m.role === "admin") admin += 1;
+        else worker += 1;
+      }
+      return { admin, worker };
+    };
+    const map = new Map<string, { admin: number; worker: number }>();
+    map.set("all", compute(null));
+    WEEKDAY_KEYS.forEach((k, i) => {
+      map.set(k, compute(chipWeekDates[i] ?? null));
+    });
+    return map;
+  }, [
+    members,
+    teamFilter,
+    search,
+    statusFilter,
+    availMap,
+    displaySchedules,
+    chipWeekDates,
   ]);
 
   /** 스케줄 연동 카드에 표시할 승인·완료 신청자 (이미 배정된 유저 제외) */
@@ -1114,18 +1155,54 @@ export function WorkforceSchedulerPanel({
               ))}
             </select>
 
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRoleFilter("admin")}
+                className={cn(
+                  "flex h-10 flex-1 items-center justify-center gap-1 rounded-lg text-sm font-semibold transition-colors",
+                  roleFilter === "admin"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                관리자
+                <span className="text-xs opacity-80">
+                  ({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.admin ?? 0})
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("worker")}
+                className={cn(
+                  "flex h-10 flex-1 items-center justify-center gap-1 rounded-lg text-sm font-semibold transition-colors",
+                  roleFilter === "worker"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                근무자
+                <span className="text-xs opacity-80">
+                  ({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.worker ?? 0})
+                </span>
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setDayFilter("all")}
                 className={cn(
-                  "flex h-7 flex-1 items-center justify-center rounded-md text-[11px] font-semibold transition-colors",
+                  "flex h-11 flex-1 basis-[22%] flex-col items-center justify-center gap-0.5 rounded-lg text-sm font-semibold transition-colors",
                   dayFilter === "all"
                     ? "bg-accent text-accent-foreground"
                     : "bg-muted/40 text-muted-foreground hover:bg-muted",
                 )}
               >
                 전체
+                <span className="text-[10px] font-medium opacity-80">
+                  {(dayAvailabilityCounts.get("all")?.[roleFilter]) ?? 0}명
+                </span>
               </button>
               {WEEKDAY_KEYS.map((k, i) => (
                 <button
@@ -1134,21 +1211,29 @@ export function WorkforceSchedulerPanel({
                   onClick={() => setDayFilter((prev) => (prev === k ? "all" : k))}
                   title={`${WEEKDAY_LABELS[k]}요일만 보기 (${chipWeekDates[i]})`}
                   className={cn(
-                    "flex h-7 flex-1 items-center justify-center rounded-md text-[11px] font-semibold transition-colors",
+                    "flex h-11 flex-1 basis-[22%] flex-col items-center justify-center gap-0.5 rounded-lg text-sm font-semibold transition-colors",
                     dayFilter === k
                       ? "bg-accent text-accent-foreground"
                       : "bg-muted/40 text-muted-foreground hover:bg-muted",
                   )}
                 >
                   {WEEKDAY_LABELS[k]}
+                  <span className="text-[10px] font-medium opacity-80">
+                    {(dayAvailabilityCounts.get(k)?.[roleFilter]) ?? 0}명
+                  </span>
                 </button>
               ))}
             </div>
-            {dayFilter !== "all" ? (
-              <p className="px-0.5 text-[10px] text-muted-foreground">
-                {WEEKDAY_LABELS[dayFilter]}요일({dayFilterDate}) 근무 가능한 인원만 표시 중
-              </p>
-            ) : null}
+            <p className="px-0.5 text-sm font-semibold text-foreground">
+              관리자({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.admin ?? 0}) / 근무자({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.worker ?? 0})
+              {dayFilter !== "all" ? (
+                <span className="ml-1 font-normal text-muted-foreground">
+                  · {WEEKDAY_LABELS[dayFilter]}요일({dayFilterDate}) 근무 가능
+                </span>
+              ) : (
+                <span className="ml-1 font-normal text-muted-foreground">· 전체 기준</span>
+              )}
+            </p>
 
             {workerGroups.length === 0 ? (
               <p className="py-8 text-center text-xs text-muted-foreground">
