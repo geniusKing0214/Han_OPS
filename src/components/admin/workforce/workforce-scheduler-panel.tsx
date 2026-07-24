@@ -201,6 +201,7 @@ export function WorkforceSchedulerPanel({
   const [busy, setBusy] = useState(false);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
   const [dragUserId, setDragUserId] = useState<string | null>(null);
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [createEventOpen, setCreateEventOpen] = useState(false);
@@ -1335,24 +1336,56 @@ export function WorkforceSchedulerPanel({
                 const { label } = formatDayHeader(date);
                 const weekdayKey = weekdayKeyFromYmd(date);
 
+                const collapsed = collapsedDays.has(date);
+
                 return (
                   <section
                     key={date}
                     className={cn(
-                      "flex min-h-[160px] flex-col rounded-2xl border shadow-sm",
+                      "flex flex-col rounded-2xl border shadow-sm",
+                      collapsed ? "min-h-0" : "min-h-[160px]",
                       emptyDay
                         ? "border-dashed border-border/50 bg-muted/10"
                         : "border-border/70 bg-card/90",
                     )}
                   >
-                    <header className="space-y-1.5 border-b border-border/60 px-2.5 py-2.5">
+                    <header
+                      className={cn(
+                        "space-y-1.5 px-2.5 py-2.5",
+                        !collapsed && "border-b border-border/60",
+                      )}
+                    >
                       <div className="flex items-baseline justify-between gap-1">
                         <p className="text-sm font-semibold">
                           {WEEKDAY_LABELS[weekdayKey]}요일
                         </p>
-                        <p className="text-xs tabular-nums text-muted-foreground">
-                          {label}
-                        </p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs tabular-nums text-muted-foreground">
+                            {label}
+                          </p>
+                          {daySchedules.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCollapsedDays((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(date)) next.delete(date);
+                                  else next.add(date);
+                                  return next;
+                                })
+                              }
+                              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                              aria-label={collapsed ? "일정 펼치기" : "일정 접기"}
+                              title={collapsed ? "일정 펼치기" : "일정 접기"}
+                            >
+                              {collapsed ? (
+                                <ChevronDown className="size-3.5" />
+                              ) : (
+                                <ChevronUp className="size-3.5" />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
@@ -1376,6 +1409,7 @@ export function WorkforceSchedulerPanel({
                       </div>
                     </header>
 
+                    {collapsed ? null : (
                     <div className="flex flex-1 flex-col gap-2 p-2">
                       {daySchedules.map((s) => (
                         <ScheduleCard
@@ -1447,6 +1481,7 @@ export function WorkforceSchedulerPanel({
                         <Plus className="size-3.5" /> 일정 추가
                       </button>
                     </div>
+                    )}
                   </section>
                 );
               })}
