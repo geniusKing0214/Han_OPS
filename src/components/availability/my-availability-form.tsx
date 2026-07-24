@@ -31,6 +31,14 @@ import { isUserAvailableOnDate } from "@/lib/workforce-logic";
 import { cn } from "@/lib/utils";
 import type { WorkforceAvailability } from "@/types/workforce";
 
+/** 사유로 인정하지 않는 두루뭉술한 표현 (공백 제거 후 부분 일치로 판정) */
+const BANNED_MEMO_PHRASES = ["개인사정", "개인일정"];
+
+function containsBannedMemoPhrase(text: string): boolean {
+  const normalized = text.replace(/\s+/g, "");
+  return BANNED_MEMO_PHRASES.some((phrase) => normalized.includes(phrase));
+}
+
 type DayState = "available" | "pending" | "done" | "unavailable";
 
 const DAY_STATE_LABEL: Record<DayState, string> = {
@@ -106,6 +114,7 @@ export function MyAvailabilityForm({
   const [dirty, setDirty] = useState(false);
   const [memoDialogDate, setMemoDialogDate] = useState<string | null>(null);
   const [memoDraft, setMemoDraft] = useState("");
+  const [memoError, setMemoError] = useState("");
 
   const submitted = !!avail?.memberSubmittedWeeks.includes(nextWeekStart);
   const windowOpen = windowStatus === "open";
@@ -147,15 +156,23 @@ export function MyAvailabilityForm({
     if (locked) return;
     setMemoDialogDate(date);
     setMemoDraft(notes[date] ?? "");
+    setMemoError("");
   };
 
   const closeMemoDialog = () => {
     setMemoDialogDate(null);
     setMemoDraft("");
+    setMemoError("");
   };
 
   const confirmMemo = () => {
     if (!memoDialogDate) return;
+    if (containsBannedMemoPhrase(memoDraft)) {
+      setMemoError(
+        "'개인 사정', '개인일정' 같은 표현은 사유로 쓸 수 없습니다. 구체적인 사유를 적어주세요.",
+      );
+      return;
+    }
     const date = memoDialogDate;
     setDraft((prev) => ({ ...prev, [date]: false }));
     setNotes((prev) => ({ ...prev, [date]: memoDraft.trim() }));
@@ -394,12 +411,18 @@ export function MyAvailabilityForm({
           </DialogHeader>
           <Textarea
             value={memoDraft}
-            onChange={(e) => setMemoDraft(e.target.value)}
-            placeholder="예: 개인 일정, 시험, 병원 진료 등"
+            onChange={(e) => {
+              setMemoDraft(e.target.value);
+              if (memoError) setMemoError("");
+            }}
+            placeholder="예: 시험 일정, 병원 진료, 가족 행사 등 구체적으로 적어주세요"
             rows={3}
             maxLength={200}
             autoFocus
           />
+          {memoError ? (
+            <p className="text-xs text-red-300">{memoError}</p>
+          ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeMemoDialog}>
               취소

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, Pencil } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,12 +10,13 @@ import { statusBadgeVariant } from "@/lib/admin-application-roster";
 import {
   EVENT_APPLY_WINDOW_BADGE_CLASS,
   EVENT_APPLY_WINDOW_LABEL,
-  getEventApplyWindowStatus,
+  resolveEventApplyStatus,
 } from "@/lib/application-window";
 import { cn } from "@/lib/utils";
 import type { SheetDayBundle, SheetSlotRow } from "@/types/monthly-sheet";
 import type { EventItem } from "@/types/schedule";
 import { TEAM_LABELS } from "@/types/team";
+import type { WorkforceAvailability } from "@/types/workforce";
 import type { ApplySlotContext } from "@/components/schedule/apply-slot";
 
 function statusLabel(status: string): string {
@@ -37,6 +39,7 @@ export function MonthlySheetDayDetail({
   onApply,
   events,
   myAppliedEventIds,
+  myAvailability,
   className,
 }: {
   bundle: SheetDayBundle | null;
@@ -46,6 +49,8 @@ export function MonthlySheetDayDetail({
   onApply?: (ctx: ApplySlotContext) => void;
   events?: EventItem[];
   myAppliedEventIds?: Set<string>;
+  /** 신청 가능 기간이어도 익주 근무 가능일을 제출 안 했으면 신청불가 처리 */
+  myAvailability?: WorkforceAvailability | null;
   className?: string;
 }) {
   // 첫 번째 항목만 기본으로 열림
@@ -166,7 +171,10 @@ export function MonthlySheetDayDetail({
                       ev?.usePositions &&
                       ev.positions?.some((p) => p.slots && p.slots.length > 0);
                     if (onApply && ev) {
-                      const windowStatus = getEventApplyWindowStatus(row.date);
+                      const windowStatus = resolveEventApplyStatus(
+                        row.date,
+                        myAvailability ?? null,
+                      );
                       return (
                         <div className="mb-3 flex flex-wrap items-center gap-2">
                           <span
@@ -217,6 +225,14 @@ export function MonthlySheetDayDetail({
                             >
                               신청
                             </Button>
+                          ) : null}
+                          {!alreadyApplied && windowStatus === "blocked" ? (
+                            <Link
+                              href="/my-availability"
+                              className="text-xs text-accent underline-offset-2 hover:underline"
+                            >
+                              익주 근무 가능일 먼저 제출하기
+                            </Link>
                           ) : null}
                         </div>
                       );

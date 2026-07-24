@@ -7,13 +7,14 @@ import type { EventItem, Session } from "@/types/schedule";
 import type { TeamId } from "@/types/team";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
+import Link from "next/link";
 import {
   EVENT_APPLY_WINDOW_BADGE_CLASS,
   EVENT_APPLY_WINDOW_LABEL,
   canTeamApplyNow,
   formatTeam2ApplyCountdown,
   formatTeam2ApplyOpensAt,
-  getEventApplyWindowStatus,
+  resolveEventApplyStatus,
   hasTeam2Stagger,
 } from "@/lib/application-window";
 import {
@@ -21,6 +22,7 @@ import {
   ApplySlotSurface,
 } from "@/components/schedule/apply-slot";
 import { useMyApplications } from "@/hooks/use-my-applications";
+import { useMyAvailability } from "@/hooks/use-my-availability";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +61,7 @@ export function ScheduleBoard({
   const [applyOpen, setApplyOpen] = useState(false);
   const [applyCtx, setApplyCtx] = useState<ApplySlotContext | null>(null);
   const { items: myApplications } = useMyApplications();
+  const { avail: myAvailability } = useMyAvailability();
 
   const dateMarkers = useMemo(() => buildSessionDateMarkers(events), [events]);
   const ymd = toYMD(selected);
@@ -134,7 +137,10 @@ export function ScheduleBoard({
                 const team2OpensLabel = teamApplyLocked
                   ? formatTeam2ApplyOpensAt(event)
                   : null;
-                const windowStatus = getEventApplyWindowStatus(session.date);
+                const windowStatus = resolveEventApplyStatus(
+                  session.date,
+                  myAvailability,
+                );
                 const windowOpen = windowStatus === "open";
                 return (
                   <Card
@@ -180,14 +186,25 @@ export function ScheduleBoard({
                                   : "1팀 등록 24시간 후 신청 가능")}
                             </p>
                           ) : (
-                            <span
-                              className={cn(
-                                "mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                                EVENT_APPLY_WINDOW_BADGE_CLASS[windowStatus],
-                              )}
-                            >
-                              {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
-                            </span>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  EVENT_APPLY_WINDOW_BADGE_CLASS[windowStatus],
+                                )}
+                              >
+                                {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
+                              </span>
+                              {windowStatus === "blocked" ? (
+                                <Link
+                                  href="/my-availability"
+                                  className="text-xs text-accent underline-offset-2 hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  익주 근무 가능일 먼저 제출하기
+                                </Link>
+                              ) : null}
+                            </div>
                           )}
                         </div>
                         <ChevronDown

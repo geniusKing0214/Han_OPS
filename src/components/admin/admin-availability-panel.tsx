@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  XCircle,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -12,6 +18,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { subscribeAllAvailability } from "@/lib/firestore-workforce";
 import {
   subscribeAllUsersForAdmin,
@@ -28,10 +41,21 @@ import {
 import { normalizeTeamId, TEAM_LABELS } from "@/types/team";
 import type { WorkforceAvailability } from "@/types/workforce";
 
+/** 표시 중인 주 안에서 사유 메모가 달린 불가 날짜 목록 */
+function unavailableReasonsFor(
+  avail: WorkforceAvailability,
+  dates: string[],
+): { date: string; note: string }[] {
+  return dates
+    .filter((d) => !isUserAvailableOnDate(avail, d) && avail.dateExceptionNotes[d])
+    .map((d) => ({ date: d, note: avail.dateExceptionNotes[d]! }));
+}
+
 export function AdminAvailabilityPanel() {
   const nextWeekStart = useMemo(() => getNextWeekStart(), []);
   const [weekStart, setWeekStart] = useState(nextWeekStart);
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const [reasonMember, setReasonMember] = useState<ListedUserRow | null>(null);
 
   const [users, setUsers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
@@ -232,6 +256,7 @@ export function AdminAvailabilityPanel() {
                 const availableCount = weekDates.filter((d) =>
                   isUserAvailableOnDate(avail, d),
                 ).length;
+                const reasons = unavailableReasonsFor(avail, weekDates);
                 return (
                   <div
                     key={u.uid}
@@ -245,9 +270,21 @@ export function AdminAvailabilityPanel() {
                         {TEAM_LABELS[normalizeTeamId(u.team_id)]}
                       </p>
                     </div>
-                    <Badge variant="accent" className="shrink-0">
-                      가능 {availableCount}/7일
-                    </Badge>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {reasons.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setReasonMember(u)}
+                          title="불가 사유 보기"
+                          className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                        >
+                          <AlertTriangle className="size-3" />
+                        </button>
+                      ) : null}
+                      <Badge variant="accent" className="shrink-0">
+                        가능 {availableCount}/7일
+                      </Badge>
+                    </div>
                   </div>
                 );
               })
@@ -290,6 +327,45 @@ export function AdminAvailabilityPanel() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={!!reasonMember}
+        onOpenChange={(open) => {
+          if (!open) setReasonMember(null);
+        }}
+      >
+        <DialogContent className="sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>불가 사유</DialogTitle>
+            <DialogDescription>
+              {reasonMember
+                ? `${reasonMember.displayName || reasonMember.email} · ${formatWeekRangeLabel(weekStart)}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {reasonMember
+              ? unavailableReasonsFor(
+                  resolveAvailability(availMap, reasonMember.uid),
+                  weekDates,
+                ).map(({ date, note }) => {
+                  const { label, dow } = formatDayHeader(date);
+                  return (
+                    <div
+                      key={date}
+                      className="rounded-md border border-border bg-muted/30 px-3 py-2"
+                    >
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {dow}요일 · {label}
+                      </p>
+                      <p className="mt-0.5 text-sm">{note}</p>
+                    </div>
+                  );
+                })
+              : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

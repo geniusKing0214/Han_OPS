@@ -36,6 +36,7 @@ import {
   docToAvailability,
 } from "@/lib/firestore-workforce";
 import { isUserAvailableOnDate } from "@/lib/workforce-logic";
+import { getWeekStartMonday, parseYmd } from "@/lib/workforce-dates";
 import { normalizeTeamId, normalizeTeamIds, type TeamId } from "@/types/team";
 import type { UserProfileDoc } from "@/types/user";
 
@@ -210,6 +211,12 @@ export async function createApplication(input: CreateApplicationInput) {
       : defaultAvailability(input.userId);
     if (!isUserAvailableOnDate(avail, input.date)) {
       throw new Error("근무 불가로 설정한 날짜에는 신청할 수 없습니다.");
+    }
+    const eventWeekStart = getWeekStartMonday(parseYmd(input.date));
+    if (!avail.memberSubmittedWeeks.includes(eventWeekStart)) {
+      throw new Error(
+        "익주 근무 가능일을 먼저 제출해야 신청할 수 있습니다.",
+      );
     }
   }
 
