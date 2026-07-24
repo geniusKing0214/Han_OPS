@@ -31,7 +31,7 @@ type SidebarGroup = {
 };
 
 const overviewGroup: SidebarLink[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "마이페이지", icon: LayoutDashboard },
   { href: "/monthly-sheet", label: "월간 취합표", icon: Table2 },
   { href: "/notices", label: "Notices", icon: Bell },
 ];

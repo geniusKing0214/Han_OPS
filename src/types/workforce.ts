@@ -125,6 +125,8 @@ export type WorkforceAvailability = {
   availableWeekdays: Record<WeekdayKey, boolean>;
   /** YYYY-MM-DD → available | unavailable */
   dateExceptions: Record<string, "available" | "unavailable">;
+  /** YYYY-MM-DD → 불가 사유 메모 (근무 불가로 표시한 날짜만) */
+  dateExceptionNotes: Record<string, string>;
   /**
    * 멤버가 가능일 신청을 완료한 주(월요일 YMD).
    * 해당 주는 멤버가 다시 수정할 수 없고 관리자만 변경 가능.

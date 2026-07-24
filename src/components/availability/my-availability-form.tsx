@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Lock, X } from "lucide-react";
+import { Check, Lock, Pencil, X } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   subscribeMyAvailability,
   upsertMyAvailability,
@@ -12,6 +21,7 @@ import {
 import {
   formatDayHeader,
   formatWeekRangeLabel,
+  getAvailabilityWindowStatus,
   getNextWeekStart,
   getWeekDates,
   toYmd,
@@ -37,14 +47,20 @@ export function MyAvailabilityForm({
     () => getWeekDates(nextWeekStart),
     [nextWeekStart],
   );
+  const windowStatus = useMemo(() => getAvailabilityWindowStatus(), []);
   const [avail, setAvail] = useState<WorkforceAvailability | null>(null);
   const [draft, setDraft] = useState<Record<string, boolean>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [memoDialogDate, setMemoDialogDate] = useState<string | null>(null);
+  const [memoDraft, setMemoDraft] = useState("");
 
-  const locked = !!avail?.memberSubmittedWeeks.includes(nextWeekStart);
+  const submitted = !!avail?.memberSubmittedWeeks.includes(nextWeekStart);
+  const windowOpen = windowStatus === "open";
+  const locked = submitted || !windowOpen;
 
   useEffect(() => {
     if (!user) return;
@@ -57,11 +73,14 @@ export function MyAvailabilityForm({
 
   useEffect(() => {
     if (!avail) return;
-    const next: Record<string, boolean> = {};
+    const nextDraft: Record<string, boolean> = {};
+    const nextNotes: Record<string, string> = {};
     for (const d of weekDates) {
-      next[d] = isUserAvailableOnDate(avail, d);
+      nextDraft[d] = isUserAvailableOnDate(avail, d);
+      if (avail.dateExceptionNotes[d]) nextNotes[d] = avail.dateExceptionNotes[d];
     }
-    setDraft(next);
+    setDraft(nextDraft);
+    setNotes(nextNotes);
     setDirty(false);
     setSaved(false);
   }, [avail, weekDates]);
@@ -75,18 +94,42 @@ export function MyAvailabilityForm({
     onAvailableCountChange?.(availableCount);
   }, [availableCount, onAvailableCountChange]);
 
-  const toggleDay = (date: string) => {
+  const openMemoDialog = (date: string) => {
     if (locked) return;
-    setDraft((prev) => ({ ...prev, [date]: !prev[date] }));
-    setDirty(true);
-    setSaved(false);
+    setMemoDialogDate(date);
+    setMemoDraft(notes[date] ?? "");
   };
 
-  const setAll = (on: boolean) => {
+  const closeMemoDialog = () => {
+    setMemoDialogDate(null);
+    setMemoDraft("");
+  };
+
+  const confirmMemo = () => {
+    if (!memoDialogDate) return;
+    const date = memoDialogDate;
+    setDraft((prev) => ({ ...prev, [date]: false }));
+    setNotes((prev) => ({ ...prev, [date]: memoDraft.trim() }));
+    setDirty(true);
+    setSaved(false);
+    closeMemoDialog();
+  };
+
+  const toggleDay = (date: string) => {
     if (locked) return;
-    const next: Record<string, boolean> = {};
-    for (const d of weekDates) next[d] = on;
-    setDraft(next);
+    const isCurrentlyOn = !!draft[date];
+    if (isCurrentlyOn) {
+      // 가능 → 불가로 전환: 사유 메모 입력 모달을 먼저 띄운다.
+      openMemoDialog(date);
+      return;
+    }
+    // 불가 → 가능으로 전환: 바로 반영하고 메모는 제거.
+    setDraft((prev) => ({ ...prev, [date]: true }));
+    setNotes((prev) => {
+      const next = { ...prev };
+      delete next[date];
+      return next;
+    });
     setDirty(true);
     setSaved(false);
   };
@@ -97,12 +140,15 @@ export function MyAvailabilityForm({
     setError("");
     try {
       const dateExceptions: Record<string, "available" | "unavailable"> = {};
+      const dateExceptionNotes: Record<string, string> = {};
       for (const d of weekDates) {
         dateExceptions[d] = draft[d] ? "available" : "unavailable";
+        if (!draft[d] && notes[d]) dateExceptionNotes[d] = notes[d];
       }
       await upsertMyAvailability({
         weekStart: nextWeekStart,
         dateExceptions,
+        dateExceptionNotes,
       });
       setDirty(false);
       setSaved(true);
@@ -114,6 +160,9 @@ export function MyAvailabilityForm({
   };
 
   const today = toYmd(new Date());
+  const memoDialogDayInfo = memoDialogDate
+    ? formatDayHeader(memoDialogDate)
+    : null;
 
   return (
     <div className={cn("space-y-4", !compact && "pb-28")}>
@@ -126,11 +175,11 @@ export function MyAvailabilityForm({
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           가능 {availableCount}/7일
-          {locked ? " · 신청 완료(잠금)" : ""}
+          {submitted ? " · 신청 완료(잠금)" : ""}
         </p>
       </div>
 
-      {locked ? (
+      {submitted ? (
         <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-100">
           <Lock className="mt-0.5 size-4 shrink-0" />
           <p>
@@ -138,28 +187,27 @@ export function MyAvailabilityForm({
             요청해 주세요.
           </p>
         </div>
-      ) : (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 flex-1 rounded-xl"
-            onClick={() => setAll(true)}
-          >
-            익주 전부 가능
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 flex-1 rounded-xl"
-            onClick={() => setAll(false)}
-          >
-            익주 전부 불가
-          </Button>
+      ) : windowStatus === "before" ? (
+        <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+          <Lock className="mt-0.5 size-4 shrink-0" />
+          <p>
+            신청 기간이 아직 시작되지 않았습니다. 근무 가능일은{" "}
+            <span className="font-medium text-foreground">
+              이번 주 화·수·목요일
+            </span>
+            에 신청할 수 있습니다.
+          </p>
         </div>
-      )}
+      ) : windowStatus === "closed" ? (
+        <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-200">
+          <Lock className="mt-0.5 size-4 shrink-0" />
+          <p>
+            신청 기간이 종료되었습니다. 근무 가능일은{" "}
+            <span className="font-medium">이번 주 화·수·목요일</span>에만
+            수정할 수 있습니다.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
@@ -177,60 +225,93 @@ export function MyAvailabilityForm({
           const on = !!draft[date];
           const { label, dow } = formatDayHeader(date);
           const isToday = date === today;
+          const note = notes[date];
           return (
-            <button
+            <div
               key={date}
-              type="button"
-              disabled={locked}
-              onClick={() => toggleDay(date)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-all",
+                "rounded-2xl border px-4 py-3.5 transition-all",
                 on
                   ? "border-emerald-400/40 bg-emerald-500/15 shadow-sm"
                   : "border-red-400/30 bg-red-500/10",
-                locked && "cursor-default opacity-90",
+                locked && "opacity-90",
                 isToday && "ring-2 ring-accent/40",
               )}
             >
-              <span
+              <button
+                type="button"
+                disabled={locked}
+                onClick={() => toggleDay(date)}
                 className={cn(
-                  "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl text-xs font-semibold",
-                  on ? "bg-emerald-500 text-white" : "bg-red-500/90 text-white",
+                  "flex w-full items-center gap-3 text-left",
+                  locked && "cursor-default",
                 )}
               >
-                <span className="text-[10px] opacity-90">{dow}</span>
-                <span className="tabular-nums leading-none">{label}</span>
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">
-                  {dow}요일 · {date}
-                </p>
-                <p
+                <span
                   className={cn(
-                    "text-xs font-medium",
-                    on ? "text-emerald-300" : "text-red-300",
+                    "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl text-xs font-semibold",
+                    on ? "bg-emerald-500 text-white" : "bg-red-500/90 text-white",
                   )}
                 >
-                  {on ? "근무 가능" : "근무 불가"}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "flex size-9 items-center justify-center rounded-full",
-                  on
-                    ? "bg-emerald-500/30 text-emerald-200"
-                    : "bg-red-500/30 text-red-200",
-                )}
-              >
-                {locked ? (
-                  <Lock className="size-3.5 opacity-80" />
-                ) : on ? (
-                  <Check className="size-4" />
-                ) : (
-                  <X className="size-4" />
-                )}
-              </span>
-            </button>
+                  <span className="text-[10px] opacity-90">{dow}</span>
+                  <span className="tabular-nums leading-none">{label}</span>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">
+                    {dow}요일 · {date}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xs font-medium",
+                      on ? "text-emerald-300" : "text-red-300",
+                    )}
+                  >
+                    {on ? "근무 가능" : "근무 불가"}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "flex size-9 shrink-0 items-center justify-center rounded-full",
+                    on
+                      ? "bg-emerald-500/30 text-emerald-200"
+                      : "bg-red-500/30 text-red-200",
+                  )}
+                >
+                  {locked ? (
+                    <Lock className="size-3.5 opacity-80" />
+                  ) : on ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <X className="size-4" />
+                  )}
+                </span>
+              </button>
+
+              {!on ? (
+                <div className="mt-2.5 flex items-start justify-between gap-2 border-t border-red-400/20 pt-2.5 pl-14">
+                  <p className="min-w-0 flex-1 text-xs leading-snug text-red-200/80">
+                    {note ? (
+                      <>
+                        <span className="font-medium text-red-200">사유</span>{" "}
+                        {note}
+                      </>
+                    ) : (
+                      "사유 메모 없음"
+                    )}
+                  </p>
+                  {!locked ? (
+                    <button
+                      type="button"
+                      onClick={() => openMemoDialog(date)}
+                      className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-red-200 underline underline-offset-2"
+                    >
+                      <Pencil className="size-3" />
+                      {note ? "메모 수정" : "메모 입력"}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </div>
@@ -260,6 +341,40 @@ export function MyAvailabilityForm({
           </div>
         </div>
       ) : null}
+
+      <Dialog
+        open={memoDialogDate !== null}
+        onOpenChange={(open) => {
+          if (!open) closeMemoDialog();
+        }}
+      >
+        <DialogContent className="sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>근무 불가 사유</DialogTitle>
+            <DialogDescription>
+              {memoDialogDayInfo
+                ? `${memoDialogDayInfo.dow}요일 · ${memoDialogDate} 근무가 불가능한 이유를 간단히 남겨주세요.`
+                : "근무가 불가능한 이유를 간단히 남겨주세요."}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={memoDraft}
+            onChange={(e) => setMemoDraft(e.target.value)}
+            placeholder="예: 개인 일정, 시험, 병원 진료 등"
+            rows={3}
+            maxLength={200}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeMemoDialog}>
+              취소
+            </Button>
+            <Button type="button" variant="accent" onClick={confirmMemo}>
+              근무 불가로 저장
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { Calendar, CalendarDays, ClipboardList, Timer } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader } from "@/components/layout/page-header";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
 import { ImportantNoticeDialog } from "@/components/dashboard/important-notice-dialog";
-import { MyAvailabilityDialog } from "@/components/availability/my-availability-dialog";
+import { MyAvailabilityForm } from "@/components/availability/my-availability-form";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
@@ -22,12 +22,6 @@ import {
   formatApplicationMonthLabel,
 } from "@/lib/application-grouping";
 import { countAvailableApplicationEvents } from "@/lib/schedule-availability";
-import { subscribeMyAvailability } from "@/lib/firestore-workforce";
-import {
-  getNextWeekStart,
-  getWeekDates,
-} from "@/lib/workforce-dates";
-import { isUserAvailableOnDate } from "@/lib/workforce-logic";
 import { normalizeTeamId } from "@/lib/team-utils";
 import { cn } from "@/lib/utils";
 import { statusLabels } from "@/types/application";
@@ -122,7 +116,7 @@ function formatNoticeDate(iso: string): string {
 }
 
 export default function DashboardPage() {
-  const { user, isAdmin, profile } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const { items: rawApplications, loading: appsLoading } = useMyApplications();
   const { events } = useEvents();
   const { rows: notices, loading: noticesLoading } = useNotices();
@@ -134,31 +128,7 @@ export default function DashboardPage() {
   const today = toYmd(new Date());
   const thisMonth = currentMonthKey();
   const thisMonthLabel = formatApplicationMonthLabel(thisMonth);
-  const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [availableDays, setAvailableDays] = useState(0);
-
-  const nextWeekStart = useMemo(() => getNextWeekStart(), []);
-  const nextWeekDates = useMemo(
-    () => getWeekDates(nextWeekStart),
-    [nextWeekStart],
-  );
-
-  useEffect(() => {
-    if (!user) return;
-    return subscribeMyAvailability(
-      user.uid,
-      (row) => {
-        if (!row) {
-          setAvailableDays(0);
-          return;
-        }
-        setAvailableDays(
-          nextWeekDates.filter((d) => isUserAvailableOnDate(row, d)).length,
-        );
-      },
-      () => setAvailableDays(0),
-    );
-  }, [user, nextWeekDates]);
 
   const handleAvailableCountChange = useCallback((count: number) => {
     setAvailableDays(count);
@@ -218,15 +188,27 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <ImportantNoticeDialog />
-      <MyAvailabilityDialog
-        open={availabilityOpen}
-        onOpenChange={setAvailabilityOpen}
-        onAvailableCountChange={handleAvailableCountChange}
-      />
       <PageHeader
-        title="Dashboard"
+        title="마이페이지"
         description="운영 현황 개요 · 데이터 연동 전에는 빈 화면으로 테스트할 수 있습니다."
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>근무 가능일 신청</CardTitle>
+          <CardDescription>
+            <span className="font-medium text-accent">익주</span>만 신청할 수
+            있습니다. 신청 기간(이번 주 화·수·목요일)이 지나면 관리자만
+            변경할 수 있습니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MyAvailabilityForm
+            compact
+            onAvailableCountChange={handleAvailableCountChange}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <StatCard
@@ -253,9 +235,8 @@ export default function DashboardPage() {
         <StatCard
           title="근무 가능일"
           value={availableDays}
-          hint="익주 가능 일수 · 탭하여 신청"
+          hint="익주 가능 일수 · 위 신청 카드에서 확인"
           icon={<CalendarDays className="size-4 text-emerald-400/90" />}
-          onClick={() => setAvailabilityOpen(true)}
         />
       </div>
 
