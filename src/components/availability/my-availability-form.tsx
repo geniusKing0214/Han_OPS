@@ -220,7 +220,7 @@ export function MyAvailabilityForm({
         </p>
       ) : null}
 
-      <div className="space-y-2.5">
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {weekDates.map((date) => {
           const on = !!draft[date];
           const { label, dow } = formatDayHeader(date);
@@ -230,7 +230,7 @@ export function MyAvailabilityForm({
             <div
               key={date}
               className={cn(
-                "rounded-2xl border px-4 py-3.5 transition-all",
+                "flex flex-col items-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-center transition-all",
                 on
                   ? "border-emerald-400/40 bg-emerald-500/15 shadow-sm"
                   : "border-red-400/30 bg-red-500/10",
@@ -243,74 +243,60 @@ export function MyAvailabilityForm({
                 disabled={locked}
                 onClick={() => toggleDay(date)}
                 className={cn(
-                  "flex w-full items-center gap-3 text-left",
+                  "flex w-full flex-col items-center gap-1.5",
                   locked && "cursor-default",
                 )}
               >
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {dow}요일
+                </span>
+                <span className="text-sm font-semibold tabular-nums">
+                  {label}
+                </span>
                 <span
                   className={cn(
-                    "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl text-xs font-semibold",
+                    "flex size-8 shrink-0 items-center justify-center rounded-full",
                     on ? "bg-emerald-500 text-white" : "bg-red-500/90 text-white",
                   )}
                 >
-                  <span className="text-[10px] opacity-90">{dow}</span>
-                  <span className="tabular-nums leading-none">{label}</span>
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">
-                    {dow}요일 · {date}
-                  </p>
-                  <p
-                    className={cn(
-                      "text-xs font-medium",
-                      on ? "text-emerald-300" : "text-red-300",
-                    )}
-                  >
-                    {on ? "근무 가능" : "근무 불가"}
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    "flex size-9 shrink-0 items-center justify-center rounded-full",
-                    on
-                      ? "bg-emerald-500/30 text-emerald-200"
-                      : "bg-red-500/30 text-red-200",
-                  )}
-                >
                   {locked ? (
-                    <Lock className="size-3.5 opacity-80" />
+                    <Lock className="size-3.5 opacity-90" />
                   ) : on ? (
                     <Check className="size-4" />
                   ) : (
                     <X className="size-4" />
                   )}
                 </span>
+                <span
+                  className={cn(
+                    "text-[11px] font-medium",
+                    on ? "text-emerald-300" : "text-red-300",
+                  )}
+                >
+                  {on ? "가능" : "불가"}
+                </span>
               </button>
 
               {!on ? (
-                <div className="mt-2.5 flex items-start justify-between gap-2 border-t border-red-400/20 pt-2.5 pl-14">
-                  <p className="min-w-0 flex-1 text-xs leading-snug text-red-200/80">
-                    {note ? (
-                      <>
-                        <span className="font-medium text-red-200">사유</span>{" "}
-                        {note}
-                      </>
-                    ) : (
-                      "사유 메모 없음"
-                    )}
-                  </p>
-                  {!locked ? (
-                    <button
-                      type="button"
-                      onClick={() => openMemoDialog(date)}
-                      className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-red-200 underline underline-offset-2"
-                    >
-                      <Pencil className="size-3" />
-                      {note ? "메모 수정" : "메모 입력"}
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
+                <button
+                  type="button"
+                  disabled={locked}
+                  onClick={() => openMemoDialog(date)}
+                  title={note || "사유 메모 없음"}
+                  className={cn(
+                    "flex max-w-full items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                    note
+                      ? "bg-red-500/20 text-red-200"
+                      : "text-red-200/60",
+                    locked && "pointer-events-none opacity-70",
+                  )}
+                >
+                  <Pencil className="size-2.5 shrink-0" />
+                  <span className="truncate">{note ? "메모" : "메모 없음"}</span>
+                </button>
+              ) : (
+                <span className="h-[18px]" />
+              )}
             </div>
           );
         })}
