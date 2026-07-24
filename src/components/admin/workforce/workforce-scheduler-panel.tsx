@@ -1916,7 +1916,9 @@ export function WorkforceSchedulerPanel({
         onClose={() => setAvailEditUser(null)}
         onSave={async (patch) => {
           if (!availEditUser) return;
-          await upsertAvailability(availEditUser.uid, patch);
+          await upsertAvailability(availEditUser.uid, patch, {
+            mergeExceptions: false,
+          });
           setAvailEditUser(null);
         }}
         onUnlockWeek={async (weekStart) => {
@@ -2439,10 +2441,15 @@ function AvailabilityDialog({
               void (async () => {
                 setBusy(true);
                 try {
+                  // 이번 화면에서 요일 기본값을 바꿔 저장하면, 표시 중인 주(week)에
+                  // 남아있는 날짜별 예외(과거 신청 등)가 우선 적용되어 변경이 반영
+                  // 안 된 것처럼 보이는 문제를 막기 위해 해당 주의 예외는 초기화한다.
+                  const clearedExceptions = { ...exceptions };
+                  for (const d of weekDates) delete clearedExceptions[d];
                   await onSave({
                     weeklyMaxAssignments: max,
                     availableWeekdays: weekdays,
-                    dateExceptions: exceptions,
+                    dateExceptions: clearedExceptions,
                   });
                 } finally {
                   setBusy(false);
