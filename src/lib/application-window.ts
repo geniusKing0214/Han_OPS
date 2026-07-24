@@ -33,6 +33,21 @@ export function getEventApplyWindowStatus(
   return "closed";
 }
 
+export const EVENT_APPLY_WINDOW_LABEL: Record<EventApplyWindowStatus, string> = {
+  before: "신청전",
+  open: "신청중",
+  closed: "신청마감",
+};
+
+export const EVENT_APPLY_WINDOW_BADGE_CLASS: Record<
+  EventApplyWindowStatus,
+  string
+> = {
+  before: "bg-muted text-muted-foreground",
+  open: "bg-emerald-500/15 text-emerald-300",
+  closed: "bg-red-500/15 text-red-300",
+};
+
 export function hasTeam2Stagger(event: EventItem): boolean {
   const teamIds = normalizeTeamIds(event.team_ids);
   return Boolean(

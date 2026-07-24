@@ -8,9 +8,12 @@ import type { TeamId } from "@/types/team";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
 import {
+  EVENT_APPLY_WINDOW_BADGE_CLASS,
+  EVENT_APPLY_WINDOW_LABEL,
   canTeamApplyNow,
   formatTeam2ApplyCountdown,
   formatTeam2ApplyOpensAt,
+  getEventApplyWindowStatus,
   hasTeam2Stagger,
 } from "@/lib/application-window";
 import {
@@ -131,6 +134,8 @@ export function ScheduleBoard({
                 const team2OpensLabel = teamApplyLocked
                   ? formatTeam2ApplyOpensAt(event)
                   : null;
+                const windowStatus = getEventApplyWindowStatus(session.date);
+                const windowOpen = windowStatus === "open";
                 return (
                   <Card
                     key={`${event.id}-${session.id}`}
@@ -174,7 +179,16 @@ export function ScheduleBoard({
                                   ? `${team2OpensLabel}부터 신청 가능`
                                   : "1팀 등록 24시간 후 신청 가능")}
                             </p>
-                          ) : null}
+                          ) : (
+                            <span
+                              className={cn(
+                                "mt-2 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                EVENT_APPLY_WINDOW_BADGE_CLASS[windowStatus],
+                              )}
+                            >
+                              {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
+                            </span>
+                          )}
                         </div>
                         <ChevronDown
                           className={cn(
@@ -220,7 +234,7 @@ export function ScheduleBoard({
                                       {/* 이 포지션에 열린 슬롯이 하나라도 있으면 신청 버튼 */}
                                       {event.closed ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 마감</Button>
-                                      ) : !alreadyAppliedEvent && !teamApplyLocked &&
+                                      ) : !alreadyAppliedEvent && !teamApplyLocked && windowOpen &&
                                       pos.slots.some((s) => s.applied_count < s.capacity) ? (
                                         <Button
                                           size="sm"
@@ -257,7 +271,7 @@ export function ScheduleBoard({
                           session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
                           const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed;
+                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !windowOpen;
                           return (
                             <div
                               key={slot.id}
@@ -294,7 +308,17 @@ export function ScheduleBoard({
                                   setApplyOpen(true);
                                 }}
                               >
-                                {alreadyAppliedEvent ? "신청 완료" : event.closed ? "신청 마감" : full ? "마감" : teamApplyLocked ? "대기 중" : "신청"}
+                                {alreadyAppliedEvent
+                                  ? "신청 완료"
+                                  : event.closed
+                                    ? "신청 마감"
+                                    : full
+                                      ? "마감"
+                                      : teamApplyLocked
+                                        ? "대기 중"
+                                        : !windowOpen
+                                          ? EVENT_APPLY_WINDOW_LABEL[windowStatus]
+                                          : "신청"}
                               </Button>
                             </div>
                           );
