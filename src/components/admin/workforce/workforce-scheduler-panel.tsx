@@ -188,6 +188,7 @@ export function WorkforceSchedulerPanel({
   const [statusFilter, setStatusFilter] = useState<"all" | WorkforceWorkerStatus>(
     "all",
   );
+  const [dayFilter, setDayFilter] = useState<WeekdayKey | "all">("all");
   const [members, setMembers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
     () => new Map(),
@@ -330,6 +331,9 @@ export function WorkforceSchedulerPanel({
     return m;
   }, [members]);
 
+  const dayFilterDate =
+    dayFilter === "all" ? null : chipWeekDates[WEEKDAY_KEYS.indexOf(dayFilter)] ?? null;
+
   const workers = useMemo(() => {
     return members
       .filter((m) => {
@@ -342,6 +346,8 @@ export function WorkforceSchedulerPanel({
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, chipWeekDates, count);
         if (statusFilter !== "all" && status !== statusFilter) return false;
+        if (dayFilterDate && !isUserAvailableOnDate(avail, dayFilterDate))
+          return false;
         return true;
       })
       .map((m) => {
@@ -363,6 +369,7 @@ export function WorkforceSchedulerPanel({
     availMap,
     displaySchedules,
     chipWeekDates,
+    dayFilterDate,
   ]);
 
   /** 스케줄 연동 카드에 표시할 승인·완료 신청자 (이미 배정된 유저 제외) */
@@ -1107,6 +1114,42 @@ export function WorkforceSchedulerPanel({
               ))}
             </select>
 
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setDayFilter("all")}
+                className={cn(
+                  "flex h-7 flex-1 items-center justify-center rounded-md text-[11px] font-semibold transition-colors",
+                  dayFilter === "all"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                전체
+              </button>
+              {WEEKDAY_KEYS.map((k, i) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setDayFilter((prev) => (prev === k ? "all" : k))}
+                  title={`${WEEKDAY_LABELS[k]}요일만 보기 (${chipWeekDates[i]})`}
+                  className={cn(
+                    "flex h-7 flex-1 items-center justify-center rounded-md text-[11px] font-semibold transition-colors",
+                    dayFilter === k
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {WEEKDAY_LABELS[k]}
+                </button>
+              ))}
+            </div>
+            {dayFilter !== "all" ? (
+              <p className="px-0.5 text-[10px] text-muted-foreground">
+                {WEEKDAY_LABELS[dayFilter]}요일({dayFilterDate}) 근무 가능한 인원만 표시 중
+              </p>
+            ) : null}
+
             {workerGroups.length === 0 ? (
               <p className="py-8 text-center text-xs text-muted-foreground">
                 조건에 맞는 근무자가 없습니다.
@@ -1166,24 +1209,30 @@ export function WorkforceSchedulerPanel({
                           />
                         </div>
                         <div className="mt-2 flex gap-1">
-                          {WEEKDAY_KEYS.map((k, i) => {
-                            const date = chipWeekDates[i]!;
-                            const on = isUserAvailableOnDate(avail, date);
-                            return (
-                              <span
-                                key={k}
-                                className={cn(
-                                  "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
-                                  on
-                                    ? "bg-accent/25 text-accent"
-                                    : "bg-red-500/20 text-red-300",
-                                )}
-                                title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
-                              >
-                                {WEEKDAY_LABELS[k]}
-                              </span>
-                            );
-                          })}
+                          {dayFilter === "all" ? (
+                            WEEKDAY_KEYS.map((k, i) => {
+                              const date = chipWeekDates[i]!;
+                              const on = isUserAvailableOnDate(avail, date);
+                              return (
+                                <span
+                                  key={k}
+                                  className={cn(
+                                    "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
+                                    on
+                                      ? "bg-accent/25 text-accent"
+                                      : "bg-red-500/20 text-red-300",
+                                  )}
+                                  title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
+                                >
+                                  {WEEKDAY_LABELS[k]}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="flex h-6 flex-1 items-center justify-center rounded-md bg-accent/25 text-[11px] font-semibold text-accent">
+                              {WEEKDAY_LABELS[dayFilter]}요일 근무 가능
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1.5 flex gap-2">
                           <button
