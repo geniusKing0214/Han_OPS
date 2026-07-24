@@ -300,7 +300,10 @@ export function MonthlySheetDayDetail({
                             variant={statusBadgeVariant(a.status)}
                             className="text-[10px] md:text-xs"
                           >
-                            {statusLabel(a.status)}
+                            {(a.status === "approved" || a.status === "completed") &&
+                            a.positionLabel
+                              ? a.positionLabel
+                              : statusLabel(a.status)}
                           </Badge>
                           <span>{a.name}</span>
                         </li>

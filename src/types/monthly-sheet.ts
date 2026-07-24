@@ -32,6 +32,7 @@ export type MonthlySheetDoc = {
 export type SheetApplicant = {
   name: string;
   status: ApplicationStatus;
+  positionLabel?: string;
 };
 
 /** 캘린더 셀·상세에 표시할 슬롯 단위 행 */
