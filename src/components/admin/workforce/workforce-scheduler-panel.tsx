@@ -1338,10 +1338,10 @@ export function WorkforceSchedulerPanel({
                   <section
                     key={date}
                     className={cn(
-                      "flex min-h-[160px] flex-col rounded-2xl border border-border/70 shadow-sm",
-                      hasShortage || emptyDay
-                        ? "bg-[repeating-linear-gradient(-45deg,rgba(22,26,34,0.92),rgba(22,26,34,0.92)_7px,rgba(167,175,191,0.08)_7px,rgba(167,175,191,0.08)_14px)]"
-                        : "bg-card/90",
+                      "flex min-h-[160px] flex-col rounded-2xl border shadow-sm",
+                      emptyDay
+                        ? "border-dashed border-border/50 bg-muted/10"
+                        : "border-border/70 bg-card/90",
                     )}
                   >
                     <header className="space-y-1.5 border-b border-border/60 px-2.5 py-2.5">
@@ -1804,7 +1804,6 @@ function ScheduleCard({
   return (
     <div
       className="overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
-      style={{ borderTopColor: schedule.color, borderTopWidth: 3 }}
       onDragOver={(e) => {
         if (isDesktop) e.preventDefault();
       }}
@@ -1817,20 +1816,25 @@ function ScheduleCard({
         <div className="min-w-0 flex-1">
           <button
             type="button"
-            className="w-full truncate text-left text-sm font-semibold leading-snug hover:text-accent"
+            className="flex w-full items-center gap-1.5 text-left text-sm font-semibold leading-snug hover:text-accent"
             onClick={onEdit}
             title={schedule.title || "근무"}
           >
-            {schedule.title || "근무"}
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: schedule.color }}
+            />
+            <span className="truncate">{schedule.title || "근무"}</span>
           </button>
           {onToggleClosed ? (
             <button
               type="button"
-              className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 transition-colors ${
+              className={cn(
+                "mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
                 isClosed
-                  ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
-                  : "bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25"
-              }`}
+                  ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                  : "text-red-300/80 hover:text-red-300",
+              )}
               onClick={onToggleClosed}
             >
               {isClosed ? "마감 해제" : "마감"}
@@ -1891,7 +1895,7 @@ function ScheduleCard({
                 ? "border-accent/50 bg-accent/10 text-accent"
                 : schedule.venue?.trim()
                   ? "border-accent/40 bg-accent/5 text-accent"
-                  : "border-border bg-background/60 text-muted-foreground hover:border-accent/40 hover:text-accent",
+                  : "border-border/50 bg-background/60 text-muted-foreground hover:border-accent/40 hover:text-accent",
             )}
             title={schedule.venue?.trim() || "근무 장소 입력"}
             aria-label={schedule.venue?.trim() || "근무 장소 입력"}
@@ -1903,7 +1907,7 @@ function ScheduleCard({
             <MapPin className="size-3.5" />
           </button>
           <div
-            className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-muted/30 px-1 py-0.5"
+            className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/50 bg-muted/30 px-1 py-0.5"
             title="필요 인원"
           >
             <button
