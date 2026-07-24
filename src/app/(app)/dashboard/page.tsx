@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { Calendar, CalendarDays, ClipboardList, Timer } from "lucide-react";
+import { CalendarDays, ClipboardList, Timer } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -135,13 +135,6 @@ export default function DashboardPage() {
   }, []);
 
   const stats = useMemo(() => {
-    const approvedApps = myApplications.filter((a) => a.status === "approved");
-    const uniqApprovedToday = new Set(
-      approvedApps
-        .filter((a) => a.date === today)
-        .map((a) => a.eventId ?? a.eventTitle),
-    );
-    const todayCount = uniqApprovedToday.size;
     const pending = myApplications.filter((a) => a.status === "pending").length;
 
     const appliedEventIds = new Set(
@@ -163,7 +156,6 @@ export default function DashboardPage() {
       openSlotsTeamId,
     );
     return {
-      todayShiftCount: todayCount,
       pendingApprovals: pending,
       openSlots,
       openSlotsTeamLabel: isAdmin
@@ -210,14 +202,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-        <StatCard
-          title="오늘 일정"
-          value={stats.todayShiftCount}
-          hint="배정된 근무 블록"
-          icon={<Calendar className="size-4 text-accent" />}
-          href="/schedule"
-        />
+      <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
         <StatCard
           title="승인 대기"
           value={stats.pendingApprovals}
@@ -243,11 +228,17 @@ export default function DashboardPage() {
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           <Card>
-            <CardHeader>
-              <CardTitle>내 신청 블록</CardTitle>
-              <CardDescription>
-                {thisMonthLabel} 최근 3건 · 전체는 Applications에서 확인
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle>내 신청 블록</CardTitle>
+                <CardDescription>{thisMonthLabel} 최근 3건</CardDescription>
+              </div>
+              <Link
+                href="/my-assignments"
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                내 주간 배정표에서 전체 보기
+              </Link>
             </CardHeader>
             <CardContent className="space-y-3">
               {appsLoading ? (
