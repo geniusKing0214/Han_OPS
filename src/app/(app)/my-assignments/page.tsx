@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useMyApplications } from "@/hooks/use-my-applications";
 import { subscribeMyConfirmedSchedules } from "@/lib/firestore-workforce";
 import {
   formatWeekRangeLabel,
@@ -29,6 +30,7 @@ export default function MyAssignmentsPage() {
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const [schedules, setSchedules] = useState<WorkforceSchedule[]>([]);
   const [error, setError] = useState("");
+  const { items: myApplications } = useMyApplications();
 
   useEffect(() => {
     if (!user) return;
@@ -39,6 +41,22 @@ export default function MyAssignmentsPage() {
       (e) => setError(e.message),
     );
   }, [user, weekStart]);
+
+  /** 이벤트 신청으로 승인·완료된 근무 (직접 배정과 별도 트랙이라 스케줄에
+   * 없는 것만 추가로 합쳐서 보여준다) */
+  const approvedAppsInWeek = useMemo(() => {
+    const scheduleKeys = new Set(
+      schedules.map(
+        (s) => `${s.sourceEventId ?? ""}::${s.sourceSessionId ?? ""}::${s.date}`,
+      ),
+    );
+    return myApplications.filter(
+      (a) =>
+        (a.status === "approved" || a.status === "completed") &&
+        weekDates.includes(a.date) &&
+        !scheduleKeys.has(`${a.eventId ?? ""}::${a.sessionId ?? ""}::${a.date}`),
+    );
+  }, [myApplications, schedules, weekDates]);
 
   return (
     <div className="space-y-6">
@@ -93,6 +111,7 @@ export default function MyAssignmentsPage() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
         {weekDates.map((date) => {
           const day = schedules.filter((s) => s.date === date);
+          const dayApps = approvedAppsInWeek.filter((a) => a.date === date);
           const { label, dow } = formatDayHeader(date);
           return (
             <Card key={date} className="bg-card/60">
@@ -105,34 +124,54 @@ export default function MyAssignmentsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 p-3 pt-0">
-                {day.length === 0 ? (
+                {day.length === 0 && dayApps.length === 0 ? (
                   <p className="py-4 text-center text-[11px] text-muted-foreground">
                     배정 없음
                   </p>
                 ) : (
-                  day.map((s) => (
-                    <div
-                      key={s.id}
-                      className="rounded-lg border border-border bg-muted/30 p-2"
-                      style={{
-                        borderLeftWidth: 3,
-                        borderLeftColor: s.color,
-                      }}
-                    >
-                      <p className="text-[11px] font-semibold tabular-nums">
-                        {s.startTime}
-                      </p>
-                      <p className="text-xs font-medium">{s.title}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {s.venue || "—"}
-                      </p>
-                      {s.note ? (
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {s.note}
+                  <>
+                    {day.map((s) => (
+                      <div
+                        key={s.id}
+                        className="rounded-lg border border-border bg-muted/30 p-2"
+                        style={{
+                          borderLeftWidth: 3,
+                          borderLeftColor: s.color,
+                        }}
+                      >
+                        <p className="text-[11px] font-semibold tabular-nums">
+                          {s.startTime}
                         </p>
-                      ) : null}
-                    </div>
-                  ))
+                        <p className="text-xs font-medium">{s.title}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {s.venue || "—"}
+                        </p>
+                        {s.note ? (
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {s.note}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                    {dayApps.map((a) => (
+                      <div
+                        key={a.id}
+                        className="rounded-lg border border-border bg-muted/30 p-2"
+                        style={{ borderLeftWidth: 3, borderLeftColor: "#10B981" }}
+                      >
+                        <p className="text-[11px] font-semibold tabular-nums">
+                          {a.slotTime || a.positionSlotTime || "—"}
+                        </p>
+                        <p className="text-xs font-medium">
+                          {a.eventTitle}
+                          {a.positionLabel ? ` · ${a.positionLabel}` : ""}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {a.venue || "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </>
                 )}
               </CardContent>
             </Card>
