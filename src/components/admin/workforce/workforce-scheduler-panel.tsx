@@ -239,6 +239,7 @@ export function WorkforceSchedulerPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [createEventSaving, setCreateEventSaving] = useState(false);
+  const [createEventDate, setCreateEventDate] = useState<string | null>(null);
   const [form, setForm] = useState<ScheduleFormState>(() =>
     emptyForm(weekDates[0]!),
   );
@@ -716,7 +717,8 @@ export function WorkforceSchedulerPanel({
     }
   };
 
-  const openCreate = (_date: string) => {
+  const openCreate = (date: string) => {
+    setCreateEventDate(date);
     setCreateEventOpen(true);
   };
 
@@ -1697,6 +1699,7 @@ export function WorkforceSchedulerPanel({
         open={createEventOpen}
         onOpenChange={setCreateEventOpen}
         saving={createEventSaving}
+        defaultDate={createEventDate ?? undefined}
         onSave={(payload) => handleCreateEvent(payload)}
       />
 

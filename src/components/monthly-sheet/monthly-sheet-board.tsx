@@ -490,6 +490,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
           open={createOpen}
           onOpenChange={setCreateOpen}
           saving={scheduleSaving}
+          defaultDate={selectedYmd}
           onSave={handleCreateSchedule}
         />
       ) : null}

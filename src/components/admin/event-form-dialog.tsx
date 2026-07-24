@@ -39,6 +39,9 @@ export type CreateScheduleDialogProps = {
   saving: boolean;
   /** 저장 시 완성된 이벤트(id 없음 — 부모에서 부여) */
   onSave: (payload: Omit<EventItem, "id">) => Promise<void>;
+  /** 특정 날짜에서 "일정 추가"로 열었을 때 — 날짜를 자동으로 채우고
+   * 날짜 입력 UI 대신 읽기 전용으로 표시한다. */
+  defaultDate?: string;
 };
 
 export function CreateScheduleDialog({
@@ -46,6 +49,7 @@ export function CreateScheduleDialog({
   onOpenChange,
   saving,
   onSave,
+  defaultDate,
 }: CreateScheduleDialogProps) {
   const [title, setTitle] = useState("");
   const [venue, setVenue] = useState("");
@@ -68,11 +72,15 @@ export function CreateScheduleDialog({
     setColor("#C8A96B");
     setAttendance({ ...DEFAULT_ATTENDANCE_SETTINGS });
     setTeamExposure("team_1");
-    setSessions([emptySession()]);
+    setSessions([
+      defaultDate
+        ? { id: crypto.randomUUID(), date: defaultDate }
+        : emptySession(),
+    ]);
     setUsePositions(true);
     setPositions(DEFAULT_POSITIONS);
     setError("");
-  }, [open]);
+  }, [open, defaultDate]);
 
   const addSession = () => setSessions((s) => [...s, emptySession()]);
 
@@ -401,45 +409,54 @@ export function CreateScheduleDialog({
 
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">날짜 · 슬롯</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={addSession}
-            >
-              날짜 추가
-            </Button>
-          </div>
-
-          {sessions.map((sess, si) => (
-            <div
-              key={sess.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
-            >
-              <div className="flex-1 min-w-[160px] space-y-1">
-                <label className="text-xs text-muted-foreground">날짜 *</label>
-                <Input
-                  type="date"
-                  className="w-full"
-                  value={sess.date}
-                  onChange={(e) => updateSessionDate(sess.id, e.target.value)}
-                />
-              </div>
+            {defaultDate ? null : (
               <Button
                 type="button"
                 size="sm"
-                variant="ghost"
-                className="text-red-400 shrink-0"
-                disabled={sessions.length <= 1}
-                onClick={() => removeSession(sess.id)}
+                variant="outline"
+                onClick={addSession}
               >
-                삭제
+                날짜 추가
               </Button>
-              {si < sessions.length - 1 ? (
-                <div className="w-full" />
-              ) : null}
+            )}
+          </div>
+
+          {defaultDate ? (
+            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs text-muted-foreground">날짜</p>
+              <p className="text-sm font-medium">{defaultDate}</p>
             </div>
-          ))}
+          ) : (
+            sessions.map((sess, si) => (
+              <div
+                key={sess.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
+              >
+                <div className="flex-1 min-w-[160px] space-y-1">
+                  <label className="text-xs text-muted-foreground">날짜 *</label>
+                  <Input
+                    type="date"
+                    className="w-full"
+                    value={sess.date}
+                    onChange={(e) => updateSessionDate(sess.id, e.target.value)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-400 shrink-0"
+                  disabled={sessions.length <= 1}
+                  onClick={() => removeSession(sess.id)}
+                >
+                  삭제
+                </Button>
+                {si < sessions.length - 1 ? (
+                  <div className="w-full" />
+                ) : null}
+              </div>
+            ))
+          )}
         </div>
 
         {error ? (

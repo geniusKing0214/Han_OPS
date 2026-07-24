@@ -593,14 +593,21 @@ export async function decideApplication(
       };
       const positionSlotTime =
         typeof freshData.positionSlotTime === "string" ? freshData.positionSlotTime : "";
+      // 정원 여유가 있는 슬롯을 우선 쓰고, 전부 마감이면 신청한 시간대와 같은
+      // 슬롯(없으면 첫 슬롯)의 정원을 1명 늘려서라도 자동 승인한다.
       const targetSlot =
         dealerSlots.find((s) => s.time === positionSlotTime && hasRoom(s)) ??
-        dealerSlots.find(hasRoom);
+        dealerSlots.find(hasRoom) ??
+        dealerSlots.find((s) => s.time === positionSlotTime) ??
+        dealerSlots[0];
       if (!targetSlot) {
-        throw new Error("딜러 슬롯 정원이 마감되어 자동 승인할 수 없습니다.");
+        throw new Error("딜러 포지션에 시간 슬롯이 없어 자동 승인할 수 없습니다.");
       }
       const appliedCount =
         typeof targetSlot.applied_count === "number" ? targetSlot.applied_count : 0;
+      const capacity =
+        typeof targetSlot.capacity === "number" ? targetSlot.capacity : 0;
+      const nextCapacity = appliedCount >= capacity ? capacity + 1 : capacity;
 
       const nextPositions = positions.map((pos) => {
         if (pos.id !== dealerPosition.id) return pos;
@@ -611,7 +618,7 @@ export async function decideApplication(
           ...pos,
           slots: slots.map((s) =>
             s.id === targetSlot.id
-              ? { ...s, applied_count: appliedCount + 1 }
+              ? { ...s, capacity: nextCapacity, applied_count: appliedCount + 1 }
               : s,
           ),
         };
