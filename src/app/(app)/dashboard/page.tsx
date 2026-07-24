@@ -20,7 +20,6 @@ import {
   formatApplicationMonthLabel,
 } from "@/lib/application-grouping";
 import { statusLabels } from "@/types/application";
-import { mockAdminAlerts } from "@/data/mock-notices";
 
 const RECENT_NOTICES_LIMIT = 3;
 
@@ -178,29 +177,6 @@ export default function DashboardPage() {
                   </ul>
                 )}
               </ScrollArea>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>관리자 알림</CardTitle>
-              <CardDescription>운영 콘솔 요약</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {mockAdminAlerts.length === 0 ? (
-                <p className="py-2 text-sm text-muted-foreground">
-                  알림 없음
-                </p>
-              ) : (
-                mockAdminAlerts.map((a) => (
-                  <div
-                    key={a.id}
-                    className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
-                  >
-                    {a.message}
-                  </div>
-                ))
-              )}
             </CardContent>
           </Card>
         </div>
