@@ -1,8 +1,37 @@
 import type { EventItem } from "@/types/schedule";
 import { normalizeTeamIds, type TeamId } from "@/types/team";
+import {
+  getWeekStartMonday,
+  parseYmd,
+  shiftWeek,
+  toYmd,
+  weekdayKeyFromYmd,
+} from "@/lib/workforce-dates";
 
 /** 1팀 전용 등록 후 2팀 자동 오픈 지연 (시간) */
 export const TEAM2_AUTO_OPEN_HOURS = 24;
+
+export type EventApplyWindowStatus = "before" | "open" | "closed";
+
+/**
+ * 일정 신청 기간: 일정이 속한 주(익주) 바로 전 주의 화/수/목요일에만 신청 가능.
+ * - 신청 주(전 주) 화/수/목: open (신청중)
+ * - 신청 주(전 주) 월/금/토/일, 그 이후(일정 주 포함): closed (신청마감)
+ * - 신청 주보다 이전(그 이전 주들): before (신청전)
+ */
+export function getEventApplyWindowStatus(
+  eventDateYmd: string,
+  now: Date = new Date(),
+): EventApplyWindowStatus {
+  const eventWeekStart = getWeekStartMonday(parseYmd(eventDateYmd));
+  const applyWeekStart = shiftWeek(eventWeekStart, -1);
+  const nowWeekStart = getWeekStartMonday(now);
+  if (nowWeekStart < applyWeekStart) return "before";
+  if (nowWeekStart > applyWeekStart) return "closed";
+  const key = weekdayKeyFromYmd(toYmd(now));
+  if (key === "tue" || key === "wed" || key === "thu") return "open";
+  return "closed";
+}
 
 export function hasTeam2Stagger(event: EventItem): boolean {
   const teamIds = normalizeTeamIds(event.team_ids);

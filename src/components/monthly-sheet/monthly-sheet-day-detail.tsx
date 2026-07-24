@@ -6,11 +6,30 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { statusBadgeVariant } from "@/lib/admin-application-roster";
+import { getEventApplyWindowStatus } from "@/lib/application-window";
 import { cn } from "@/lib/utils";
 import type { SheetDayBundle, SheetSlotRow } from "@/types/monthly-sheet";
 import type { EventItem } from "@/types/schedule";
 import { TEAM_LABELS } from "@/types/team";
 import type { ApplySlotContext } from "@/components/schedule/apply-slot";
+
+const APPLY_WINDOW_LABEL: Record<
+  ReturnType<typeof getEventApplyWindowStatus>,
+  string
+> = {
+  before: "신청전",
+  open: "신청중",
+  closed: "신청마감",
+};
+
+const APPLY_WINDOW_BADGE_CLASS: Record<
+  ReturnType<typeof getEventApplyWindowStatus>,
+  string
+> = {
+  before: "bg-muted text-muted-foreground",
+  open: "bg-emerald-500/15 text-emerald-300",
+  closed: "bg-red-500/15 text-red-300",
+};
 
 function statusLabel(status: string): string {
   if (status === "approved") return "승인";
@@ -161,13 +180,22 @@ export function MonthlySheetDayDetail({
                       ev?.usePositions &&
                       ev.positions?.some((p) => p.slots && p.slots.length > 0);
                     if (onApply && ev) {
+                      const windowStatus = getEventApplyWindowStatus(row.date);
                       return (
-                        <div className="mb-3">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold md:text-xs",
+                              APPLY_WINDOW_BADGE_CLASS[windowStatus],
+                            )}
+                          >
+                            {APPLY_WINDOW_LABEL[windowStatus]}
+                          </span>
                           {alreadyApplied ? (
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 완료
                             </Button>
-                          ) : (
+                          ) : windowStatus === "open" ? (
                             <Button
                               size="sm"
                               variant="accent"
@@ -203,7 +231,7 @@ export function MonthlySheetDayDetail({
                             >
                               신청
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       );
                     }
