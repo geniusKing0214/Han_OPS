@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type ReactNode } from "react";
-import { Timer } from "lucide-react";
+import { useMemo } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,79 +19,8 @@ import {
   filterApplicationsInMonth,
   formatApplicationMonthLabel,
 } from "@/lib/application-grouping";
-import { cn } from "@/lib/utils";
 import { statusLabels } from "@/types/application";
 import { mockAdminAlerts } from "@/data/mock-notices";
-
-function StatCard({
-  title,
-  value,
-  hint,
-  icon,
-  href,
-  onClick,
-}: {
-  title: string;
-  value: number;
-  hint: string;
-  icon: ReactNode;
-  href?: string;
-  onClick?: () => void;
-}) {
-  const interactive = Boolean(href || onClick);
-  const card = (
-    <Card
-      className={cn(
-        "flex h-full min-h-[7.5rem] flex-col",
-        interactive &&
-          "transition-colors hover:border-accent/40 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-      )}
-    >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="truncate text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted">
-          {icon}
-        </span>
-      </CardHeader>
-      <CardContent className="mt-auto flex flex-1 flex-col justify-end">
-        <p className="text-2xl font-semibold tabular-nums">{value}</p>
-        <p
-          className="mt-0.5 line-clamp-2 min-h-[2rem] text-xs leading-4 text-muted-foreground"
-          title={hint}
-        >
-          {hint}
-        </p>
-      </CardContent>
-    </Card>
-  );
-
-  const shellClass =
-    "block h-full min-w-0 w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
-
-  if (href) {
-    return (
-      <Link href={href} className={shellClass}>
-        {card}
-      </Link>
-    );
-  }
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={cn(shellClass, "appearance-none border-0 bg-transparent p-0 text-left")}
-      >
-        {card}
-      </button>
-    );
-  }
-
-  return <div className="h-full min-w-0 w-full">{card}</div>;
-}
 
 const RECENT_NOTICES_LIMIT = 3;
 
@@ -115,11 +43,6 @@ export default function DashboardPage() {
   );
   const thisMonth = currentMonthKey();
   const thisMonthLabel = formatApplicationMonthLabel(thisMonth);
-
-  const stats = useMemo(() => {
-    const pending = myApplications.filter((a) => a.status === "pending").length;
-    return { pendingApprovals: pending };
-  }, [myApplications]);
 
   const myBlocks = useMemo(
     () =>
@@ -155,16 +78,6 @@ export default function DashboardPage() {
           <MyAvailabilityForm compact />
         </CardContent>
       </Card>
-
-      <div className="sm:max-w-xs">
-        <StatCard
-          title="승인 대기"
-          value={stats.pendingApprovals}
-          hint="관리자 검토 필요"
-          icon={<Timer className="size-4 text-amber-400/90" />}
-          href="/applications?tab=pending"
-        />
-      </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">

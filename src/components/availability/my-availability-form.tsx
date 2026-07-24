@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Lock, Pencil, X } from "lucide-react";
+import { Check, Clock, Lock, Pencil, X } from "lucide-react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useMyApplications } from "@/hooks/use-my-applications";
 import {
   subscribeMyAvailability,
   upsertMyAvailability,
@@ -30,6 +31,41 @@ import { isUserAvailableOnDate } from "@/lib/workforce-logic";
 import { cn } from "@/lib/utils";
 import type { WorkforceAvailability } from "@/types/workforce";
 
+type DayState = "available" | "pending" | "done" | "unavailable";
+
+const DAY_STATE_LABEL: Record<DayState, string> = {
+  available: "가능",
+  pending: "대기중",
+  done: "완료",
+  unavailable: "불가",
+};
+
+const DAY_STATE_STYLE: Record<
+  DayState,
+  { card: string; badge: string; text: string }
+> = {
+  available: {
+    card: "border-emerald-400/40 bg-emerald-500/15 shadow-sm",
+    badge: "bg-emerald-500 text-white",
+    text: "text-emerald-300",
+  },
+  pending: {
+    card: "border-blue-400/40 bg-blue-500/15 shadow-sm",
+    badge: "bg-blue-500 text-white",
+    text: "text-blue-300",
+  },
+  done: {
+    card: "border-zinc-400/40 bg-zinc-500/15 shadow-sm",
+    badge: "bg-zinc-500 text-white",
+    text: "text-zinc-300",
+  },
+  unavailable: {
+    card: "border-red-400/30 bg-red-500/10",
+    badge: "bg-red-500/90 text-white",
+    text: "text-red-300",
+  },
+};
+
 type MyAvailabilityFormProps = {
   /** 다이얼로그 등 좁은 레이아웃에서 sticky 하단 버튼 비활성 */
   compact?: boolean;
@@ -42,12 +78,25 @@ export function MyAvailabilityForm({
   onAvailableCountChange,
 }: MyAvailabilityFormProps) {
   const { user } = useAuth();
+  const { items: myApplications } = useMyApplications();
   const nextWeekStart = useMemo(() => getNextWeekStart(), []);
   const weekDates = useMemo(
     () => getWeekDates(nextWeekStart),
     [nextWeekStart],
   );
   const windowStatus = useMemo(() => getAvailabilityWindowStatus(), []);
+  const appStatusByDate = useMemo(() => {
+    const map = new Map<string, "pending" | "done">();
+    for (const a of myApplications) {
+      if (!weekDates.includes(a.date)) continue;
+      if (a.status === "approved" || a.status === "completed") {
+        map.set(a.date, "done");
+      } else if (a.status === "pending" && map.get(a.date) !== "done") {
+        map.set(a.date, "pending");
+      }
+    }
+    return map;
+  }, [myApplications, weekDates]);
   const [avail, setAvail] = useState<WorkforceAvailability | null>(null);
   const [draft, setDraft] = useState<Record<string, boolean>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -223,6 +272,15 @@ export function MyAvailabilityForm({
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {weekDates.map((date) => {
           const on = !!draft[date];
+          const appStatus = on ? appStatusByDate.get(date) : undefined;
+          const dayState: DayState = !on
+            ? "unavailable"
+            : appStatus === "done"
+              ? "done"
+              : appStatus === "pending"
+                ? "pending"
+                : "available";
+          const style = DAY_STATE_STYLE[dayState];
           const { label, dow } = formatDayHeader(date);
           const isToday = date === today;
           const note = notes[date];
@@ -231,9 +289,7 @@ export function MyAvailabilityForm({
               key={date}
               className={cn(
                 "flex flex-col items-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-center transition-all",
-                on
-                  ? "border-emerald-400/40 bg-emerald-500/15 shadow-sm"
-                  : "border-red-400/30 bg-red-500/10",
+                style.card,
                 locked && "opacity-90",
                 isToday && "ring-2 ring-accent/40",
               )}
@@ -256,24 +312,21 @@ export function MyAvailabilityForm({
                 <span
                   className={cn(
                     "flex size-8 shrink-0 items-center justify-center rounded-full",
-                    on ? "bg-emerald-500 text-white" : "bg-red-500/90 text-white",
+                    style.badge,
                   )}
                 >
                   {locked ? (
                     <Lock className="size-3.5 opacity-90" />
-                  ) : on ? (
-                    <Check className="size-4" />
-                  ) : (
+                  ) : dayState === "unavailable" ? (
                     <X className="size-4" />
+                  ) : dayState === "pending" ? (
+                    <Clock className="size-4" />
+                  ) : (
+                    <Check className="size-4" />
                   )}
                 </span>
-                <span
-                  className={cn(
-                    "text-[11px] font-medium",
-                    on ? "text-emerald-300" : "text-red-300",
-                  )}
-                >
-                  {on ? "가능" : "불가"}
+                <span className={cn("text-[11px] font-medium", style.text)}>
+                  {DAY_STATE_LABEL[dayState]}
                 </span>
               </button>
 
