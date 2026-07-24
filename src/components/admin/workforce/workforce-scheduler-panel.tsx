@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -2156,49 +2157,37 @@ function AvailabilityDialog({
           />
         </Field>
         <div className="flex flex-wrap gap-2">
-          {WEEKDAY_KEYS.map((k) => (
-            <label
-              key={k}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs"
-            >
-              <input
-                type="checkbox"
-                checked={weekdays[k]}
-                onChange={(e) =>
-                  setWeekdays((w) => ({ ...w, [k]: e.target.checked }))
+          {WEEKDAY_KEYS.map((k) => {
+            const checked = weekdays[k];
+            return (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={checked}
+                onClick={() =>
+                  setWeekdays((w) => ({ ...w, [k]: !w[k] }))
                 }
-              />
-              {WEEKDAY_LABELS[k]}
-            </label>
-          ))}
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">표시 주 날짜 예외</p>
-          {weekDates.map((d) => (
-            <div
-              key={d}
-              className="flex items-center justify-between gap-2 text-xs"
-            >
-              <span className="tabular-nums">{d}</span>
-              <select
-                className="h-8 rounded-md border border-border bg-background px-2"
-                value={exceptions[d] || "default"}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setExceptions((prev) => {
-                    const next = { ...prev };
-                    if (v === "default") delete next[d];
-                    else next[d] = v as "available" | "unavailable";
-                    return next;
-                  });
-                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  checked
+                    ? "border-accent/60 bg-accent/15 text-accent"
+                    : "border-border bg-background/60 text-muted-foreground hover:border-accent/30 hover:text-foreground",
+                )}
               >
-                <option value="default">기본</option>
-                <option value="available">가능</option>
-                <option value="unavailable">불가</option>
-              </select>
-            </div>
-          ))}
+                <span
+                  className={cn(
+                    "flex size-3.5 items-center justify-center rounded-sm border",
+                    checked
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border/80",
+                  )}
+                >
+                  {checked ? <Check className="size-2.5" strokeWidth={3} /> : null}
+                </span>
+                {WEEKDAY_LABELS[k]}
+              </button>
+            );
+          })}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
