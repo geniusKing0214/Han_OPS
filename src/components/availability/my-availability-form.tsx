@@ -315,14 +315,10 @@ export function MyAvailabilityForm({
               type="button"
               variant="accent"
               className="h-12 w-full rounded-xl text-base"
-              disabled={busy || !dirty}
+              disabled={busy}
               onClick={() => void save()}
             >
-              {busy
-                ? "신청 중…"
-                : dirty
-                  ? "익주 가능일 신청하기"
-                  : "변경 후 신청해 주세요"}
+              {busy ? "신청 중…" : "익주 가능일 신청하기"}
             </Button>
           </div>
         </div>
