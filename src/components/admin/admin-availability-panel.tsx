@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  XCircle,
+  ChevronUp,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -38,6 +38,7 @@ import {
   getWeekDates,
   shiftWeek,
 } from "@/lib/workforce-dates";
+import { cn } from "@/lib/utils";
 import { normalizeTeamId, TEAM_LABELS } from "@/types/team";
 import type { WorkforceAvailability } from "@/types/workforce";
 
@@ -56,6 +57,7 @@ export function AdminAvailabilityPanel() {
   const [weekStart, setWeekStart] = useState(nextWeekStart);
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const [reasonMember, setReasonMember] = useState<ListedUserRow | null>(null);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const [users, setUsers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
@@ -110,16 +112,24 @@ export function AdminAvailabilityPanel() {
   const dayBuckets = useMemo(
     () =>
       weekDates.map((date) => {
-        const members = submitted.filter((u) => {
+        const available: ListedUserRow[] = [];
+        const unavailable: ListedUserRow[] = [];
+        for (const u of submitted) {
           const avail = resolveAvailability(availMap, u.uid);
-          return isUserAvailableOnDate(avail, date);
-        });
-        return { date, members };
+          if (isUserAvailableOnDate(avail, date)) available.push(u);
+          else unavailable.push(u);
+        }
+        return { date, available, unavailable };
       }),
     [weekDates, submitted, availMap],
   );
 
+  useEffect(() => {
+    setExpandedDate(null);
+  }, [weekStart]);
+
   const isNextWeek = weekStart === nextWeekStart;
+  const expandedBucket = dayBuckets.find((b) => b.date === expandedDate) ?? null;
 
   return (
     <div className="space-y-6">
@@ -197,136 +207,145 @@ export function AdminAvailabilityPanel() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">일자별 가능 인원</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            요일을 누르면 근무 가능·불가능 인원을 펼쳐볼 수 있습니다.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-2 sm:grid-cols-4 lg:grid-cols-7">
-            {dayBuckets.map(({ date, members }) => {
+            {dayBuckets.map(({ date, available, unavailable }) => {
               const { label, dow } = formatDayHeader(date);
+              const isOpen = expandedDate === date;
               return (
-                <div
+                <button
                   key={date}
-                  className="rounded-lg border border-border bg-muted/20 p-2.5"
+                  type="button"
+                  onClick={() =>
+                    setExpandedDate((prev) => (prev === date ? null : date))
+                  }
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center transition-colors",
+                    isOpen
+                      ? "border-accent bg-accent/10"
+                      : "border-border bg-muted/20 hover:border-accent/40",
+                  )}
                 >
-                  <p className="text-center text-xs font-semibold">
+                  <p className="text-xs font-semibold">
                     {dow}{" "}
                     <span className="tabular-nums text-muted-foreground">
                       {label}
                     </span>
                   </p>
-                  <div className="mt-2 space-y-1">
-                    {members.length === 0 ? (
-                      <p className="py-2 text-center text-[10px] text-muted-foreground">
-                        없음
-                      </p>
-                    ) : (
-                      members.map((m) => (
-                        <p
-                          key={m.uid}
-                          className="truncate rounded bg-accent/15 px-1.5 py-1 text-center text-[11px] font-medium text-accent"
-                          title={m.displayName || m.email}
-                        >
-                          {m.displayName || m.email}
-                        </p>
-                      ))
-                    )}
-                  </div>
-                </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    가능 <span className="font-medium text-accent">{available.length}</span>
+                    {" · "}
+                    불가 <span className="font-medium text-red-300">{unavailable.length}</span>
+                  </p>
+                  {isOpen ? (
+                    <ChevronUp className="size-3.5 text-accent" />
+                  ) : (
+                    <ChevronDown className="size-3.5 text-muted-foreground" />
+                  )}
+                </button>
               );
             })}
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {expandedBucket ? (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CheckCircle2 className="size-4 text-emerald-400" />
-              신청 완료 ({submitted.length})
+            <CardTitle className="text-base">
+              {(() => {
+                const { label, dow } = formatDayHeader(expandedBucket.date);
+                return `${dow}요일 · ${label} 상세`;
+              })()}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {submitted.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                신청한 인원이 없습니다.
-              </p>
-            ) : (
-              submitted.map((u) => {
-                const avail = resolveAvailability(availMap, u.uid);
-                const availableCount = weekDates.filter((d) =>
-                  isUserAvailableOnDate(avail, d),
-                ).length;
-                const reasons = unavailableReasonsFor(avail, weekDates);
-                return (
-                  <div
-                    key={u.uid}
-                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {u.displayName || u.email}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {TEAM_LABELS[normalizeTeamId(u.team_id)]}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {reasons.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setReasonMember(u)}
-                          title="불가 사유 보기"
-                          className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
-                        >
-                          <AlertTriangle className="size-3" />
-                        </button>
-                      ) : null}
+          <CardContent>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-accent">
+                  근무 가능 ({expandedBucket.available.length})
+                </p>
+                {expandedBucket.available.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    가능한 인원이 없습니다.
+                  </p>
+                ) : (
+                  expandedBucket.available.map((u) => (
+                    <div
+                      key={u.uid}
+                      className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {u.displayName || u.email}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {TEAM_LABELS[normalizeTeamId(u.team_id)]}
+                        </p>
+                      </div>
                       <Badge variant="accent" className="shrink-0">
-                        가능 {availableCount}/7일
+                        가능
                       </Badge>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <XCircle className="size-4 text-red-400" />
-              미신청 ({notSubmitted.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {notSubmitted.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                전원 신청 완료했습니다.
-              </p>
-            ) : (
-              notSubmitted.map((u) => (
-                <div
-                  key={u.uid}
-                  className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {u.displayName || u.email}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {u.email}
-                    </p>
-                  </div>
-                  <Badge variant="destructive" className="shrink-0">
-                    미신청
-                  </Badge>
-                </div>
-              ))
-            )}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-red-300">
+                  근무 불가능 ({expandedBucket.unavailable.length})
+                </p>
+                {expandedBucket.unavailable.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    불가능한 인원이 없습니다.
+                  </p>
+                ) : (
+                  expandedBucket.unavailable.map((u) => {
+                    const avail = resolveAvailability(availMap, u.uid);
+                    const hasReason = unavailableReasonsFor(avail, [
+                      expandedBucket.date,
+                    ]).length > 0;
+                    return (
+                      <div
+                        key={u.uid}
+                        className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {u.displayName || u.email}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {TEAM_LABELS[normalizeTeamId(u.team_id)]}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {hasReason ? (
+                            <button
+                              type="button"
+                              onClick={() => setReasonMember(u)}
+                              title="불가 사유 보기"
+                              className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                            >
+                              <AlertTriangle className="size-3" />
+                            </button>
+                          ) : null}
+                          <Badge variant="destructive" className="shrink-0">
+                            불가능
+                          </Badge>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
-      </div>
+      ) : null}
 
       <Dialog
         open={!!reasonMember}
