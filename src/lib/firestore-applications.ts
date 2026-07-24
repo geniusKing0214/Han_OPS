@@ -30,6 +30,12 @@ import type { WorkStatus } from "@/types/points";
 import type { EventItem } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
 import { USERS_COLLECTION } from "@/lib/firestore-users";
+import {
+  WORKFORCE_AVAILABILITY,
+  defaultAvailability,
+  docToAvailability,
+} from "@/lib/firestore-workforce";
+import { isUserAvailableOnDate } from "@/lib/workforce-logic";
 import { normalizeTeamId, normalizeTeamIds, type TeamId } from "@/types/team";
 import type { UserProfileDoc } from "@/types/user";
 
@@ -191,6 +197,19 @@ export async function createApplication(input: CreateApplicationInput) {
         );
       }
       throw new Error("소속 팀 일정만 신청할 수 있습니다.");
+    }
+
+    const availSnap = await getDoc(
+      doc(db, WORKFORCE_AVAILABILITY, input.userId),
+    );
+    const avail = availSnap.exists()
+      ? docToAvailability(
+          input.userId,
+          availSnap.data() as Record<string, unknown>,
+        )
+      : defaultAvailability(input.userId);
+    if (!isUserAvailableOnDate(avail, input.date)) {
+      throw new Error("근무 불가로 설정한 날짜에는 신청할 수 없습니다.");
     }
   }
 
