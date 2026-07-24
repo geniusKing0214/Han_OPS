@@ -504,6 +504,7 @@ export async function updateApplicationAdminMemo(
  * 관리자 의사결정 처리:
  * - approved: applications 상태 업데이트 + events 슬롯 신청 인원(+1)
  * - rejected: applications 상태만 업데이트
+ * - 딜러 외 포지션 신청은 승인/거부 관계없이 딜러 슬롯으로 자동 승인 처리
  */
 export async function decideApplication(
   applicationId: string,
@@ -518,6 +519,8 @@ export async function decideApplication(
   }
   const appData = appSnap.data() as Record<string, unknown>;
 
+  let effectiveStatus: "approved" | "rejected" = status;
+
   await runTransaction(db, async (tx) => {
     const freshSnap = await tx.get(appRef);
     if (!freshSnap.exists()) {
@@ -527,6 +530,85 @@ export async function decideApplication(
     const currentStatus = normalizeStatus(freshData.status);
     if (currentStatus !== "pending") {
       throw new Error("이미 처리된 신청입니다.");
+    }
+
+    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+    const sessionId =
+      typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
+    const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
+    const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
+    const appliedPositionLabel =
+      typeof freshData.positionLabel === "string" ? freshData.positionLabel.trim() : "";
+
+    // 딜러 외 포지션으로 신청된 건은 승인/거부 버튼 상관없이 딜러 슬롯으로 자동 승인
+    if (
+      eventId &&
+      positionId &&
+      positionSlotId &&
+      appliedPositionLabel &&
+      appliedPositionLabel !== "딜러"
+    ) {
+      const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+      const eventSnap = await tx.get(eventRef);
+      if (!eventSnap.exists()) {
+        throw new Error("대상 이벤트를 찾을 수 없습니다.");
+      }
+      const eventData = eventSnap.data() as Record<string, unknown>;
+      const positions = Array.isArray(eventData.positions)
+        ? (eventData.positions as Array<Record<string, unknown>>)
+        : [];
+      const dealerPosition = positions.find(
+        (p) => typeof p.label === "string" && p.label.trim() === "딜러",
+      );
+      if (!dealerPosition) {
+        throw new Error("딜러 포지션을 찾을 수 없어 자동 승인할 수 없습니다.");
+      }
+      const dealerSlots = Array.isArray(dealerPosition.slots)
+        ? (dealerPosition.slots as Array<Record<string, unknown>>)
+        : [];
+      const hasRoom = (s: Record<string, unknown>) => {
+        const cap = typeof s.capacity === "number" ? s.capacity : 0;
+        const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
+        return applied < cap;
+      };
+      const positionSlotTime =
+        typeof freshData.positionSlotTime === "string" ? freshData.positionSlotTime : "";
+      const targetSlot =
+        dealerSlots.find((s) => s.time === positionSlotTime && hasRoom(s)) ??
+        dealerSlots.find(hasRoom);
+      if (!targetSlot) {
+        throw new Error("딜러 슬롯 정원이 마감되어 자동 승인할 수 없습니다.");
+      }
+      const appliedCount =
+        typeof targetSlot.applied_count === "number" ? targetSlot.applied_count : 0;
+
+      const nextPositions = positions.map((pos) => {
+        if (pos.id !== dealerPosition.id) return pos;
+        const slots = Array.isArray(pos.slots)
+          ? (pos.slots as Array<Record<string, unknown>>)
+          : [];
+        return {
+          ...pos,
+          slots: slots.map((s) =>
+            s.id === targetSlot.id
+              ? { ...s, applied_count: appliedCount + 1 }
+              : s,
+          ),
+        };
+      });
+
+      tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+      tx.update(appRef, {
+        status: "approved",
+        positionId: dealerPosition.id,
+        positionSlotId: targetSlot.id,
+        positionLabel: "딜러",
+        positionSlotTime:
+          typeof targetSlot.time === "string" ? targetSlot.time : positionSlotTime,
+      });
+      effectiveStatus = "approved";
+      return;
     }
 
     const nextStatus: Exclude<ApplicationStatus, "pending"> = status;
@@ -539,12 +621,6 @@ export async function decideApplication(
       return;
     }
 
-    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
-    const sessionId =
-      typeof freshData.sessionId === "string" ? freshData.sessionId : "";
-    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
-    const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
-    const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
     if (!eventId) {
       throw new Error("신청 데이터에 event 정보가 없습니다.");
     }
@@ -623,7 +699,7 @@ export async function decideApplication(
     tx.update(appRef, { status: nextStatus });
   });
 
-  if (status === "approved") {
+  if (effectiveStatus === "approved") {
     const userId = typeof appData.userId === "string" ? appData.userId : "";
     if (userId) {
       try {
