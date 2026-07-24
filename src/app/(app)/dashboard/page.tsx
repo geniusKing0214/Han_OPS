@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { CalendarDays, ClipboardList, Timer } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
+import { Timer } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { DashboardRecentApplications } from "@/components/dashboard/dashboard-recent-applications";
 import { ImportantNoticeDialog } from "@/components/dashboard/important-notice-dialog";
 import { MyAvailabilityForm } from "@/components/availability/my-availability-form";
-import { useAuth } from "@/components/providers/auth-provider";
 import { useMyApplications } from "@/hooks/use-my-applications";
 import { useEvents } from "@/hooks/use-events";
 import { useNotices } from "@/hooks/use-notices";
@@ -21,11 +20,8 @@ import {
   filterApplicationsInMonth,
   formatApplicationMonthLabel,
 } from "@/lib/application-grouping";
-import { countAvailableApplicationEvents } from "@/lib/schedule-availability";
-import { normalizeTeamId } from "@/lib/team-utils";
 import { cn } from "@/lib/utils";
 import { statusLabels } from "@/types/application";
-import { TEAM_LABELS } from "@/types/team";
 import { mockAdminAlerts } from "@/data/mock-notices";
 
 function StatCard({
@@ -100,13 +96,6 @@ function StatCard({
 
 const RECENT_NOTICES_LIMIT = 3;
 
-function toYmd(date: Date): string {
-  const y = date.getFullYear();
-  const m = `${date.getMonth() + 1}`.padStart(2, "0");
-  const d = `${date.getDate()}`.padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 function formatNoticeDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString("ko-KR", { dateStyle: "medium" });
@@ -116,7 +105,6 @@ function formatNoticeDate(iso: string): string {
 }
 
 export default function DashboardPage() {
-  const { isAdmin, profile } = useAuth();
   const { items: rawApplications, loading: appsLoading } = useMyApplications();
   const { events } = useEvents();
   const { rows: notices, loading: noticesLoading } = useNotices();
@@ -125,44 +113,13 @@ export default function DashboardPage() {
     () => filterApplicationsMatchingLiveSchedule(rawApplications, events),
     [rawApplications, events],
   );
-  const today = toYmd(new Date());
   const thisMonth = currentMonthKey();
   const thisMonthLabel = formatApplicationMonthLabel(thisMonth);
-  const [availableDays, setAvailableDays] = useState(0);
-
-  const handleAvailableCountChange = useCallback((count: number) => {
-    setAvailableDays(count);
-  }, []);
 
   const stats = useMemo(() => {
     const pending = myApplications.filter((a) => a.status === "pending").length;
-
-    const appliedEventIds = new Set(
-      myApplications
-        .filter(
-          (a) =>
-            (a.status === "pending" ||
-              a.status === "approved" ||
-              a.status === "completed") &&
-            a.eventId,
-        )
-        .map((a) => a.eventId as string),
-    );
-    const openSlotsTeamId = isAdmin ? undefined : normalizeTeamId(profile?.teamId);
-    const openSlots = countAvailableApplicationEvents(
-      events,
-      appliedEventIds,
-      today,
-      openSlotsTeamId,
-    );
-    return {
-      pendingApprovals: pending,
-      openSlots,
-      openSlotsTeamLabel: isAdmin
-        ? "전체 팀"
-        : TEAM_LABELS[normalizeTeamId(profile?.teamId)],
-    };
-  }, [events, isAdmin, myApplications, profile?.teamId, today]);
+    return { pendingApprovals: pending };
+  }, [myApplications]);
 
   const myBlocks = useMemo(
     () =>
@@ -195,33 +152,17 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MyAvailabilityForm
-            compact
-            onAvailableCountChange={handleAvailableCountChange}
-          />
+          <MyAvailabilityForm compact />
         </CardContent>
       </Card>
 
-      <div className="grid auto-rows-fr gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
+      <div className="sm:max-w-xs">
         <StatCard
           title="승인 대기"
           value={stats.pendingApprovals}
           hint="관리자 검토 필요"
           icon={<Timer className="size-4 text-amber-400/90" />}
           href="/applications?tab=pending"
-        />
-        <StatCard
-          title="신청 가능 일정"
-          value={stats.openSlots}
-          hint={`${stats.openSlotsTeamLabel} · 오늘 이후 · 정원 여유 있는 일정`}
-          icon={<ClipboardList className="size-4 text-muted-foreground" />}
-          href="/schedule"
-        />
-        <StatCard
-          title="근무 가능일"
-          value={availableDays}
-          hint="익주 가능 일수 · 위 신청 카드에서 확인"
-          icon={<CalendarDays className="size-4 text-emerald-400/90" />}
         />
       </div>
 
