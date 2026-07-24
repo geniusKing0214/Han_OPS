@@ -876,3 +876,95 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
     // 취소는 성공 — 알림만 실패할 수 있음
   }
 }
+
+/** 관리자: 승인된 신청자 배정 해제 (슬롯 정원 복구 후 신청 삭제) */
+export async function adminRemoveApprovedApplicant(applicationId: string) {
+  await assertAdmin();
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("신청을 찾을 수 없습니다.");
+  }
+
+  await runTransaction(db, async (tx) => {
+    const freshSnap = await tx.get(appRef);
+    if (!freshSnap.exists()) {
+      throw new Error("신청을 찾을 수 없습니다.");
+    }
+    const freshData = freshSnap.data() as Record<string, unknown>;
+    const freshStatus = normalizeStatus(freshData.status);
+    if (freshStatus === "completed") {
+      throw new Error("완료된 신청은 배정 해제할 수 없습니다.");
+    }
+
+    if (freshStatus !== "approved") {
+      tx.delete(appRef);
+      return;
+    }
+
+    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+    const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
+    const positionSlotId =
+      typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
+
+    if (!eventId) {
+      tx.delete(appRef);
+      return;
+    }
+
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+    const eventSnap = await tx.get(eventRef);
+    if (!eventSnap.exists()) {
+      tx.delete(appRef);
+      return;
+    }
+    const eventData = eventSnap.data() as Record<string, unknown>;
+
+    // Option B: 포지션 슬롯 기반 배정 해제
+    if (positionId && positionSlotId) {
+      const positions = Array.isArray(eventData.positions)
+        ? (eventData.positions as Array<Record<string, unknown>>)
+        : [];
+      const nextPositions = positions.map((pos) => {
+        if (pos.id !== positionId) return pos;
+        const slots = Array.isArray(pos.slots)
+          ? (pos.slots as Array<Record<string, unknown>>)
+          : [];
+        return {
+          ...pos,
+          slots: slots.map((s) => {
+            if (s.id !== positionSlotId) return s;
+            const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
+            return { ...s, applied_count: Math.max(0, applied - 1) };
+          }),
+        };
+      });
+      tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+      tx.delete(appRef);
+      return;
+    }
+
+    // 기존: 세션 슬롯 기반 배정 해제
+    const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
+    if (!sessionId || !slotId) {
+      tx.delete(appRef);
+      return;
+    }
+    const sessions = Array.isArray(eventData.sessions)
+      ? (eventData.sessions as EventItem["sessions"])
+      : [];
+    const nextSessions = sessions.map((sess) => {
+      if (sess.id !== sessionId) return sess;
+      return {
+        ...sess,
+        slots: sess.slots.map((slot) => {
+          if (slot.id !== slotId) return slot;
+          return { ...slot, applied_count: Math.max(0, slot.applied_count - 1) };
+        }),
+      };
+    });
+    tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
+    tx.delete(appRef);
+  });
+}

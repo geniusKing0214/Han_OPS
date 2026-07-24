@@ -45,7 +45,10 @@ import {
   subscribeAllUsersForWorkforce,
   type ListedUserRow,
 } from "@/lib/firestore-users";
-import { subscribeAllApplicationsForAdmin } from "@/lib/firestore-applications";
+import {
+  adminRemoveApprovedApplicant,
+  subscribeAllApplicationsForAdmin,
+} from "@/lib/firestore-applications";
 import type { ApplicationItem } from "@/types/application";
 import {
   confirmWorkforceWeek,
@@ -124,7 +127,35 @@ const STATUS_DOT: Record<WorkforceWorkerStatus, string> = {
   leave: "bg-zinc-400",
 };
 
-type ApprovedApplicant = { uid?: string; name: string; positionLabel?: string };
+type ApprovedApplicant = {
+  uid?: string;
+  name: string;
+  positionLabel?: string;
+  applicationId: string;
+  completed: boolean;
+};
+
+/** 포지션 배지 색상: 딜러=기본 초록, 그 외(플로어/레지/칩스/커스텀 추가 포지션 등)는
+ * 라벨 문자열 해시로 팔레트에서 안정적으로 골라 서로 다른 색을 부여한다. */
+const POSITION_BADGE_PALETTE = [
+  "bg-blue-500/25 text-blue-200",
+  "bg-amber-500/25 text-amber-100",
+  "bg-purple-500/25 text-purple-200",
+  "bg-pink-500/25 text-pink-200",
+  "bg-cyan-500/25 text-cyan-200",
+  "bg-red-500/25 text-red-200",
+  "bg-lime-500/25 text-lime-200",
+];
+const POSITION_BADGE_DEFAULT = "bg-emerald-500/25 text-emerald-200";
+
+function positionBadgeClass(label: string | undefined): string {
+  if (!label || label === "딜러") return POSITION_BADGE_DEFAULT;
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) {
+    hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+  }
+  return POSITION_BADGE_PALETTE[hash % POSITION_BADGE_PALETTE.length]!;
+}
 
 type ScheduleFormState = {
   title: string;
@@ -443,7 +474,13 @@ export function WorkforceSchedulerPanel({
         const dedupeKey = app.userId || name;
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
-        rows.push({ uid: app.userId, name, positionLabel: app.positionLabel?.trim() || undefined });
+        rows.push({
+          uid: app.userId,
+          name,
+          positionLabel: app.positionLabel?.trim() || undefined,
+          applicationId: app.id,
+          completed: app.status === "completed",
+        });
       }
       if (rows.length > 0) result.set(s.id, rows);
     }
@@ -646,6 +683,17 @@ export function WorkforceSchedulerPanel({
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "해제에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeApprovedApplicant = async (applicationId: string) => {
+    setBusy(true);
+    try {
+      await adminRemoveApprovedApplicant(applicationId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "배정 해제에 실패했습니다.");
     } finally {
       setBusy(false);
     }
@@ -1581,6 +1629,9 @@ export function WorkforceSchedulerPanel({
                             setAssignTarget(s);
                           }}
                           onRemoveUser={(uid) => void removeAssignee(s, uid)}
+                          onRemoveApprovedApplicant={(applicationId) =>
+                            void removeApprovedApplicant(applicationId)
+                          }
                           onSetPosition={(uid, pos) =>
                             void setWorkerPosition(s, uid, pos)
                           }
@@ -1932,6 +1983,7 @@ function ScheduleCard({
   onDropWorker,
   onClickAssign,
   onRemoveUser,
+  onRemoveApprovedApplicant,
   onSetPosition,
   onPatch,
   onToggleClosed,
@@ -1950,6 +2002,7 @@ function ScheduleCard({
   onDropWorker: () => void;
   onClickAssign: () => void;
   onRemoveUser: (uid: string) => void;
+  onRemoveApprovedApplicant: (applicationId: string) => void;
   onSetPosition: (uid: string, positionLabel: string | null) => void;
   onPatch: (patch: Partial<{ venue: string; requiredCount: number }>) => void;
   onToggleClosed?: () => void;
@@ -2143,14 +2196,30 @@ function ScheduleCard({
                 <div className="flex flex-wrap gap-1">
                   {approvedApplicants.map((a, i) => (
                     <span
-                      key={a.uid || `${a.name}:${i}`}
-                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
+                      key={a.applicationId || a.uid || `${a.name}:${i}`}
+                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
                       title="이벤트 신청 승인"
                     >
-                      <span className="rounded-sm bg-emerald-500/25 px-1 text-[9px] leading-4">
+                      <span
+                        className={cn(
+                          "rounded-sm px-1 text-[9px] leading-4",
+                          positionBadgeClass(a.positionLabel),
+                        )}
+                      >
                         {a.positionLabel ?? "신청"}
                       </span>
                       <span className="truncate">{a.name}</span>
+                      {a.completed ? null : (
+                        <button
+                          type="button"
+                          className="shrink-0 opacity-70 hover:opacity-100"
+                          onClick={() => onRemoveApprovedApplicant(a.applicationId)}
+                          aria-label="배정 해제"
+                          title="배정 해제"
+                        >
+                          ×
+                        </button>
+                      )}
                     </span>
                   ))}
                   {schedule.assignedUserIds.map((uid) => {
