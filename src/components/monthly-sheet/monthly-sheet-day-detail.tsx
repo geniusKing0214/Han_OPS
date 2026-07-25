@@ -197,7 +197,15 @@ export function MonthlySheetDayDetail({
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 완료
                             </Button>
-                          ) : windowStatus === "open" ? (
+                          ) : ev?.closed ? (
+                            <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
+                              신청 마감
+                            </Button>
+                          ) : ev?.locked ? (
+                            <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
+                              신청 잠금
+                            </Button>
+                          ) : (
                             <Button
                               size="sm"
                               variant="accent"
@@ -242,7 +250,7 @@ export function MonthlySheetDayDetail({
                             >
                               신청
                             </Button>
-                          ) : null}
+                          )}
                           {!alreadyApplied && windowStatus === "blocked" ? (
                             <Link
                               href="/my-availability"
