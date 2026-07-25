@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-import type { EventItem, Session } from "@/types/schedule";
+import type { EventItem, EventPackage, Session } from "@/types/schedule";
 import type { TeamId } from "@/types/team";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
@@ -33,6 +33,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+/** 패키지의 startDate~endDate 사이 모든 날짜 배열 생성 */
+function expandPackageDates(pkg: EventPackage): string[] {
+  const dates: string[] = [];
+  const cur = new Date(pkg.startDate + "T00:00:00");
+  const end = new Date(pkg.endDate + "T00:00:00");
+  while (cur <= end) {
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, "0");
+    const d = String(cur.getDate()).padStart(2, "0");
+    dates.push(`${y}-${m}-${d}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
 
 function sessionsForDate(events: EventItem[], ymd: string) {
   const out: { event: EventItem; session: Session }[] = [];
@@ -170,7 +185,8 @@ export function ScheduleBoard({
                   primarySession.date,
                   myAvailability,
                 );
-                const windowOpen = windowStatus === "open";
+                // locked===false: 어드민이 명시적으로 잠금 해제 → 윈도우 체크 우회
+                const windowOpen = event.locked === false ? true : windowStatus === "open";
                 return (
                   <Card
                     key={groupKey ?? `${event.id}-${session.id}`}
@@ -258,8 +274,58 @@ export function ScheduleBoard({
                         <p className="text-xs text-muted-foreground">
                           거절 처리된 신청은 같은 이벤트에 다시 신청할 수 있습니다.
                         </p>
-                        {/* Option B: 포지션 기반 표시 */}
-                        {event.usePositions && event.positions && event.positions.length > 0 ? (
+                        {/* 기간 패키지 표시 */}
+                        {event.packages && event.packages.length > 0 ? (
+                          <div className="space-y-2">
+                            {event.packages.map((pkg) => {
+                              const pkgDates = expandPackageDates(pkg);
+                              const alreadyAppliedEvent = appliedEventIds.has(event.id);
+                              return (
+                                <div key={pkg.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2.5">
+                                  <div className="text-sm">
+                                    <span className="font-semibold text-foreground">{pkg.label}</span>
+                                    <span className="ml-2 tabular-nums text-muted-foreground text-xs">
+                                      {pkg.startDate} ~ {pkg.endDate} ({pkgDates.length}일)
+                                    </span>
+                                  </div>
+                                  {event.closed ? (
+                                    <Button size="sm" variant="outline" disabled>신청 마감</Button>
+                                  ) : event.locked ? (
+                                    <Button size="sm" variant="outline" disabled>신청 잠금</Button>
+                                  ) : alreadyAppliedEvent ? (
+                                    <Button size="sm" variant="outline" disabled>신청 완료</Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="accent"
+                                      onClick={() => {
+                                        // 패키지의 첫 세션을 기준 sessionId로 사용
+                                        const firstSession = event.sessions
+                                          .filter((s) => pkgDates.includes(s.date))
+                                          .sort((a, b) => a.date.localeCompare(b.date))[0];
+                                        setApplyCtx({
+                                          eventId: event.id,
+                                          sessionId: firstSession?.id ?? "",
+                                          eventTitle: event.title,
+                                          venue: event.venue,
+                                          date: pkg.startDate,
+                                          packageId: pkg.id,
+                                          packageLabel: pkg.label,
+                                          packageDates: pkgDates,
+                                        });
+                                        setApplyOpen(true);
+                                      }}
+                                    >
+                                      신청
+                                    </Button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                        {/* Option B: 포지션 기반 표시 (패키지 없는 경우에만) */}
+                        {!event.packages?.length && event.usePositions && event.positions && event.positions.length > 0 ? (
                           <div className="space-y-2">
                             {event.positions!.map((pos) => {
                               const alreadyAppliedEvent = appliedEventIds.has(event.id);
@@ -328,9 +394,10 @@ export function ScheduleBoard({
                               );
                             })}
                           </div>
-                        ) : (
+                        ) : !event.packages?.length ? (
                           /* 기존: 일반 슬롯 표시 */
-                          session.slots.map((slot) => {
+                          <>
+                          {session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
                           const alreadyAppliedEvent = appliedEventIds.has(event.id);
                           const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked || !windowOpen;
@@ -391,7 +458,8 @@ export function ScheduleBoard({
                               </Button>
                             </div>
                           );
-                        }))}
+                        })}</>
+                        ) : null}
                       </CardContent>
                     )}
                   </Card>

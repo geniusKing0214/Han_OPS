@@ -132,13 +132,19 @@ function buildPositionSessionRow(
   includePending: boolean,
   entryOverride?: SheetEntryOverride,
 ): SheetSlotRow | null {
-  // 그룹 신청: groupSessionIds에 이 세션이 포함된 경우도 매칭
+  // 그룹/패키지 신청 포함 매칭
   const sessionApps = applications.filter(
     (a) =>
       a.eventId === event.id &&
-      (a.sessionId === session.id ||
-        (a.groupSessionIds?.includes(session.id) ?? false)) &&
-      normalizeAppTeam(a) === teamId,
+      normalizeAppTeam(a) === teamId &&
+      (
+        // 패키지 신청: packageDates에 이 날짜가 포함
+        (a.packageId && (a.packageDates?.includes(session.date) ?? false)) ||
+        // 그룹 신청: groupSessionIds에 이 세션이 포함
+        (!a.packageId && (a.groupSessionIds?.includes(session.id) ?? false)) ||
+        // 일반 신청: sessionId 일치
+        (!a.packageId && a.sessionId === session.id)
+      ),
   );
 
   const visibleApps = sessionApps.filter((a) =>
@@ -169,6 +175,8 @@ function buildPositionSessionRow(
     status: a.status,
     positionLabel: a.positionLabel,
     groupDates: a.groupDates,
+    packageDates: a.packageDates,
+    packageLabel: a.packageLabel,
   }));
 
   const approvedCount = applicants.filter(
@@ -245,6 +253,8 @@ function buildSlotRow(
     status: a.status,
     positionLabel: a.positionLabel,
     groupDates: a.groupDates,
+    packageDates: a.packageDates,
+    packageLabel: a.packageLabel,
   }));
 
   const approvedCount = applicants.filter(

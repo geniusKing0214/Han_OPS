@@ -42,6 +42,10 @@ export type ApplySlotContext = {
   groupId?: string;
   groupDates?: string[];
   groupSessionIds?: string[];
+  // 기간 패키지
+  packageId?: string;
+  packageLabel?: string;
+  packageDates?: string[];
 };
 
 /** 포지션+슬롯 선택 상태 */
@@ -150,6 +154,111 @@ export function ApplySlotSurface({
       {submitError ? <p className="mt-3 text-xs text-red-300">{submitError}</p> : null}
     </>
   );
+
+  // ── 기간 패키지 body ─────────────────────────────────────────────
+  const isPackageApp = !!ctx.packageId;
+  if (isPackageApp) {
+    const pkgDates = ctx.packageDates ?? [];
+    const pkgLabel = ctx.packageLabel ?? "";
+    const pkgDateRange = pkgDates.length > 0
+      ? `${pkgDates[0]} ~ ${pkgDates[pkgDates.length - 1]} (${pkgDates.length}일)`
+      : "";
+    const packageBody = (
+      <>
+        <div className="space-y-1 text-sm text-muted-foreground">
+          <p>
+            <span className="text-foreground font-medium">{ctx.eventTitle}</span>
+            <span className="mx-1">·</span>
+            {ctx.venue}
+          </p>
+          <p className="tabular-nums text-xs">
+            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+              {pkgLabel && `${pkgLabel} · `}{pkgDateRange}
+            </span>
+          </p>
+        </div>
+        <div className="mt-4">
+          <label className="text-xs font-medium text-muted-foreground">메모 (선택)</label>
+          <textarea
+            className="mt-1.5 flex min-h-[72px] w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
+            placeholder="운영팀 전달 사항"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            disabled={submitting}
+          />
+        </div>
+        {submitError ? <p className="mt-3 text-xs text-red-300">{submitError}</p> : null}
+      </>
+    );
+    const packageFooter = (
+      <>
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>취소</Button>
+        <Button
+          type="button"
+          variant="accent"
+          disabled={submitting}
+          onClick={async () => {
+            if (!user) { setSubmitError("로그인이 필요합니다."); return; }
+            setSubmitError("");
+            setSubmitting(true);
+            try {
+              const nick = profile?.displayName?.trim() || user.displayName?.trim() || "";
+              await createApplication({
+                userId: user.uid,
+                applicantDisplayName: nick.slice(0, 80),
+                applicantEmail: user.email ?? "",
+                eventId: ctx.eventId,
+                sessionId: ctx.sessionId,
+                slotId: "",
+                eventTitle: ctx.eventTitle,
+                venue: ctx.venue,
+                date: ctx.date,
+                slotTime: "",
+                note: note.trim(),
+                packageId: ctx.packageId,
+                packageLabel: ctx.packageLabel,
+                packageDates: ctx.packageDates,
+              });
+              setNote("");
+              onOpenChange(false);
+            } catch (e) {
+              setSubmitError(e instanceof Error ? e.message : "저장에 실패했습니다.");
+            } finally {
+              setSubmitting(false);
+            }
+          }}
+        >
+          {submitting ? "제출 중..." : "신청하기"}
+        </Button>
+      </>
+    );
+    if (isDesktop) {
+      return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>기간 패키지 신청</DialogTitle>
+              <DialogDescription>제출 시 내 신청 목록에 표시됩니다.</DialogDescription>
+            </DialogHeader>
+            {packageBody}
+            <DialogFooter className="gap-2 sm:gap-0">{packageFooter}</DialogFooter>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>기간 패키지 신청</SheetTitle>
+            <SheetDescription>선택한 기간으로 신청합니다.</SheetDescription>
+          </SheetHeader>
+          <div className="mt-4">{packageBody}</div>
+          <SheetFooter className="mt-6 flex-row gap-2">{packageFooter}</SheetFooter>
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   // ── Option B: 포지션×시간 그리드 body ──────────────────────────
   const isGroupApp = !!(ctx.groupId && ctx.groupDates && ctx.groupDates.length > 1);

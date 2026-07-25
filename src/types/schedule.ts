@@ -67,5 +67,19 @@ export type EventItem = {
   closed?: boolean;
   /** 신청 잠금 — true 이면 어드민이 수동으로 신청을 잠근 상태 (아직 오픈 안 함) */
   locked?: boolean;
+  /**
+   * 기간 패키지 목록 — 관리자가 정의한 신청 가능 기간 옵션
+   * (예: "5일" = 8/1~8/5, "7일" = 8/1~8/7, "전체" = 8/1~8/10)
+   * packages가 있으면 슬롯/포지션 대신 패키지 선택으로 신청
+   */
+  packages?: EventPackage[];
+};
+
+/** 기간 패키지 (10일 이벤트에서 5일/7일/전체 등 기간 옵션) */
+export type EventPackage = {
+  id: string;
+  label: string;     // "5일", "7일", "전체"
+  startDate: string; // "2026-08-01"
+  endDate: string;   // "2026-08-05"
 };
 

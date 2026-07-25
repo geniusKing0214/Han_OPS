@@ -130,6 +130,11 @@ function docToApplicationItem(
     groupSessionIds: Array.isArray(data.groupSessionIds)
       ? (data.groupSessionIds as string[])
       : undefined,
+    packageId: typeof data.packageId === "string" ? data.packageId : undefined,
+    packageLabel: typeof data.packageLabel === "string" ? data.packageLabel : undefined,
+    packageDates: Array.isArray(data.packageDates)
+      ? (data.packageDates as string[])
+      : undefined,
   };
 }
 
@@ -153,6 +158,10 @@ export type CreateApplicationInput = {
   groupId?: string;
   groupDates?: string[];
   groupSessionIds?: string[];
+  /** 기간 패키지 신청 */
+  packageId?: string;
+  packageLabel?: string;
+  packageDates?: string[];
 };
 
 export async function createApplication(input: CreateApplicationInput) {
@@ -220,9 +229,15 @@ export async function createApplication(input: CreateApplicationInput) {
           availSnap.data() as Record<string, unknown>,
         )
       : defaultAvailability(input.userId);
-    // 연속 일정 묶음은 주 단위 가용성 체크를 건너뜀 (미리 생성된 일정은 잠금/해제로 제어)
+    // 주간 가용성 체크 스킵 조건:
+    // 1) 연속 일정 묶음(groupId) 신청
+    // 2) 기간 패키지(packageId) 신청
+    // 3) 어드민이 명시적으로 잠금 해제(locked=false)한 이벤트 — 미리 신청 받는 경우
     const isGroupApp = !!input.groupId && Array.isArray(input.groupDates) && input.groupDates.length > 1;
-    if (!isGroupApp) {
+    const isPackageApp = !!input.packageId;
+    const isExplicitlyUnlocked = eventData.locked === false;
+    const skipWeeklyCheck = isGroupApp || isPackageApp || isExplicitlyUnlocked;
+    if (!skipWeeklyCheck) {
       if (!isUserAvailableOnDate(avail, input.date)) {
         throw new Error("근무 불가로 설정한 날짜에는 신청할 수 없습니다.");
       }
@@ -274,6 +289,9 @@ export async function createApplication(input: CreateApplicationInput) {
     ...(input.groupId ? { groupId: input.groupId } : {}),
     ...(input.groupDates ? { groupDates: input.groupDates } : {}),
     ...(input.groupSessionIds ? { groupSessionIds: input.groupSessionIds } : {}),
+    ...(input.packageId ? { packageId: input.packageId } : {}),
+    ...(input.packageLabel ? { packageLabel: input.packageLabel } : {}),
+    ...(input.packageDates ? { packageDates: input.packageDates } : {}),
   });
 
   try {

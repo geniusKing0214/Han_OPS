@@ -19,7 +19,7 @@ import {
 import { computeTeam2ApplyOpensAt } from "@/lib/application-window";
 import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
-import type { EventItem, PositionDef, PositionSlot } from "@/types/schedule";
+import type { EventItem, EventPackage, PositionDef, PositionSlot } from "@/types/schedule";
 
 export const EVENTS_COLLECTION = "events";
 const APPLICATIONS_COLLECTION = "applications";
@@ -73,7 +73,24 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
       }))
     : [];
   const closed = data.closed === true ? true : undefined;
-  const locked = data.locked === true ? true : undefined;
+  // locked: true=잠금, false=명시 해제(윈도우 우회), undefined=미설정(구형 이벤트)
+  const locked = typeof data.locked === "boolean" ? data.locked : undefined;
+  const packages: EventPackage[] = Array.isArray(data.packages)
+    ? (data.packages as Array<Record<string, unknown>>)
+        .filter(
+          (p) =>
+            typeof p.id === "string" &&
+            typeof p.label === "string" &&
+            typeof p.startDate === "string" &&
+            typeof p.endDate === "string",
+        )
+        .map((p) => ({
+          id: p.id as string,
+          label: p.label as string,
+          startDate: p.startDate as string,
+          endDate: p.endDate as string,
+        }))
+    : [];
   return {
     id,
     title,
@@ -88,7 +105,8 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     usePositions,
     positions,
     ...(closed ? { closed } : {}),
-    ...(locked ? { locked } : {}),
+    ...(locked !== undefined ? { locked } : {}),
+    ...(packages.length > 0 ? { packages } : {}),
   };
 }
 
@@ -143,6 +161,7 @@ export async function saveEvent(event: EventItem): Promise<void> {
     usePositions: event.usePositions ?? false,
     positions: event.positions ?? [],
     locked: event.locked ?? false,
+    packages: event.packages ?? [],
     updatedAt: serverTimestamp(),
   };
   if (event.createdAt) payload.createdAt = event.createdAt;

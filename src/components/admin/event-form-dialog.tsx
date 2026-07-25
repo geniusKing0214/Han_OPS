@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { EventItem, PositionDef, Session } from "@/types/schedule";
+import type { EventItem, EventPackage, PositionDef, Session } from "@/types/schedule";
 import { DEFAULT_POSITIONS } from "@/types/schedule";
 import {
   TEAM_EXPOSURE_OPTIONS,
@@ -33,6 +33,12 @@ function emptySession(): SessionDraft {
   return { id: crypto.randomUUID(), date: "", groupNum: "" };
 }
 
+type PackageDraft = { id: string; label: string; startDate: string; endDate: string };
+
+function emptyPackage(): PackageDraft {
+  return { id: crypto.randomUUID(), label: "", startDate: "", endDate: "" };
+}
+
 export type CreateScheduleDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +67,7 @@ export function CreateScheduleDialog({
   const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [sessions, setSessions] = useState<SessionDraft[]>([emptySession()]);
   const [positions, setPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
+  const [packages, setPackages] = useState<PackageDraft[]>([]);
   const [locked, setLocked] = useState(false);
   const [error, setError] = useState("");
 
@@ -78,6 +85,7 @@ export function CreateScheduleDialog({
         : emptySession(),
     ]);
     setPositions(DEFAULT_POSITIONS);
+    setPackages([]);
     setLocked(false);
     setError("");
   }, [open, defaultDate]);
@@ -115,12 +123,18 @@ export function CreateScheduleDialog({
         return;
       }
     }
-    const hasAnySlot = positions.some(
-      (p) => p.label.trim() && p.slots.length > 0,
+    const hasAnyPackage = packages.some(
+      (p) => p.label.trim() && p.startDate && p.endDate,
     );
-    if (!hasAnySlot) {
-      setError("포지션에 최소 1개 이상의 시간 슬롯을 추가하세요.");
-      return;
+    if (!hasAnyPackage) {
+      // 패키지 없는 일반 이벤트는 슬롯 필수
+      const hasAnySlot = positions.some(
+        (p) => p.label.trim() && p.slots.length > 0,
+      );
+      if (!hasAnySlot) {
+        setError("포지션에 최소 1개 이상의 시간 슬롯을 추가하거나, 기간 패키지를 정의하세요.");
+        return;
+      }
     }
 
     // 묶음 번호 → groupId UUID 변환
@@ -142,15 +156,20 @@ export function CreateScheduleDialog({
       };
     });
 
+    const builtPackages: EventPackage[] = packages
+      .filter((p) => p.label.trim() && p.startDate && p.endDate)
+      .map((p) => ({ id: p.id, label: p.label.trim(), startDate: p.startDate, endDate: p.endDate }));
+
     const payload: Omit<EventItem, "id"> = {
       title: title.trim(),
       venue: venue.trim(),
       team_ids: teamExposureToTeamIds(teamExposure),
       sessions: builtSessions,
       attendance,
-      usePositions: true,
-      positions: positions.filter((p) => p.label.trim()),
+      usePositions: builtPackages.length === 0,
+      positions: builtPackages.length === 0 ? positions.filter((p) => p.label.trim()) : [],
       locked,
+      ...(builtPackages.length > 0 ? { packages: builtPackages } : {}),
     };
     if (notice.trim()) payload.notice = notice.trim();
     if (color.trim()) payload.color = color.trim();
@@ -429,6 +448,84 @@ export function CreateScheduleDialog({
                 }`}
               />
             </button>
+          </div>
+
+          <Separator />
+
+          {/* 기간 패키지 (선택) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">기간 패키지 (선택)</p>
+                <p className="text-xs text-muted-foreground">
+                  10일 이벤트에서 5일·7일·전체처럼 신청 기간을 나눌 때 사용합니다
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setPackages((prev) => [...prev, emptyPackage()])}
+              >
+                + 패키지 추가
+              </Button>
+            </div>
+            {packages.length > 0 && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                {packages.map((pkg) => (
+                  <div key={pkg.id} className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-card px-3 py-2.5">
+                    <div className="w-20 space-y-1 shrink-0">
+                      <label className="text-[10px] text-muted-foreground">라벨</label>
+                      <Input
+                        className="h-8 text-sm"
+                        placeholder="5일"
+                        value={pkg.label}
+                        onChange={(e) =>
+                          setPackages((prev) =>
+                            prev.map((p) => p.id === pkg.id ? { ...p, label: e.target.value } : p),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[120px] space-y-1">
+                      <label className="text-[10px] text-muted-foreground">시작일</label>
+                      <Input
+                        type="date"
+                        className="h-8 text-sm"
+                        value={pkg.startDate}
+                        onChange={(e) =>
+                          setPackages((prev) =>
+                            prev.map((p) => p.id === pkg.id ? { ...p, startDate: e.target.value } : p),
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[120px] space-y-1">
+                      <label className="text-[10px] text-muted-foreground">종료일</label>
+                      <Input
+                        type="date"
+                        className="h-8 text-sm"
+                        value={pkg.endDate}
+                        onChange={(e) =>
+                          setPackages((prev) =>
+                            prev.map((p) => p.id === pkg.id ? { ...p, endDate: e.target.value } : p),
+                          )
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-400 shrink-0 h-8"
+                      onClick={() => setPackages((prev) => prev.filter((p) => p.id !== pkg.id))}
+                    >
+                      삭제
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <Separator />

@@ -325,7 +325,11 @@ export function MonthlySheetDayDetail({
                               : statusLabel(a.status)}
                           </Badge>
                           <span>{a.name}</span>
-                          {a.groupDates && a.groupDates.length > 1 ? (
+                          {a.packageDates && a.packageDates.length > 0 ? (
+                            <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-1 py-px text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/25 md:text-[11px]">
+                              {a.packageLabel ? `${a.packageLabel} ` : ""}{a.packageDates.length}일
+                            </span>
+                          ) : a.groupDates && a.groupDates.length > 1 ? (
                             <span className="inline-flex items-center rounded-md bg-blue-500/15 px-1 py-px text-[10px] font-semibold text-blue-300 ring-1 ring-blue-500/25 md:text-[11px]">
                               {a.groupDates.length}일
                             </span>

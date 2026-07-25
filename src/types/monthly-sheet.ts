@@ -35,6 +35,9 @@ export type SheetApplicant = {
   positionLabel?: string;
   /** 연속 일정 묶음 날짜 목록 — 있으면 "(X일)" 뱃지 표시 */
   groupDates?: string[];
+  /** 기간 패키지 날짜 목록 — 있으면 "(X일)" 뱃지 표시 */
+  packageDates?: string[];
+  packageLabel?: string;
 };
 
 /** 캘린더 셀·상세에 표시할 슬롯 단위 행 */

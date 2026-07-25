@@ -49,6 +49,12 @@ export type ApplicationItem = {
   groupDates?: string[];
   /** 묶음에 포함된 전체 세션 ID 목록 (취합표 매칭용) */
   groupSessionIds?: string[];
+  /** 기간 패키지 신청 — 선택한 패키지 ID */
+  packageId?: string;
+  /** 패키지 라벨 스냅샷 (e.g. "5일", "전체") */
+  packageLabel?: string;
+  /** 패키지에 포함된 전체 날짜 목록 (취합표 전 날짜 표시용) */
+  packageDates?: string[];
 };
 
 export const statusLabels: Record<ApplicationStatus, string> = {
