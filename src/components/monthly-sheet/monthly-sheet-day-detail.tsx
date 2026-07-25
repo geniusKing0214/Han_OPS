@@ -197,7 +197,7 @@ export function MonthlySheetDayDetail({
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 완료
                             </Button>
-                          ) : ev?.closed ? (
+                          ) : ev?.closed || windowStatus === "closed" ? (
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 마감
                             </Button>

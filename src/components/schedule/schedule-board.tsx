@@ -185,8 +185,11 @@ export function ScheduleBoard({
                   primarySession.date,
                   myAvailability,
                 );
-                // locked이 true가 아닌 경우(undefined/false) → 윈도우 체크 우회 (신청전/신청마감도 신청 가능)
-                const windowOpen = event.locked !== true ? true : windowStatus === "open";
+                // 잠금 없는 이벤트: 신청전(before)·신청중(open)은 허용, 신청마감(closed)만 차단
+                // 잠금 있는 이벤트: open일 때만 허용
+                const windowOpen = event.locked !== true
+                  ? windowStatus !== "closed"
+                  : windowStatus === "open";
                 return (
                   <Card
                     key={groupKey ?? `${event.id}-${session.id}`}
@@ -357,7 +360,7 @@ export function ScheduleBoard({
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 마감</Button>
                                       ) : event.locked ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 잠금</Button>
-                                      ) : !alreadyAppliedEvent && !teamApplyLocked &&
+                                      ) : !alreadyAppliedEvent && !teamApplyLocked && windowOpen &&
                                       pos.slots.some((s) => s.applied_count < s.capacity) ? (
                                         <Button
                                           size="sm"
@@ -400,7 +403,7 @@ export function ScheduleBoard({
                             {session.slots.map((slot) => {
                               const full = slot.applied_count >= slot.capacity;
                               const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                              const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked;
+                              const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked || !windowOpen;
                               return (
                                 <div
                                   key={slot.id}
