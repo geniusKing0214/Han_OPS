@@ -63,5 +63,7 @@ export type EventItem = {
   positions?: PositionDef[];
   /** 마감 처리 여부 — true 이면 신청 불가 */
   closed?: boolean;
+  /** 신청 잠금 — true 이면 어드민이 수동으로 신청을 잠근 상태 (아직 오픈 안 함) */
+  locked?: boolean;
 };
 

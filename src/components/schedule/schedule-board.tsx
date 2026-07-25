@@ -166,6 +166,10 @@ export function ScheduleBoard({
                             <p className="mt-2 text-xs font-semibold text-red-400">
                               신청 마감
                             </p>
+                          ) : event.locked ? (
+                            <p className="mt-2 text-xs font-semibold text-blue-400">
+                              신청 잠금
+                            </p>
                           ) : teamApplyLocked ? (
                             <p className="mt-2 text-xs text-amber-700 dark:text-amber-200">
                               2팀 신청 대기 ·{" "}
@@ -220,6 +224,8 @@ export function ScheduleBoard({
                                       {/* 이 포지션에 열린 슬롯이 하나라도 있으면 신청 버튼 */}
                                       {event.closed ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 마감</Button>
+                                      ) : event.locked ? (
+                                        <Button size="sm" variant="outline" disabled className="w-full">신청 잠금</Button>
                                       ) : !alreadyAppliedEvent && !teamApplyLocked &&
                                       pos.slots.some((s) => s.applied_count < s.capacity) ? (
                                         <Button
@@ -257,7 +263,7 @@ export function ScheduleBoard({
                           session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
                           const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed;
+                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked;
                           return (
                             <div
                               key={slot.id}
@@ -294,7 +300,7 @@ export function ScheduleBoard({
                                   setApplyOpen(true);
                                 }}
                               >
-                                {alreadyAppliedEvent ? "신청 완료" : event.closed ? "신청 마감" : full ? "마감" : teamApplyLocked ? "대기 중" : "신청"}
+                                {alreadyAppliedEvent ? "신청 완료" : event.closed ? "신청 마감" : event.locked ? "신청 잠금" : full ? "마감" : teamApplyLocked ? "대기 중" : "신청"}
                               </Button>
                             </div>
                           );

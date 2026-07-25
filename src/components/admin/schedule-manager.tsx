@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
 import { TeamFilter } from "@/components/team/team-filter";
-import { deleteEvent, createScheduleEvent, saveEvent, toggleEventClosed } from "@/lib/firestore-events";
+import { deleteEvent, createScheduleEvent, saveEvent, toggleEventClosed, toggleEventLocked } from "@/lib/firestore-events";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useEvents } from "@/hooks/use-events";
 import { filterEventsByTeamFilter } from "@/lib/team-utils";
@@ -275,11 +275,18 @@ export function ScheduleManager() {
                     key={`${event.id}-${session.id}`}
                     className="relative rounded-lg border border-border bg-muted/30 transition-colors hover:bg-muted/50"
                   >
-                    {event.closed ? (
-                      <span className="absolute right-2 top-2 z-10 rounded-md bg-red-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-red-300 ring-1 ring-red-500/30">
-                        마감
-                      </span>
-                    ) : null}
+                    <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+                      {event.locked ? (
+                        <span className="rounded-md bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-blue-300 ring-1 ring-blue-500/30">
+                          신청잠금
+                        </span>
+                      ) : null}
+                      {event.closed ? (
+                        <span className="rounded-md bg-red-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-red-300 ring-1 ring-red-500/30">
+                          마감
+                        </span>
+                      ) : null}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -312,20 +319,36 @@ export function ScheduleManager() {
                         </div>
                       </div>
                     </button>
-                    <button
-                      type="button"
-                      className={`absolute bottom-2 right-2 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
-                        event.closed
-                          ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
-                          : "bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25"
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void toggleEventClosed(event.id, !event.closed);
-                      }}
-                    >
-                      {event.closed ? "마감 해제" : "마감"}
-                    </button>
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
+                          event.locked
+                            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
+                            : "bg-blue-500/15 text-blue-300 ring-blue-500/30 hover:bg-blue-500/25"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void toggleEventLocked(event.id, !event.locked);
+                        }}
+                      >
+                        {event.locked ? "잠금 해제" : "신청잠금"}
+                      </button>
+                      <button
+                        type="button"
+                        className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
+                          event.closed
+                            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
+                            : "bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void toggleEventClosed(event.id, !event.closed);
+                        }}
+                      >
+                        {event.closed ? "마감 해제" : "마감"}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </CardContent>

@@ -72,6 +72,8 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
           : [],
       }))
     : [];
+  const closed = data.closed === true ? true : undefined;
+  const locked = data.locked === true ? true : undefined;
   return {
     id,
     title,
@@ -85,6 +87,8 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     sessions: sessions as EventItem["sessions"],
     usePositions,
     positions,
+    ...(closed ? { closed } : {}),
+    ...(locked ? { locked } : {}),
   };
 }
 
@@ -138,6 +142,7 @@ export async function saveEvent(event: EventItem): Promise<void> {
     ),
     usePositions: event.usePositions ?? false,
     positions: event.positions ?? [],
+    locked: event.locked ?? false,
     updatedAt: serverTimestamp(),
   };
   if (event.createdAt) payload.createdAt = event.createdAt;
@@ -145,6 +150,14 @@ export async function saveEvent(event: EventItem): Promise<void> {
     payload.team2ApplyOpensAt = event.team2ApplyOpensAt;
   }
   await setDoc(doc(db, EVENTS_COLLECTION, event.id), payload, { merge: true });
+}
+
+/** 이벤트 신청 잠금 토글 */
+export async function toggleEventLocked(
+  eventId: string,
+  locked: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, EVENTS_COLLECTION, eventId), { locked });
 }
 
 /** 이벤트 마감 처리 토글 */
@@ -189,6 +202,7 @@ export async function createScheduleEvent(
       ),
       usePositions: withMeta.usePositions ?? false,
       positions: withMeta.positions ?? [],
+      locked: withMeta.locked ?? false,
       createdAt: serverTimestamp(),
       ...(isTeam1Only(teamIds)
         ? { team2ApplyOpensAt: withMeta.team2ApplyOpensAt }
