@@ -7,10 +7,14 @@ import type { EventItem, Session } from "@/types/schedule";
 import type { TeamId } from "@/types/team";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
+import Link from "next/link";
 import {
+  EVENT_APPLY_WINDOW_BADGE_CLASS,
+  EVENT_APPLY_WINDOW_LABEL,
   canTeamApplyNow,
   formatTeam2ApplyCountdown,
   formatTeam2ApplyOpensAt,
+  resolveEventApplyStatus,
   hasTeam2Stagger,
 } from "@/lib/application-window";
 import {
@@ -18,6 +22,7 @@ import {
   ApplySlotSurface,
 } from "@/components/schedule/apply-slot";
 import { useMyApplications } from "@/hooks/use-my-applications";
+import { useMyAvailability } from "@/hooks/use-my-availability";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +61,7 @@ export function ScheduleBoard({
   const [applyOpen, setApplyOpen] = useState(false);
   const [applyCtx, setApplyCtx] = useState<ApplySlotContext | null>(null);
   const { items: myApplications } = useMyApplications();
+  const { avail: myAvailability } = useMyAvailability();
 
   const dateMarkers = useMemo(() => buildSessionDateMarkers(events), [events]);
   const ymd = toYMD(selected);
@@ -131,6 +137,11 @@ export function ScheduleBoard({
                 const team2OpensLabel = teamApplyLocked
                   ? formatTeam2ApplyOpensAt(event)
                   : null;
+                const windowStatus = resolveEventApplyStatus(
+                  session.date,
+                  myAvailability,
+                );
+                const windowOpen = windowStatus === "open";
                 return (
                   <Card
                     key={`${event.id}-${session.id}`}
@@ -178,7 +189,27 @@ export function ScheduleBoard({
                                   ? `${team2OpensLabel}부터 신청 가능`
                                   : "1팀 등록 24시간 후 신청 가능")}
                             </p>
-                          ) : null}
+                          ) : (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                  EVENT_APPLY_WINDOW_BADGE_CLASS[windowStatus],
+                                )}
+                              >
+                                {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
+                              </span>
+                              {windowStatus === "blocked" ? (
+                                <Link
+                                  href="/my-availability"
+                                  className="text-xs text-accent underline-offset-2 hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  익주 근무 가능일 먼저 제출하기
+                                </Link>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
                         <ChevronDown
                           className={cn(
@@ -226,7 +257,7 @@ export function ScheduleBoard({
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 마감</Button>
                                       ) : event.locked ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 잠금</Button>
-                                      ) : !alreadyAppliedEvent && !teamApplyLocked &&
+                                      ) : !alreadyAppliedEvent && !teamApplyLocked && windowOpen &&
                                       pos.slots.some((s) => s.applied_count < s.capacity) ? (
                                         <Button
                                           size="sm"
@@ -263,7 +294,7 @@ export function ScheduleBoard({
                           session.slots.map((slot) => {
                           const full = slot.applied_count >= slot.capacity;
                           const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked;
+                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked || !windowOpen;
                           return (
                             <div
                               key={slot.id}
@@ -300,7 +331,19 @@ export function ScheduleBoard({
                                   setApplyOpen(true);
                                 }}
                               >
-                                {alreadyAppliedEvent ? "신청 완료" : event.closed ? "신청 마감" : event.locked ? "신청 잠금" : full ? "마감" : teamApplyLocked ? "대기 중" : "신청"}
+                                {alreadyAppliedEvent
+                                  ? "신청 완료"
+                                  : event.closed
+                                    ? "신청 마감"
+                                    : event.locked
+                                      ? "신청 잠금"
+                                      : full
+                                        ? "마감"
+                                        : teamApplyLocked
+                                          ? "대기 중"
+                                          : !windowOpen
+                                            ? EVENT_APPLY_WINDOW_LABEL[windowStatus]
+                                            : "신청"}
                               </Button>
                             </div>
                           );

@@ -165,6 +165,7 @@ function buildPositionSessionRow(
   const applicants = visibleApps.map((a) => ({
     name: applicantName(a),
     status: a.status,
+    positionLabel: a.positionLabel,
   }));
 
   const approvedCount = applicants.filter(
@@ -220,6 +221,7 @@ function buildSlotRow(
   const applicants = visibleApps.map((a) => ({
     name: applicantName(a),
     status: a.status,
+    positionLabel: a.positionLabel,
   }));
 
   const approvedCount = applicants.filter(
@@ -279,6 +281,7 @@ function buildWorkforceRow(
   const applicants = assignedUsers.map((user) => ({
     name: user.name,
     status: "approved" as const,
+    positionLabel: schedule.assigneePositions?.[user.uid],
   }));
   const base = {
     entryKey: `workforce:${schedule.id}:${teamId}`,

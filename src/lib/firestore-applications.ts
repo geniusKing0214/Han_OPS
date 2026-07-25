@@ -30,6 +30,13 @@ import type { WorkStatus } from "@/types/points";
 import type { EventItem } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
 import { USERS_COLLECTION } from "@/lib/firestore-users";
+import {
+  WORKFORCE_AVAILABILITY,
+  defaultAvailability,
+  docToAvailability,
+} from "@/lib/firestore-workforce";
+import { isUserAvailableOnDate } from "@/lib/workforce-logic";
+import { getWeekStartMonday, parseYmd } from "@/lib/workforce-dates";
 import { normalizeTeamId, normalizeTeamIds, type TeamId } from "@/types/team";
 import type { UserProfileDoc } from "@/types/user";
 
@@ -191,6 +198,25 @@ export async function createApplication(input: CreateApplicationInput) {
         );
       }
       throw new Error("소속 팀 일정만 신청할 수 있습니다.");
+    }
+
+    const availSnap = await getDoc(
+      doc(db, WORKFORCE_AVAILABILITY, input.userId),
+    );
+    const avail = availSnap.exists()
+      ? docToAvailability(
+          input.userId,
+          availSnap.data() as Record<string, unknown>,
+        )
+      : defaultAvailability(input.userId);
+    if (!isUserAvailableOnDate(avail, input.date)) {
+      throw new Error("근무 불가로 설정한 날짜에는 신청할 수 없습니다.");
+    }
+    const eventWeekStart = getWeekStartMonday(parseYmd(input.date));
+    if (!avail.memberSubmittedWeeks.includes(eventWeekStart)) {
+      throw new Error(
+        "익주 근무 가능일을 먼저 제출해야 신청할 수 있습니다.",
+      );
     }
   }
 
@@ -504,6 +530,7 @@ export async function updateApplicationAdminMemo(
  * 관리자 의사결정 처리:
  * - approved: applications 상태 업데이트 + events 슬롯 신청 인원(+1)
  * - rejected: applications 상태만 업데이트
+ * - 딜러 외 포지션 신청은 승인/거부 관계없이 딜러 슬롯으로 자동 승인 처리
  */
 export async function decideApplication(
   applicationId: string,
@@ -518,6 +545,8 @@ export async function decideApplication(
   }
   const appData = appSnap.data() as Record<string, unknown>;
 
+  let effectiveStatus: "approved" | "rejected" = status;
+
   await runTransaction(db, async (tx) => {
     const freshSnap = await tx.get(appRef);
     if (!freshSnap.exists()) {
@@ -527,6 +556,92 @@ export async function decideApplication(
     const currentStatus = normalizeStatus(freshData.status);
     if (currentStatus !== "pending") {
       throw new Error("이미 처리된 신청입니다.");
+    }
+
+    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+    const sessionId =
+      typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
+    const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
+    const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
+    const appliedPositionLabel =
+      typeof freshData.positionLabel === "string" ? freshData.positionLabel.trim() : "";
+
+    // 딜러 외 포지션으로 신청된 건은 승인/거부 버튼 상관없이 딜러 슬롯으로 자동 승인
+    if (
+      eventId &&
+      positionId &&
+      positionSlotId &&
+      appliedPositionLabel &&
+      appliedPositionLabel !== "딜러"
+    ) {
+      const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+      const eventSnap = await tx.get(eventRef);
+      if (!eventSnap.exists()) {
+        throw new Error("대상 이벤트를 찾을 수 없습니다.");
+      }
+      const eventData = eventSnap.data() as Record<string, unknown>;
+      const positions = Array.isArray(eventData.positions)
+        ? (eventData.positions as Array<Record<string, unknown>>)
+        : [];
+      const dealerPosition = positions.find(
+        (p) => typeof p.label === "string" && p.label.trim() === "딜러",
+      );
+      if (!dealerPosition) {
+        throw new Error("딜러 포지션을 찾을 수 없어 자동 승인할 수 없습니다.");
+      }
+      const dealerSlots = Array.isArray(dealerPosition.slots)
+        ? (dealerPosition.slots as Array<Record<string, unknown>>)
+        : [];
+      const hasRoom = (s: Record<string, unknown>) => {
+        const cap = typeof s.capacity === "number" ? s.capacity : 0;
+        const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
+        return applied < cap;
+      };
+      const positionSlotTime =
+        typeof freshData.positionSlotTime === "string" ? freshData.positionSlotTime : "";
+      // 정원 여유가 있는 슬롯을 우선 쓰고, 전부 마감이면 신청한 시간대와 같은
+      // 슬롯(없으면 첫 슬롯)의 정원을 1명 늘려서라도 자동 승인한다.
+      const targetSlot =
+        dealerSlots.find((s) => s.time === positionSlotTime && hasRoom(s)) ??
+        dealerSlots.find(hasRoom) ??
+        dealerSlots.find((s) => s.time === positionSlotTime) ??
+        dealerSlots[0];
+      if (!targetSlot) {
+        throw new Error("딜러 포지션에 시간 슬롯이 없어 자동 승인할 수 없습니다.");
+      }
+      const appliedCount =
+        typeof targetSlot.applied_count === "number" ? targetSlot.applied_count : 0;
+      const capacity =
+        typeof targetSlot.capacity === "number" ? targetSlot.capacity : 0;
+      const nextCapacity = appliedCount >= capacity ? capacity + 1 : capacity;
+
+      const nextPositions = positions.map((pos) => {
+        if (pos.id !== dealerPosition.id) return pos;
+        const slots = Array.isArray(pos.slots)
+          ? (pos.slots as Array<Record<string, unknown>>)
+          : [];
+        return {
+          ...pos,
+          slots: slots.map((s) =>
+            s.id === targetSlot.id
+              ? { ...s, capacity: nextCapacity, applied_count: appliedCount + 1 }
+              : s,
+          ),
+        };
+      });
+
+      tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+      tx.update(appRef, {
+        status: "approved",
+        positionId: dealerPosition.id,
+        positionSlotId: targetSlot.id,
+        positionLabel: "딜러",
+        positionSlotTime:
+          typeof targetSlot.time === "string" ? targetSlot.time : positionSlotTime,
+      });
+      effectiveStatus = "approved";
+      return;
     }
 
     const nextStatus: Exclude<ApplicationStatus, "pending"> = status;
@@ -539,12 +654,6 @@ export async function decideApplication(
       return;
     }
 
-    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
-    const sessionId =
-      typeof freshData.sessionId === "string" ? freshData.sessionId : "";
-    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
-    const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
-    const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
     if (!eventId) {
       throw new Error("신청 데이터에 event 정보가 없습니다.");
     }
@@ -623,7 +732,7 @@ export async function decideApplication(
     tx.update(appRef, { status: nextStatus });
   });
 
-  if (status === "approved") {
+  if (effectiveStatus === "approved") {
     const userId = typeof appData.userId === "string" ? appData.userId : "";
     if (userId) {
       try {
@@ -780,4 +889,96 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
   } catch {
     // 취소는 성공 — 알림만 실패할 수 있음
   }
+}
+
+/** 관리자: 승인된 신청자 배정 해제 (슬롯 정원 복구 후 신청 삭제) */
+export async function adminRemoveApprovedApplicant(applicationId: string) {
+  await assertAdmin();
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("신청을 찾을 수 없습니다.");
+  }
+
+  await runTransaction(db, async (tx) => {
+    const freshSnap = await tx.get(appRef);
+    if (!freshSnap.exists()) {
+      throw new Error("신청을 찾을 수 없습니다.");
+    }
+    const freshData = freshSnap.data() as Record<string, unknown>;
+    const freshStatus = normalizeStatus(freshData.status);
+    if (freshStatus === "completed") {
+      throw new Error("완료된 신청은 배정 해제할 수 없습니다.");
+    }
+
+    if (freshStatus !== "approved") {
+      tx.delete(appRef);
+      return;
+    }
+
+    const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+    const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
+    const positionSlotId =
+      typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
+
+    if (!eventId) {
+      tx.delete(appRef);
+      return;
+    }
+
+    const eventRef = doc(db, EVENTS_COLLECTION, eventId);
+    const eventSnap = await tx.get(eventRef);
+    if (!eventSnap.exists()) {
+      tx.delete(appRef);
+      return;
+    }
+    const eventData = eventSnap.data() as Record<string, unknown>;
+
+    // Option B: 포지션 슬롯 기반 배정 해제
+    if (positionId && positionSlotId) {
+      const positions = Array.isArray(eventData.positions)
+        ? (eventData.positions as Array<Record<string, unknown>>)
+        : [];
+      const nextPositions = positions.map((pos) => {
+        if (pos.id !== positionId) return pos;
+        const slots = Array.isArray(pos.slots)
+          ? (pos.slots as Array<Record<string, unknown>>)
+          : [];
+        return {
+          ...pos,
+          slots: slots.map((s) => {
+            if (s.id !== positionSlotId) return s;
+            const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
+            return { ...s, applied_count: Math.max(0, applied - 1) };
+          }),
+        };
+      });
+      tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+      tx.delete(appRef);
+      return;
+    }
+
+    // 기존: 세션 슬롯 기반 배정 해제
+    const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
+    const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
+    if (!sessionId || !slotId) {
+      tx.delete(appRef);
+      return;
+    }
+    const sessions = Array.isArray(eventData.sessions)
+      ? (eventData.sessions as EventItem["sessions"])
+      : [];
+    const nextSessions = sessions.map((sess) => {
+      if (sess.id !== sessionId) return sess;
+      return {
+        ...sess,
+        slots: sess.slots.map((slot) => {
+          if (slot.id !== slotId) return slot;
+          return { ...slot, applied_count: Math.max(0, slot.applied_count - 1) };
+        }),
+      };
+    });
+    tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
+    tx.delete(appRef);
+  });
 }

@@ -186,3 +186,27 @@ export function formatDayHeader(ymd: string): { label: string; dow: string } {
 export function yearMonthFromYmd(ymd: string): string {
   return ymd.slice(0, 7);
 }
+
+/**
+ * 익주 근무 가능일 "신청 기간" 상태.
+ * - before: 신청 기간 시작 전 (월요일)
+ * - open: 신청 가능 (화·수·목)
+ * - closed: 신청 기간 종료 (금·토·일)
+ */
+export type AvailabilityWindowStatus = "before" | "open" | "closed";
+
+/** 신청 가능 요일 (화, 수, 목) */
+const AVAILABILITY_WINDOW_WEEKDAYS: WeekdayKey[] = ["tue", "wed", "thu"];
+
+export function getAvailabilityWindowStatus(
+  date: Date = new Date(),
+): AvailabilityWindowStatus {
+  const key = weekdayKeyFromYmd(toYmd(date));
+  if (AVAILABILITY_WINDOW_WEEKDAYS.includes(key)) return "open";
+  if (key === "mon") return "before";
+  return "closed";
+}
+
+export function isAvailabilityWindowOpen(date: Date = new Date()): boolean {
+  return getAvailabilityWindowStatus(date) === "open";
+}

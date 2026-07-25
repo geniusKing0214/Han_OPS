@@ -24,6 +24,7 @@ import {
   getWeekDates,
   getWeekStartMonday,
   getWeekStartsCoveringDates,
+  isAvailabilityWindowOpen,
   parseYmd,
 } from "@/lib/workforce-dates";
 import {
@@ -78,6 +79,15 @@ function parseExceptions(
   const out: Record<string, "available" | "unavailable"> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (v === "available" || v === "unavailable") out[k] = v;
+  }
+  return out;
+}
+
+function parseExceptionNotes(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) out[k] = v;
   }
   return out;
 }
@@ -149,6 +159,7 @@ export function docToAvailability(
         : DEFAULT_WEEKLY_MAX,
     availableWeekdays: parseWeekdays(data.availableWeekdays),
     dateExceptions: parseExceptions(data.dateExceptions),
+    dateExceptionNotes: parseExceptionNotes(data.dateExceptionNotes),
     memberSubmittedWeeks: parseSubmittedWeeks(data.memberSubmittedWeeks),
     updatedAt: timestampToIso(data.updatedAt),
   };
@@ -160,6 +171,7 @@ export function defaultAvailability(userId: string): WorkforceAvailability {
     weeklyMaxAssignments: DEFAULT_WEEKLY_MAX,
     availableWeekdays: { ...DEFAULT_AVAILABLE_WEEKDAYS },
     dateExceptions: {},
+    dateExceptionNotes: {},
     memberSubmittedWeeks: [],
     updatedAt: new Date().toISOString(),
   };
@@ -661,13 +673,21 @@ export async function upsertAvailability(
   });
 }
 
-/** 멤버 본인 — 익주 가능일만 신청. 이미 제출한 주는 수정 불가. */
+/** 멤버 본인 — 익주 가능일만 신청. 신청 기간(화·수·목) 외에는 수정 불가. */
 export async function upsertMyAvailability(input: {
   weekStart: string;
   dateExceptions: Record<string, "available" | "unavailable">;
+  /** YYYY-MM-DD → 불가 사유 메모 (근무 불가로 표시한 날짜만 전달) */
+  dateExceptionNotes?: Record<string, string>;
 }): Promise<void> {
   const uid = getClientAuth().currentUser?.uid;
   if (!uid) throw new Error("로그인이 필요합니다.");
+
+  if (!isAvailabilityWindowOpen()) {
+    throw new Error(
+      "신청 기간이 아닙니다. 근무 가능일은 이번 주 화·수·목요일에만 신청할 수 있습니다.",
+    );
+  }
 
   const allowedWeek = getNextWeekStart();
   if (input.weekStart !== allowedWeek) {
@@ -676,6 +696,11 @@ export async function upsertMyAvailability(input: {
 
   const allowedDates = new Set(getWeekDates(allowedWeek));
   for (const date of Object.keys(input.dateExceptions)) {
+    if (!allowedDates.has(date)) {
+      throw new Error("익주 날짜만 저장할 수 있습니다.");
+    }
+  }
+  for (const date of Object.keys(input.dateExceptionNotes ?? {})) {
     if (!allowedDates.has(date)) {
       throw new Error("익주 날짜만 저장할 수 있습니다.");
     }
@@ -697,6 +722,24 @@ export async function upsertMyAvailability(input: {
     ...prev.dateExceptions,
     ...input.dateExceptions,
   };
+
+  // 불가 사유 메모: 근무 불가로 표시된 날짜만 유지, 가능으로 바뀌면 메모 제거
+  const nextNotes: Record<string, string> = { ...prev.dateExceptionNotes };
+  for (const [date, status] of Object.entries(input.dateExceptions)) {
+    if (status === "available") {
+      delete nextNotes[date];
+      continue;
+    }
+    const note = input.dateExceptionNotes?.[date];
+    if (typeof note === "string") {
+      if (note.trim()) nextNotes[date] = note.trim();
+      else delete nextNotes[date];
+    }
+  }
+  for (const date of Object.keys(nextNotes)) {
+    if (nextExceptions[date] !== "unavailable") delete nextNotes[date];
+  }
+
   const memberSubmittedWeeks = [
     ...new Set([...prev.memberSubmittedWeeks, allowedWeek]),
   ].sort();
@@ -708,6 +751,7 @@ export async function upsertMyAvailability(input: {
       weeklyMaxAssignments: prev.weeklyMaxAssignments,
       availableWeekdays: prev.availableWeekdays,
       dateExceptions: nextExceptions,
+      dateExceptionNotes: nextNotes,
       memberSubmittedWeeks,
       updatedAt: serverTimestamp(),
       updatedBy: uid,

@@ -21,6 +21,7 @@ import {
   type ApplySlotContext,
 } from "@/components/schedule/apply-slot";
 import { useMyApplications } from "@/hooks/use-my-applications";
+import { useMyAvailability } from "@/hooks/use-my-availability";
 import { TeamFilter } from "@/components/team/team-filter";
 import { useEvents } from "@/hooks/use-events";
 import { useMonthlySheetData } from "@/hooks/use-monthly-sheet";
@@ -97,6 +98,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
   const { events, loading: eventsLoading } = useEvents();
   const memberTeamId = profile?.teamId ?? DEFAULT_TEAM_ID;
   const { items: myApplications } = useMyApplications();
+  const { avail: myAvailability } = useMyAvailability();
   const myAppliedEventIds = useMemo(() => {
     const set = new Set<string>();
     for (const app of myApplications) {
@@ -383,6 +385,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
                       showTeamBadge={effectiveTeamFilter === "all"}
                       events={events}
                       myAppliedEventIds={myAppliedEventIds}
+                      myAvailability={myAvailability}
                       onApply={(ctx) => {
                         setApplyCtx(ctx);
                         setApplyOpen(true);
@@ -423,6 +426,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
                       showTeamBadge={effectiveTeamFilter === "all"}
                       events={events}
                       myAppliedEventIds={myAppliedEventIds}
+                      myAvailability={myAvailability}
                       onApply={(ctx) => {
                         setApplyCtx(ctx);
                         setApplyOpen(true);
@@ -490,6 +494,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
           open={createOpen}
           onOpenChange={setCreateOpen}
           saving={scheduleSaving}
+          defaultDate={selectedYmd}
           onSave={handleCreateSchedule}
         />
       ) : null}

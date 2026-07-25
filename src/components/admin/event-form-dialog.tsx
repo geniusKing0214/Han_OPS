@@ -39,6 +39,9 @@ export type CreateScheduleDialogProps = {
   saving: boolean;
   /** 저장 시 완성된 이벤트(id 없음 — 부모에서 부여) */
   onSave: (payload: Omit<EventItem, "id">) => Promise<void>;
+  /** 특정 날짜에서 "일정 추가"로 열었을 때 — 날짜를 자동으로 채우고
+   * 날짜 입력 UI 대신 읽기 전용으로 표시한다. */
+  defaultDate?: string;
 };
 
 export function CreateScheduleDialog({
@@ -46,6 +49,7 @@ export function CreateScheduleDialog({
   onOpenChange,
   saving,
   onSave,
+  defaultDate,
 }: CreateScheduleDialogProps) {
   const [title, setTitle] = useState("");
   const [venue, setVenue] = useState("");
@@ -56,7 +60,6 @@ export function CreateScheduleDialog({
   });
   const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [sessions, setSessions] = useState<SessionDraft[]>([emptySession()]);
-  const [usePositions, setUsePositions] = useState(true);
   const [positions, setPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [locked, setLocked] = useState(false);
   const [error, setError] = useState("");
@@ -69,12 +72,15 @@ export function CreateScheduleDialog({
     setColor("#C8A96B");
     setAttendance({ ...DEFAULT_ATTENDANCE_SETTINGS });
     setTeamExposure("team_1");
-    setSessions([emptySession()]);
-    setUsePositions(true);
+    setSessions([
+      defaultDate
+        ? { id: crypto.randomUUID(), date: defaultDate }
+        : emptySession(),
+    ]);
     setPositions(DEFAULT_POSITIONS);
     setLocked(false);
     setError("");
-  }, [open]);
+  }, [open, defaultDate]);
 
   const addSession = () => setSessions((s) => [...s, emptySession()]);
 
@@ -103,14 +109,12 @@ export function CreateScheduleDialog({
         return;
       }
     }
-    if (usePositions) {
-      const hasAnySlot = positions.some(
-        (p) => p.label.trim() && p.slots.length > 0,
-      );
-      if (!hasAnySlot) {
-        setError("포지션에 최소 1개 이상의 시간 슬롯을 추가하세요.");
-        return;
-      }
+    const hasAnySlot = positions.some(
+      (p) => p.label.trim() && p.slots.length > 0,
+    );
+    if (!hasAnySlot) {
+      setError("포지션에 최소 1개 이상의 시간 슬롯을 추가하세요.");
+      return;
     }
 
     const builtSessions: Session[] = sessions.map((sess) => ({
@@ -125,8 +129,8 @@ export function CreateScheduleDialog({
       team_ids: teamExposureToTeamIds(teamExposure),
       sessions: builtSessions,
       attendance,
-      usePositions,
-      positions: usePositions ? positions.filter((p) => p.label.trim()) : [],
+      usePositions: true,
+      positions: positions.filter((p) => p.label.trim()),
       locked,
     };
     if (notice.trim()) payload.notice = notice.trim();
@@ -234,170 +238,151 @@ export function CreateScheduleDialog({
 
           {/* 포지션 설정 (Option B: 포지션 → 시간슬롯) */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">포지션 사용</p>
-                <p className="text-xs text-muted-foreground">
-                  포지션별·시간별로 신청을 받습니다
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={usePositions}
-                onClick={() => setUsePositions((v) => !v)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                  usePositions ? "bg-accent" : "bg-muted-foreground/30"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    usePositions ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
+            <div>
+              <p className="text-sm font-medium">포지션 사용</p>
+              <p className="text-xs text-muted-foreground">
+                포지션별·시간별로 신청을 받습니다
+              </p>
             </div>
 
-            {usePositions && (
-              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-                {positions.map((pos, idx) => (
-                  <div key={pos.id} className="rounded-md border border-border bg-muted/40 p-3 space-y-2">
-                    {/* 포지션 이름 행 */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-12 shrink-0">포지션</span>
-                      <Input
-                        className="flex-1 text-sm h-8"
-                        placeholder="예: 딜러"
-                        value={pos.label}
-                        onChange={(e) =>
-                          setPositions((prev) =>
-                            prev.map((p, i) =>
-                              i === idx ? { ...p, label: e.target.value } : p,
-                            ),
-                          )
-                        }
-                      />
-                      <button
-                        type="button"
-                        className="shrink-0 text-muted-foreground hover:text-red-400 px-1"
-                        onClick={() =>
-                          setPositions((prev) => prev.filter((_, i) => i !== idx))
-                        }
-                      >
-                        ×
-                      </button>
-                    </div>
-                    {/* 시간슬롯 목록 */}
-                    <div className="space-y-1.5 pl-14">
-                      {(pos.slots ?? []).map((slot, si) => (
-                        <div key={slot.id} className="flex items-center gap-2">
-                          <Input
-                            type="time"
-                            step={60}
-                            className="w-28 h-8 text-sm tabular-nums"
-                            value={slot.time}
-                            onChange={(e) =>
+            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+              {positions.map((pos, idx) => (
+                <div key={pos.id} className="rounded-md border border-border bg-muted/40 p-3 space-y-2">
+                  {/* 포지션 이름 행 */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-12 shrink-0">포지션</span>
+                    <Input
+                      className="flex-1 text-sm h-8"
+                      placeholder="예: 딜러"
+                      value={pos.label}
+                      onChange={(e) =>
+                        setPositions((prev) =>
+                          prev.map((p, i) =>
+                            i === idx ? { ...p, label: e.target.value } : p,
+                          ),
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 text-muted-foreground hover:text-red-400 px-1"
+                      onClick={() =>
+                        setPositions((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {/* 시간슬롯 목록 */}
+                  <div className="space-y-1.5 pl-14">
+                    {(pos.slots ?? []).map((slot, si) => (
+                      <div key={slot.id} className="flex items-center gap-2">
+                        <Input
+                          type="time"
+                          step={60}
+                          className="w-28 h-8 text-sm tabular-nums"
+                          value={slot.time}
+                          onChange={(e) =>
+                            setPositions((prev) =>
+                              prev.map((p, i) =>
+                                i !== idx ? p : {
+                                  ...p,
+                                  slots: p.slots.map((s, j) =>
+                                    j === si ? { ...s, time: e.target.value } : s,
+                                  ),
+                                },
+                              ),
+                            )
+                          }
+                        />
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          className="w-20 h-8 text-sm"
+                          placeholder="정원"
+                          value={slot.capacity === 0 ? "" : String(slot.capacity)}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^0-9]/g, "");
+                            const val = raw === "" ? 0 : Math.min(9999, Number.parseInt(raw, 10));
+                            setPositions((prev) =>
+                              prev.map((p, i) =>
+                                i !== idx ? p : {
+                                  ...p,
+                                  slots: p.slots.map((s, j) =>
+                                    j === si ? { ...s, capacity: val } : s,
+                                  ),
+                                },
+                              ),
+                            );
+                          }}
+                          onBlur={() => {
+                            if (slot.capacity < 1) {
                               setPositions((prev) =>
                                 prev.map((p, i) =>
                                   i !== idx ? p : {
                                     ...p,
                                     slots: p.slots.map((s, j) =>
-                                      j === si ? { ...s, time: e.target.value } : s,
-                                    ),
-                                  },
-                                ),
-                              )
-                            }
-                          />
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            className="w-20 h-8 text-sm"
-                            placeholder="정원"
-                            value={slot.capacity === 0 ? "" : String(slot.capacity)}
-                            onChange={(e) => {
-                              const raw = e.target.value.replace(/[^0-9]/g, "");
-                              const val = raw === "" ? 0 : Math.min(9999, Number.parseInt(raw, 10));
-                              setPositions((prev) =>
-                                prev.map((p, i) =>
-                                  i !== idx ? p : {
-                                    ...p,
-                                    slots: p.slots.map((s, j) =>
-                                      j === si ? { ...s, capacity: val } : s,
+                                      j === si ? { ...s, capacity: 1 } : s,
                                     ),
                                   },
                                 ),
                               );
-                            }}
-                            onBlur={() => {
-                              if (slot.capacity < 1) {
-                                setPositions((prev) =>
-                                  prev.map((p, i) =>
-                                    i !== idx ? p : {
-                                      ...p,
-                                      slots: p.slots.map((s, j) =>
-                                        j === si ? { ...s, capacity: 1 } : s,
-                                      ),
-                                    },
-                                  ),
-                                );
-                              }
-                            }}
-                          />
-                          <span className="text-xs text-muted-foreground">명</span>
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-red-400"
-                            onClick={() =>
-                              setPositions((prev) =>
-                                prev.map((p, i) =>
-                                  i !== idx ? p : { ...p, slots: p.slots.filter((_, j) => j !== si) },
-                                ),
-                              )
                             }
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        className="text-xs text-accent hover:underline"
-                        onClick={() =>
-                          setPositions((prev) =>
-                            prev.map((p, i) =>
-                              i !== idx ? p : {
-                                ...p,
-                                slots: [
-                                  ...p.slots,
-                                  { id: crypto.randomUUID(), time: "09:00", capacity: 1, applied_count: 0 },
-                                ],
-                              },
-                            ),
-                          )
-                        }
-                      >
-                        + 시간 추가
-                      </button>
-                    </div>
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground">명</span>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-red-400"
+                          onClick={() =>
+                            setPositions((prev) =>
+                              prev.map((p, i) =>
+                                i !== idx ? p : { ...p, slots: p.slots.filter((_, j) => j !== si) },
+                              ),
+                            )
+                          }
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="text-xs text-accent hover:underline"
+                      onClick={() =>
+                        setPositions((prev) =>
+                          prev.map((p, i) =>
+                            i !== idx ? p : {
+                              ...p,
+                              slots: [
+                                ...p.slots,
+                                { id: crypto.randomUUID(), time: "09:00", capacity: 1, applied_count: 0 },
+                              ],
+                            },
+                          ),
+                        )
+                      }
+                    >
+                      + 시간 추가
+                    </button>
                   </div>
-                ))}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="w-full text-xs"
-                  onClick={() =>
-                    setPositions((prev) => [
-                      ...prev,
-                      { id: crypto.randomUUID(), label: "", capacity: 0, slots: [] },
-                    ])
-                  }
-                >
-                  + 포지션 추가
-                </Button>
-              </div>
-            )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() =>
+                  setPositions((prev) => [
+                    ...prev,
+                    { id: crypto.randomUUID(), label: "", capacity: 0, slots: [] },
+                  ])
+                }
+              >
+                + 포지션 추가
+              </Button>
+            </div>
           </div>
 
           <Separator />
@@ -431,45 +416,54 @@ export function CreateScheduleDialog({
 
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">날짜 · 슬롯</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={addSession}
-            >
-              날짜 추가
-            </Button>
-          </div>
-
-          {sessions.map((sess, si) => (
-            <div
-              key={sess.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
-            >
-              <div className="flex-1 min-w-[160px] space-y-1">
-                <label className="text-xs text-muted-foreground">날짜 *</label>
-                <Input
-                  type="date"
-                  className="w-full"
-                  value={sess.date}
-                  onChange={(e) => updateSessionDate(sess.id, e.target.value)}
-                />
-              </div>
+            {defaultDate ? null : (
               <Button
                 type="button"
                 size="sm"
-                variant="ghost"
-                className="text-red-400 shrink-0"
-                disabled={sessions.length <= 1}
-                onClick={() => removeSession(sess.id)}
+                variant="outline"
+                onClick={addSession}
               >
-                삭제
+                날짜 추가
               </Button>
-              {si < sessions.length - 1 ? (
-                <div className="w-full" />
-              ) : null}
+            )}
+          </div>
+
+          {defaultDate ? (
+            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs text-muted-foreground">날짜</p>
+              <p className="text-sm font-medium">{defaultDate}</p>
             </div>
-          ))}
+          ) : (
+            sessions.map((sess, si) => (
+              <div
+                key={sess.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
+              >
+                <div className="flex-1 min-w-[160px] space-y-1">
+                  <label className="text-xs text-muted-foreground">날짜 *</label>
+                  <Input
+                    type="date"
+                    className="w-full"
+                    value={sess.date}
+                    onChange={(e) => updateSessionDate(sess.id, e.target.value)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-400 shrink-0"
+                  disabled={sessions.length <= 1}
+                  onClick={() => removeSession(sess.id)}
+                >
+                  삭제
+                </Button>
+                {si < sessions.length - 1 ? (
+                  <div className="w-full" />
+                ) : null}
+              </div>
+            ))
+          )}
         </div>
 
         {error ? (

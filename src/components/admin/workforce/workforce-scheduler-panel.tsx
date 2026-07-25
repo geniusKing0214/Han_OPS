@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -44,7 +45,10 @@ import {
   subscribeAllUsersForWorkforce,
   type ListedUserRow,
 } from "@/lib/firestore-users";
-import { subscribeAllApplicationsForAdmin } from "@/lib/firestore-applications";
+import {
+  adminRemoveApprovedApplicant,
+  subscribeAllApplicationsForAdmin,
+} from "@/lib/firestore-applications";
 import type { ApplicationItem } from "@/types/application";
 import {
   confirmWorkforceWeek,
@@ -123,7 +127,35 @@ const STATUS_DOT: Record<WorkforceWorkerStatus, string> = {
   leave: "bg-zinc-400",
 };
 
-type ApprovedApplicant = { uid?: string; name: string; positionLabel?: string };
+type ApprovedApplicant = {
+  uid?: string;
+  name: string;
+  positionLabel?: string;
+  applicationId: string;
+  completed: boolean;
+};
+
+/** 포지션 배지 색상: 딜러=기본 초록, 그 외(플로어/레지/칩스/커스텀 추가 포지션 등)는
+ * 라벨 문자열 해시로 팔레트에서 안정적으로 골라 서로 다른 색을 부여한다. */
+const POSITION_BADGE_PALETTE = [
+  "bg-blue-500/25 text-blue-200",
+  "bg-amber-500/25 text-amber-100",
+  "bg-purple-500/25 text-purple-200",
+  "bg-pink-500/25 text-pink-200",
+  "bg-cyan-500/25 text-cyan-200",
+  "bg-red-500/25 text-red-200",
+  "bg-lime-500/25 text-lime-200",
+];
+const POSITION_BADGE_DEFAULT = "bg-emerald-500/25 text-emerald-200";
+
+function positionBadgeClass(label: string | undefined): string {
+  if (!label || label === "딜러") return POSITION_BADGE_DEFAULT;
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) {
+    hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+  }
+  return POSITION_BADGE_PALETTE[hash % POSITION_BADGE_PALETTE.length]!;
+}
 
 type ScheduleFormState = {
   title: string;
@@ -187,6 +219,8 @@ export function WorkforceSchedulerPanel({
   const [statusFilter, setStatusFilter] = useState<"all" | WorkforceWorkerStatus>(
     "all",
   );
+  const [dayFilter, setDayFilter] = useState<WeekdayKey | "all">("all");
+  const [roleFilter, setRoleFilter] = useState<"admin" | "worker">("admin");
   const [members, setMembers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
     () => new Map(),
@@ -200,10 +234,12 @@ export function WorkforceSchedulerPanel({
   const [busy, setBusy] = useState(false);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
   const [dragUserId, setDragUserId] = useState<string | null>(null);
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [createEventOpen, setCreateEventOpen] = useState(false);
   const [createEventSaving, setCreateEventSaving] = useState(false);
+  const [createEventDate, setCreateEventDate] = useState<string | null>(null);
   const [form, setForm] = useState<ScheduleFormState>(() =>
     emptyForm(weekDates[0]!),
   );
@@ -328,9 +364,14 @@ export function WorkforceSchedulerPanel({
     return m;
   }, [members]);
 
+  const dayFilterDate =
+    dayFilter === "all" ? null : chipWeekDates[WEEKDAY_KEYS.indexOf(dayFilter)] ?? null;
+
   const workers = useMemo(() => {
     return members
       .filter((m) => {
+        if (roleFilter === "admin" && m.role !== "admin") return false;
+        if (roleFilter === "worker" && m.role === "admin") return false;
         if (teamFilter !== "all" && normalizeTeamId(m.team_id) !== teamFilter)
           return false;
         const name = (m.displayName || m.email).toLowerCase();
@@ -340,6 +381,8 @@ export function WorkforceSchedulerPanel({
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, chipWeekDates, count);
         if (statusFilter !== "all" && status !== statusFilter) return false;
+        if (dayFilterDate && !isUserAvailableOnDate(avail, dayFilterDate))
+          return false;
         return true;
       })
       .map((m) => {
@@ -353,6 +396,45 @@ export function WorkforceSchedulerPanel({
         const nameB = (b.member.displayName || b.member.email || "").trim();
         return nameA.localeCompare(nameB, "ko", { sensitivity: "base" });
       });
+  }, [
+    members,
+    roleFilter,
+    teamFilter,
+    search,
+    statusFilter,
+    availMap,
+    displaySchedules,
+    chipWeekDates,
+    dayFilterDate,
+  ]);
+
+  /** 요일 탭·요약에 쓰일 요일별 관리자/근무자 가능 인원 수 (검색·팀·상태 필터만 반영, 역할·요일 필터는 미반영) */
+  const dayAvailabilityCounts = useMemo(() => {
+    const compute = (date: string | null) => {
+      let admin = 0;
+      let worker = 0;
+      for (const m of members) {
+        if (teamFilter !== "all" && normalizeTeamId(m.team_id) !== teamFilter)
+          continue;
+        const name = (m.displayName || m.email).toLowerCase();
+        if (search.trim() && !name.includes(search.trim().toLowerCase()))
+          continue;
+        const avail = resolveAvailability(availMap, m.uid);
+        const count = countAssignmentsInWeek(displaySchedules, m.uid);
+        const status = computeWorkerStatus(avail, chipWeekDates, count);
+        if (statusFilter !== "all" && status !== statusFilter) continue;
+        if (date && !isUserAvailableOnDate(avail, date)) continue;
+        if (m.role === "admin") admin += 1;
+        else worker += 1;
+      }
+      return { admin, worker };
+    };
+    const map = new Map<string, { admin: number; worker: number }>();
+    map.set("all", compute(null));
+    WEEKDAY_KEYS.forEach((k, i) => {
+      map.set(k, compute(chipWeekDates[i] ?? null));
+    });
+    return map;
   }, [
     members,
     teamFilter,
@@ -393,7 +475,13 @@ export function WorkforceSchedulerPanel({
         const dedupeKey = app.userId || name;
         if (seen.has(dedupeKey)) continue;
         seen.add(dedupeKey);
-        rows.push({ uid: app.userId, name, positionLabel: app.positionLabel?.trim() || undefined });
+        rows.push({
+          uid: app.userId,
+          name,
+          positionLabel: app.positionLabel?.trim() || undefined,
+          applicationId: app.id,
+          completed: app.status === "completed",
+        });
       }
       if (rows.length > 0) result.set(s.id, rows);
     }
@@ -601,6 +689,17 @@ export function WorkforceSchedulerPanel({
     }
   };
 
+  const removeApprovedApplicant = async (applicationId: string) => {
+    setBusy(true);
+    try {
+      await adminRemoveApprovedApplicant(applicationId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "배정 해제에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const setWorkerPosition = async (
     schedule: WorkforceSchedule,
     uid: string,
@@ -618,7 +717,8 @@ export function WorkforceSchedulerPanel({
     }
   };
 
-  const openCreate = (_date: string) => {
+  const openCreate = (date: string) => {
+    setCreateEventDate(date);
     setCreateEventOpen(true);
   };
 
@@ -1105,6 +1205,86 @@ export function WorkforceSchedulerPanel({
               ))}
             </select>
 
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRoleFilter("admin")}
+                className={cn(
+                  "flex h-10 flex-1 items-center justify-center gap-1 rounded-lg text-sm font-semibold transition-colors",
+                  roleFilter === "admin"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                관리자
+                <span className="text-xs opacity-80">
+                  ({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.admin ?? 0})
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("worker")}
+                className={cn(
+                  "flex h-10 flex-1 items-center justify-center gap-1 rounded-lg text-sm font-semibold transition-colors",
+                  roleFilter === "worker"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                근무자
+                <span className="text-xs opacity-80">
+                  ({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.worker ?? 0})
+                </span>
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDayFilter("all")}
+                className={cn(
+                  "flex h-11 flex-1 basis-[22%] flex-col items-center justify-center gap-0.5 rounded-lg text-sm font-semibold transition-colors",
+                  dayFilter === "all"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                전체
+                <span className="text-[10px] font-medium opacity-80">
+                  {(dayAvailabilityCounts.get("all")?.[roleFilter]) ?? 0}명
+                </span>
+              </button>
+              {WEEKDAY_KEYS.map((k, i) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setDayFilter((prev) => (prev === k ? "all" : k))}
+                  title={`${WEEKDAY_LABELS[k]}요일만 보기 (${chipWeekDates[i]})`}
+                  className={cn(
+                    "flex h-11 flex-1 basis-[22%] flex-col items-center justify-center gap-0.5 rounded-lg text-sm font-semibold transition-colors",
+                    dayFilter === k
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {WEEKDAY_LABELS[k]}
+                  <span className="text-[10px] font-medium opacity-80">
+                    {(dayAvailabilityCounts.get(k)?.[roleFilter]) ?? 0}명
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="px-0.5 text-sm font-semibold text-foreground">
+              관리자({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.admin ?? 0}) / 근무자({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.worker ?? 0})
+              {dayFilter !== "all" ? (
+                <span className="ml-1 font-normal text-muted-foreground">
+                  · {WEEKDAY_LABELS[dayFilter]}요일({dayFilterDate}) 근무 가능
+                </span>
+              ) : (
+                <span className="ml-1 font-normal text-muted-foreground">· 전체 기준</span>
+              )}
+            </p>
+
             {workerGroups.length === 0 ? (
               <p className="py-8 text-center text-xs text-muted-foreground">
                 조건에 맞는 근무자가 없습니다.
@@ -1164,24 +1344,30 @@ export function WorkforceSchedulerPanel({
                           />
                         </div>
                         <div className="mt-2 flex gap-1">
-                          {WEEKDAY_KEYS.map((k, i) => {
-                            const date = chipWeekDates[i]!;
-                            const on = isUserAvailableOnDate(avail, date);
-                            return (
-                              <span
-                                key={k}
-                                className={cn(
-                                  "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
-                                  on
-                                    ? "bg-accent/25 text-accent"
-                                    : "bg-red-500/20 text-red-300",
-                                )}
-                                title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
-                              >
-                                {WEEKDAY_LABELS[k]}
-                              </span>
-                            );
-                          })}
+                          {dayFilter === "all" ? (
+                            WEEKDAY_KEYS.map((k, i) => {
+                              const date = chipWeekDates[i]!;
+                              const on = isUserAvailableOnDate(avail, date);
+                              return (
+                                <span
+                                  key={k}
+                                  className={cn(
+                                    "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
+                                    on
+                                      ? "bg-accent/25 text-accent"
+                                      : "bg-red-500/20 text-red-300",
+                                  )}
+                                  title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
+                                >
+                                  {WEEKDAY_LABELS[k]}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="flex h-6 flex-1 items-center justify-center rounded-md bg-accent/25 text-[11px] font-semibold text-accent">
+                              {WEEKDAY_LABELS[dayFilter]}요일 근무 가능
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1.5 flex gap-2">
                           <button
@@ -1310,7 +1496,7 @@ export function WorkforceSchedulerPanel({
           ) : (
             <div
               className={cn(
-                "grid gap-2",
+                "grid items-start gap-2",
                 rangeSpan === "2w"
                   ? "min-w-[1180px] grid-cols-7"
                   : "min-w-[1180px] grid-cols-7",
@@ -1334,24 +1520,56 @@ export function WorkforceSchedulerPanel({
                 const { label } = formatDayHeader(date);
                 const weekdayKey = weekdayKeyFromYmd(date);
 
+                const collapsed = collapsedDays.has(date);
+
                 return (
                   <section
                     key={date}
                     className={cn(
-                      "flex min-h-[160px] flex-col rounded-2xl border border-border/70 shadow-sm",
-                      hasShortage || emptyDay
-                        ? "bg-[repeating-linear-gradient(-45deg,rgba(22,26,34,0.92),rgba(22,26,34,0.92)_7px,rgba(167,175,191,0.08)_7px,rgba(167,175,191,0.08)_14px)]"
-                        : "bg-card/90",
+                      "flex flex-col rounded-2xl border shadow-sm",
+                      collapsed ? "min-h-0" : "min-h-[160px]",
+                      emptyDay
+                        ? "border-dashed border-border/50 bg-muted/10"
+                        : "border-border/70 bg-card/90",
                     )}
                   >
-                    <header className="space-y-1.5 border-b border-border/60 px-2.5 py-2.5">
+                    <header
+                      className={cn(
+                        "space-y-1.5 px-2.5 py-2.5",
+                        !collapsed && "border-b border-border/60",
+                      )}
+                    >
                       <div className="flex items-baseline justify-between gap-1">
                         <p className="text-sm font-semibold">
                           {WEEKDAY_LABELS[weekdayKey]}요일
                         </p>
-                        <p className="text-xs tabular-nums text-muted-foreground">
-                          {label}
-                        </p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs tabular-nums text-muted-foreground">
+                            {label}
+                          </p>
+                          {daySchedules.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCollapsedDays((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(date)) next.delete(date);
+                                  else next.add(date);
+                                  return next;
+                                })
+                              }
+                              className="flex size-5 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                              aria-label={collapsed ? "일정 펼치기" : "일정 접기"}
+                              title={collapsed ? "일정 펼치기" : "일정 접기"}
+                            >
+                              {collapsed ? (
+                                <ChevronDown className="size-3.5" />
+                              ) : (
+                                <ChevronUp className="size-3.5" />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium text-accent">
@@ -1375,6 +1593,7 @@ export function WorkforceSchedulerPanel({
                       </div>
                     </header>
 
+                    {collapsed ? null : (
                     <div className="flex flex-1 flex-col gap-2 p-2">
                       {daySchedules.map((s) => (
                         <ScheduleCard
@@ -1412,6 +1631,9 @@ export function WorkforceSchedulerPanel({
                             setAssignTarget(s);
                           }}
                           onRemoveUser={(uid) => void removeAssignee(s, uid)}
+                          onRemoveApprovedApplicant={(applicationId) =>
+                            void removeApprovedApplicant(applicationId)
+                          }
                           onSetPosition={(uid, pos) =>
                             void setWorkerPosition(s, uid, pos)
                           }
@@ -1446,6 +1668,7 @@ export function WorkforceSchedulerPanel({
                         <Plus className="size-3.5" /> 일정 추가
                       </button>
                     </div>
+                    )}
                   </section>
                 );
               })}
@@ -1476,6 +1699,7 @@ export function WorkforceSchedulerPanel({
         open={createEventOpen}
         onOpenChange={setCreateEventOpen}
         saving={createEventSaving}
+        defaultDate={createEventDate ?? undefined}
         onSave={(payload) => handleCreateEvent(payload)}
       />
 
@@ -1695,7 +1919,9 @@ export function WorkforceSchedulerPanel({
         onClose={() => setAvailEditUser(null)}
         onSave={async (patch) => {
           if (!availEditUser) return;
-          await upsertAvailability(availEditUser.uid, patch);
+          await upsertAvailability(availEditUser.uid, patch, {
+            mergeExceptions: false,
+          });
           setAvailEditUser(null);
         }}
         onUnlockWeek={async (weekStart) => {
@@ -1762,6 +1988,7 @@ function ScheduleCard({
   onDropWorker,
   onClickAssign,
   onRemoveUser,
+  onRemoveApprovedApplicant,
   onSetPosition,
   onPatch,
   onToggleClosed,
@@ -1780,6 +2007,7 @@ function ScheduleCard({
   onDropWorker: () => void;
   onClickAssign: () => void;
   onRemoveUser: (uid: string) => void;
+  onRemoveApprovedApplicant: (applicationId: string) => void;
   onSetPosition: (uid: string, positionLabel: string | null) => void;
   onPatch: (patch: Partial<{ venue: string; requiredCount: number }>) => void;
   onToggleClosed?: () => void;
@@ -1804,7 +2032,6 @@ function ScheduleCard({
   return (
     <div
       className="overflow-hidden rounded-xl border border-border bg-background/80 shadow-sm"
-      style={{ borderTopColor: schedule.color, borderTopWidth: 3 }}
       onDragOver={(e) => {
         if (isDesktop) e.preventDefault();
       }}
@@ -1817,20 +2044,25 @@ function ScheduleCard({
         <div className="min-w-0 flex-1">
           <button
             type="button"
-            className="w-full truncate text-left text-sm font-semibold leading-snug hover:text-accent"
+            className="flex w-full items-center gap-1.5 text-left text-sm font-semibold leading-snug hover:text-accent"
             onClick={onEdit}
             title={schedule.title || "근무"}
           >
-            {schedule.title || "근무"}
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: schedule.color }}
+            />
+            <span className="truncate">{schedule.title || "근무"}</span>
           </button>
           {onToggleClosed ? (
             <button
               type="button"
-              className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 transition-colors ${
+              className={cn(
+                "mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
                 isClosed
-                  ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
-                  : "bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25"
-              }`}
+                  ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                  : "text-red-300/80 hover:text-red-300",
+              )}
               onClick={onToggleClosed}
             >
               {isClosed ? "마감 해제" : "마감"}
@@ -1891,7 +2123,7 @@ function ScheduleCard({
                 ? "border-accent/50 bg-accent/10 text-accent"
                 : schedule.venue?.trim()
                   ? "border-accent/40 bg-accent/5 text-accent"
-                  : "border-border bg-background/60 text-muted-foreground hover:border-accent/40 hover:text-accent",
+                  : "border-border/50 bg-background/60 text-muted-foreground hover:border-accent/40 hover:text-accent",
             )}
             title={schedule.venue?.trim() || "근무 장소 입력"}
             aria-label={schedule.venue?.trim() || "근무 장소 입력"}
@@ -1903,7 +2135,7 @@ function ScheduleCard({
             <MapPin className="size-3.5" />
           </button>
           <div
-            className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-muted/30 px-1 py-0.5"
+            className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/50 bg-muted/30 px-1 py-0.5"
             title="필요 인원"
           >
             <button
@@ -1969,14 +2201,30 @@ function ScheduleCard({
                 <div className="flex flex-wrap gap-1">
                   {approvedApplicants.map((a, i) => (
                     <span
-                      key={a.uid || `${a.name}:${i}`}
-                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300"
+                      key={a.applicationId || a.uid || `${a.name}:${i}`}
+                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
                       title="이벤트 신청 승인"
                     >
-                      <span className="rounded-sm bg-emerald-500/25 px-1 text-[9px] leading-4">
+                      <span
+                        className={cn(
+                          "rounded-sm px-1 text-[9px] leading-4",
+                          positionBadgeClass(a.positionLabel),
+                        )}
+                      >
                         {a.positionLabel ?? "신청"}
                       </span>
                       <span className="truncate">{a.name}</span>
+                      {a.completed ? null : (
+                        <button
+                          type="button"
+                          className="shrink-0 opacity-70 hover:opacity-100"
+                          onClick={() => onRemoveApprovedApplicant(a.applicationId)}
+                          aria-label="배정 해제"
+                          title="배정 해제"
+                        >
+                          ×
+                        </button>
+                      )}
                     </span>
                   ))}
                   {schedule.assignedUserIds.map((uid) => {
@@ -2152,49 +2400,37 @@ function AvailabilityDialog({
           />
         </Field>
         <div className="flex flex-wrap gap-2">
-          {WEEKDAY_KEYS.map((k) => (
-            <label
-              key={k}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs"
-            >
-              <input
-                type="checkbox"
-                checked={weekdays[k]}
-                onChange={(e) =>
-                  setWeekdays((w) => ({ ...w, [k]: e.target.checked }))
+          {WEEKDAY_KEYS.map((k) => {
+            const checked = weekdays[k];
+            return (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={checked}
+                onClick={() =>
+                  setWeekdays((w) => ({ ...w, [k]: !w[k] }))
                 }
-              />
-              {WEEKDAY_LABELS[k]}
-            </label>
-          ))}
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">표시 주 날짜 예외</p>
-          {weekDates.map((d) => (
-            <div
-              key={d}
-              className="flex items-center justify-between gap-2 text-xs"
-            >
-              <span className="tabular-nums">{d}</span>
-              <select
-                className="h-8 rounded-md border border-border bg-background px-2"
-                value={exceptions[d] || "default"}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setExceptions((prev) => {
-                    const next = { ...prev };
-                    if (v === "default") delete next[d];
-                    else next[d] = v as "available" | "unavailable";
-                    return next;
-                  });
-                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  checked
+                    ? "border-accent/60 bg-accent/15 text-accent"
+                    : "border-border bg-background/60 text-muted-foreground hover:border-accent/30 hover:text-foreground",
+                )}
               >
-                <option value="default">기본</option>
-                <option value="available">가능</option>
-                <option value="unavailable">불가</option>
-              </select>
-            </div>
-          ))}
+                <span
+                  className={cn(
+                    "flex size-3.5 items-center justify-center rounded-sm border",
+                    checked
+                      ? "border-accent bg-accent text-accent-foreground"
+                      : "border-border/80",
+                  )}
+                >
+                  {checked ? <Check className="size-2.5" strokeWidth={3} /> : null}
+                </span>
+                {WEEKDAY_LABELS[k]}
+              </button>
+            );
+          })}
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -2208,10 +2444,15 @@ function AvailabilityDialog({
               void (async () => {
                 setBusy(true);
                 try {
+                  // 이번 화면에서 요일 기본값을 바꿔 저장하면, 표시 중인 주(week)에
+                  // 남아있는 날짜별 예외(과거 신청 등)가 우선 적용되어 변경이 반영
+                  // 안 된 것처럼 보이는 문제를 막기 위해 해당 주의 예외는 초기화한다.
+                  const clearedExceptions = { ...exceptions };
+                  for (const d of weekDates) delete clearedExceptions[d];
                   await onSave({
                     weeklyMaxAssignments: max,
                     availableWeekdays: weekdays,
-                    dateExceptions: exceptions,
+                    dateExceptions: clearedExceptions,
                   });
                 } finally {
                   setBusy(false);
