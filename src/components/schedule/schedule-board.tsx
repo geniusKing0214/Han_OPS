@@ -396,69 +396,70 @@ export function ScheduleBoard({
                           </div>
                         ) : !event.packages?.length ? (
                           /* 기존: 일반 슬롯 표시 */
-                          <>
-                          {session.slots.map((slot) => {
-                          const full = slot.applied_count >= slot.capacity;
-                          const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                          const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked || !windowOpen;
-                          return (
-                            <div
-                              key={slot.id}
-                              className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2.5"
-                            >
-                              <div className="text-sm tabular-nums">
-                                <span className="font-medium text-foreground">{slot.start_time}</span>
-                                <span className="ml-2 text-muted-foreground">
-                                  정원 {slot.applied_count}/{slot.capacity}
-                                </span>
-                                {full && <Badge variant="warning" className="ml-2">마감</Badge>}
-                                {teamApplyLocked && !full && !alreadyAppliedEvent ? (
-                                  <Badge variant="outline" className="ml-2">24시간 대기</Badge>
-                                ) : null}
-                              </div>
-                              <Button
-                                size="sm"
-                                variant={blocked ? "outline" : "accent"}
-                                disabled={blocked}
-                                onClick={() => {
-                                  setApplyCtx({
-                                    eventId: event.id,
-                                    sessionId: primarySession.id,
-                                    slotId: slot.id,
-                                    eventTitle: event.title,
-                                    venue: event.venue,
-                                    date: primarySession.date,
-                                    slotStart: slot.start_time,
-                                    capacity: slot.capacity,
-                                    applied: slot.applied_count,
-                                    usePositions: event.usePositions,
-                                    positions: event.positions,
-                                    ...(isGroup && session.groupId ? {
-                                      groupId: session.groupId,
-                                      groupDates: groupSessions!.map((s) => s.date),
-                                      groupSessionIds: groupSessions!.map((s) => s.id),
-                                    } : {}),
-                                  });
-                                  setApplyOpen(true);
-                                }}
-                              >
-                                {alreadyAppliedEvent
-                                  ? "신청 완료"
-                                  : event.closed
-                                    ? "신청 마감"
-                                    : event.locked
-                                      ? "신청 잠금"
-                                      : full
-                                        ? "마감"
-                                        : teamApplyLocked
-                                          ? "대기 중"
-                                          : !windowOpen
-                                            ? EVENT_APPLY_WINDOW_LABEL[windowStatus]
-                                            : "신청"}
-                              </Button>
-                            </div>
-                          );
-                        })}</>
+                          <div className="space-y-2">
+                            {session.slots.map((slot) => {
+                              const full = slot.applied_count >= slot.capacity;
+                              const alreadyAppliedEvent = appliedEventIds.has(event.id);
+                              const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked || !windowOpen;
+                              return (
+                                <div
+                                  key={slot.id}
+                                  className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2.5"
+                                >
+                                  <div className="text-sm tabular-nums">
+                                    <span className="font-medium text-foreground">{slot.start_time}</span>
+                                    <span className="ml-2 text-muted-foreground">
+                                      정원 {slot.applied_count}/{slot.capacity}
+                                    </span>
+                                    {full && <Badge variant="warning" className="ml-2">마감</Badge>}
+                                    {teamApplyLocked && !full && !alreadyAppliedEvent ? (
+                                      <Badge variant="outline" className="ml-2">24시간 대기</Badge>
+                                    ) : null}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant={blocked ? "outline" : "accent"}
+                                    disabled={blocked}
+                                    onClick={() => {
+                                      setApplyCtx({
+                                        eventId: event.id,
+                                        sessionId: primarySession.id,
+                                        slotId: slot.id,
+                                        eventTitle: event.title,
+                                        venue: event.venue,
+                                        date: primarySession.date,
+                                        slotStart: slot.start_time,
+                                        capacity: slot.capacity,
+                                        applied: slot.applied_count,
+                                        usePositions: event.usePositions,
+                                        positions: event.positions,
+                                        ...(isGroup && session.groupId ? {
+                                          groupId: session.groupId,
+                                          groupDates: groupSessions!.map((s) => s.date),
+                                          groupSessionIds: groupSessions!.map((s) => s.id),
+                                        } : {}),
+                                      });
+                                      setApplyOpen(true);
+                                    }}
+                                  >
+                                    {alreadyAppliedEvent
+                                      ? "신청 완료"
+                                      : event.closed
+                                        ? "신청 마감"
+                                        : event.locked
+                                          ? "신청 잠금"
+                                          : full
+                                            ? "마감"
+                                            : teamApplyLocked
+                                              ? "대기 중"
+                                              : !windowOpen
+                                                ? EVENT_APPLY_WINDOW_LABEL[windowStatus]
+                                                : "신청"}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         ) : null}
                       </CardContent>
                     )}
