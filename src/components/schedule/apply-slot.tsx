@@ -93,9 +93,13 @@ export function ApplySlotSurface({
   const hasSimplePositions =
     ctx.usePositions && ctx.positions && ctx.positions.length > 0 && !hasPositionSlots;
 
+  // capacity가 0이거나 undefined이면 정원 제한 없음(무제한)으로 처리
+  const uncapped = !hasPositionSlots && (!ctx.capacity || ctx.capacity === 0);
   const remaining = hasPositionSlots
     ? null // position-based: check per slot
-    : Math.max(0, (ctx.capacity ?? 0) - (ctx.applied ?? 0));
+    : uncapped
+      ? null // 정원 미지정 → 제한 없음
+      : Math.max(0, (ctx.capacity ?? 0) - (ctx.applied ?? 0));
 
   // ── 일반 슬롯 body ──────────────────────────────────────────────
   const regularBody = (
@@ -110,8 +114,10 @@ export function ApplySlotSurface({
           {ctx.date} · {ctx.slotStart} 시작
         </p>
         <p>
-          정원 {ctx.applied}/{ctx.capacity}
-          {remaining === 0 ? (
+          정원 {ctx.applied ?? 0}/{uncapped ? "∞" : ctx.capacity}
+          {remaining === null ? (
+            <span className="ml-2 text-muted-foreground">(무제한)</span>
+          ) : remaining === 0 ? (
             <span className="ml-2 text-amber-400">(마감)</span>
           ) : (
             <span className="ml-2 text-muted-foreground">(잔여 {remaining})</span>
@@ -373,7 +379,7 @@ export function ApplySlotSurface({
       const slotRemaining = Math.max(0, selectedCombo.slot.capacity - selectedCombo.slot.applied_count);
       if (slotRemaining === 0) { setSubmitError("선택한 슬롯이 마감되었습니다."); return; }
     } else {
-      if (remaining === 0) return;
+      if (remaining !== null && remaining === 0) return;
       if (hasSimplePositions && !selectedPositionId) {
         setSubmitError("포지션을 선택해 주세요."); return;
       }
@@ -448,7 +454,7 @@ export function ApplySlotSurface({
 
   const canSubmit = hasPositionSlots
     ? !!selectedCombo && !submitting
-    : (remaining ?? 0) > 0 && !submitting && (!hasSimplePositions || !!selectedPositionId);
+    : (remaining === null || remaining > 0) && !submitting && (!hasSimplePositions || !!selectedPositionId);
 
   const footer = (
     <>
