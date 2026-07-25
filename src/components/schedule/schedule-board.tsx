@@ -465,7 +465,7 @@ export function ScheduleBoard({
                     )}
                   </Card>
                 );
-              })}
+              })})()}
             </div>
           )}
         </div>
