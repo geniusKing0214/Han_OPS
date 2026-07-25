@@ -185,8 +185,8 @@ export function ScheduleBoard({
                   primarySession.date,
                   myAvailability,
                 );
-                // locked===false: 어드민이 명시적으로 잠금 해제 → 윈도우 체크 우회
-                const windowOpen = event.locked === false ? true : windowStatus === "open";
+                // locked이 true가 아닌 경우(undefined/false) → 윈도우 체크 우회 (신청전/신청마감도 신청 가능)
+                const windowOpen = event.locked !== true ? true : windowStatus === "open";
                 return (
                   <Card
                     key={groupKey ?? `${event.id}-${session.id}`}
@@ -357,7 +357,7 @@ export function ScheduleBoard({
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 마감</Button>
                                       ) : event.locked ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 잠금</Button>
-                                      ) : !alreadyAppliedEvent && !teamApplyLocked && windowOpen &&
+                                      ) : !alreadyAppliedEvent && !teamApplyLocked &&
                                       pos.slots.some((s) => s.applied_count < s.capacity) ? (
                                         <Button
                                           size="sm"
@@ -400,7 +400,7 @@ export function ScheduleBoard({
                             {session.slots.map((slot) => {
                               const full = slot.applied_count >= slot.capacity;
                               const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                              const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked || !windowOpen;
+                              const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked;
                               return (
                                 <div
                                   key={slot.id}
