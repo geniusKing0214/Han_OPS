@@ -132,10 +132,12 @@ function buildPositionSessionRow(
   includePending: boolean,
   entryOverride?: SheetEntryOverride,
 ): SheetSlotRow | null {
+  // 그룹 신청: groupSessionIds에 이 세션이 포함된 경우도 매칭
   const sessionApps = applications.filter(
     (a) =>
       a.eventId === event.id &&
-      a.sessionId === session.id &&
+      (a.sessionId === session.id ||
+        (a.groupSessionIds?.includes(session.id) ?? false)) &&
       normalizeAppTeam(a) === teamId,
   );
 
@@ -166,11 +168,20 @@ function buildPositionSessionRow(
     name: applicantName(a),
     status: a.status,
     positionLabel: a.positionLabel,
+    groupDates: a.groupDates,
   }));
 
   const approvedCount = applicants.filter(
     (a) => a.status === "approved" || a.status === "completed",
   ).length;
+
+  // 연속 일정 묶음 정보 계산
+  const groupSessions = session.groupId
+    ? event.sessions
+        .filter((s) => s.groupId === session.groupId)
+        .sort((a, b) => a.date.localeCompare(b.date))
+    : null;
+  const isGroup = !!groupSessions && groupSessions.length > 1;
 
   const entryKey = `pos:${event.id}:${session.id}:${teamId}`;
   const base = {
@@ -179,6 +190,13 @@ function buildPositionSessionRow(
     sessionId: session.id,
     slotId: "",
     date: session.date,
+    ...(isGroup
+      ? {
+          groupId: session.groupId!,
+          groupDates: groupSessions.map((s) => s.date),
+          groupSessionIds: groupSessions.map((s) => s.id),
+        }
+      : {}),
     teamId,
     eventTitle: event.title,
     venue: event.venue,
@@ -202,12 +220,16 @@ function buildSlotRow(
   includePending: boolean,
   entryOverride?: SheetEntryOverride,
 ): SheetSlotRow | null {
-  const slotApps = applicationsForSlot(
-    applications,
-    event.id,
-    session.id,
-    slot.id,
-  ).filter((a) => normalizeAppTeam(a) === teamId);
+  // 그룹 신청(slotId 없음)도 이 세션에 표시되도록 매칭
+  const slotApps = [
+    ...applicationsForSlot(applications, event.id, session.id, slot.id),
+    ...applications.filter(
+      (a) =>
+        a.eventId === event.id &&
+        !a.slotId &&
+        (a.groupSessionIds?.includes(session.id) ?? false),
+    ),
+  ].filter((a) => normalizeAppTeam(a) === teamId);
 
   const visibleApps = slotApps.filter((a) =>
     statusIncluded(a.status, includePending),
@@ -222,11 +244,20 @@ function buildSlotRow(
     name: applicantName(a),
     status: a.status,
     positionLabel: a.positionLabel,
+    groupDates: a.groupDates,
   }));
 
   const approvedCount = applicants.filter(
     (a) => a.status === "approved" || a.status === "completed",
   ).length;
+
+  // 연속 일정 묶음 정보 계산
+  const groupSessions = session.groupId
+    ? event.sessions
+        .filter((s) => s.groupId === session.groupId)
+        .sort((a, b) => a.date.localeCompare(b.date))
+    : null;
+  const isGroup = !!groupSessions && groupSessions.length > 1;
 
   const base = {
     entryKey: slotKey(event.id, session.id, slot.id),
@@ -234,6 +265,13 @@ function buildSlotRow(
     sessionId: session.id,
     slotId: slot.id,
     date: session.date,
+    ...(isGroup
+      ? {
+          groupId: session.groupId!,
+          groupDates: groupSessions.map((s) => s.date),
+          groupSessionIds: groupSessions.map((s) => s.id),
+        }
+      : {}),
     teamId,
     eventTitle: event.title,
     venue: event.venue,

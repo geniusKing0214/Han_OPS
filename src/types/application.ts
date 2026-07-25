@@ -43,6 +43,12 @@ export type ApplicationItem = {
   positionSlotId?: string;
   /** Option B: 포지션 슬롯 시간 스냅샷 (e.g. "09:00") */
   positionSlotTime?: string;
+  /** 연속 일정 묶음 ID (Session.groupId와 동일) */
+  groupId?: string;
+  /** 묶음에 포함된 전체 날짜 목록 (표시용) */
+  groupDates?: string[];
+  /** 묶음에 포함된 전체 세션 ID 목록 (취합표 매칭용) */
+  groupSessionIds?: string[];
 };
 
 export const statusLabels: Record<ApplicationStatus, string> = {

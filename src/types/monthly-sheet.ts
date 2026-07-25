@@ -33,6 +33,8 @@ export type SheetApplicant = {
   name: string;
   status: ApplicationStatus;
   positionLabel?: string;
+  /** 연속 일정 묶음 날짜 목록 — 있으면 "(X일)" 뱃지 표시 */
+  groupDates?: string[];
 };
 
 /** 캘린더 셀·상세에 표시할 슬롯 단위 행 */
@@ -44,6 +46,12 @@ export type SheetSlotRow = {
   sessionId: string;
   slotId: string;
   date: string;
+  /** 연속 일정 묶음 ID (있으면 그룹 신청) */
+  groupId?: string;
+  /** 묶음 전체 날짜 목록 */
+  groupDates?: string[];
+  /** 묶음 전체 세션 ID 목록 */
+  groupSessionIds?: string[];
   teamId: TeamId;
   eventTitle: string;
   venue: string;

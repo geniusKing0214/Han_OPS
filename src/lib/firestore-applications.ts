@@ -123,6 +123,13 @@ function docToApplicationItem(
       typeof data.positionSlotId === "string" ? data.positionSlotId : undefined,
     positionSlotTime:
       typeof data.positionSlotTime === "string" ? data.positionSlotTime : undefined,
+    groupId: typeof data.groupId === "string" ? data.groupId : undefined,
+    groupDates: Array.isArray(data.groupDates)
+      ? (data.groupDates as string[])
+      : undefined,
+    groupSessionIds: Array.isArray(data.groupSessionIds)
+      ? (data.groupSessionIds as string[])
+      : undefined,
   };
 }
 
@@ -142,6 +149,10 @@ export type CreateApplicationInput = {
   positionLabel?: string;
   positionSlotId?: string;
   positionSlotTime?: string;
+  /** 연속 일정 묶음 */
+  groupId?: string;
+  groupDates?: string[];
+  groupSessionIds?: string[];
 };
 
 export async function createApplication(input: CreateApplicationInput) {
@@ -209,14 +220,18 @@ export async function createApplication(input: CreateApplicationInput) {
           availSnap.data() as Record<string, unknown>,
         )
       : defaultAvailability(input.userId);
-    if (!isUserAvailableOnDate(avail, input.date)) {
-      throw new Error("근무 불가로 설정한 날짜에는 신청할 수 없습니다.");
-    }
-    const eventWeekStart = getWeekStartMonday(parseYmd(input.date));
-    if (!avail.memberSubmittedWeeks.includes(eventWeekStart)) {
-      throw new Error(
-        "익주 근무 가능일을 먼저 제출해야 신청할 수 있습니다.",
-      );
+    // 연속 일정 묶음은 주 단위 가용성 체크를 건너뜀 (미리 생성된 일정은 잠금/해제로 제어)
+    const isGroupApp = !!input.groupId && Array.isArray(input.groupDates) && input.groupDates.length > 1;
+    if (!isGroupApp) {
+      if (!isUserAvailableOnDate(avail, input.date)) {
+        throw new Error("근무 불가로 설정한 날짜에는 신청할 수 없습니다.");
+      }
+      const eventWeekStart = getWeekStartMonday(parseYmd(input.date));
+      if (!avail.memberSubmittedWeeks.includes(eventWeekStart)) {
+        throw new Error(
+          "익주 근무 가능일을 먼저 제출해야 신청할 수 있습니다.",
+        );
+      }
     }
   }
 
@@ -256,6 +271,9 @@ export async function createApplication(input: CreateApplicationInput) {
     ...(input.positionLabel ? { positionLabel: input.positionLabel } : {}),
     ...(input.positionSlotId ? { positionSlotId: input.positionSlotId } : {}),
     ...(input.positionSlotTime ? { positionSlotTime: input.positionSlotTime } : {}),
+    ...(input.groupId ? { groupId: input.groupId } : {}),
+    ...(input.groupDates ? { groupDates: input.groupDates } : {}),
+    ...(input.groupSessionIds ? { groupSessionIds: input.groupSessionIds } : {}),
   });
 
   try {

@@ -35,6 +35,8 @@ export type Session = {
   id: string;
   date: string;
   slots: Slot[];
+  /** 연속 일정 묶음 ID — 같은 groupId 끼리 하나의 신청으로 처리 */
+  groupId?: string;
 };
 
 export type EventItem = {

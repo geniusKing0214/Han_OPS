@@ -138,6 +138,14 @@ export function MonthlySheetDayDetail({
                     {row.override?.venue ?? row.venue} ·{" "}
                     {row.override?.slotTime ?? row.slotTime}
                   </p>
+                  {row.groupId && row.groupDates && row.groupDates.length > 1 ? (
+                    <span className="mt-0.5 inline-flex items-center rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+                      {(() => {
+                        const sorted = [...row.groupDates].sort();
+                        return `${sorted[0]} ~ ${sorted[sorted.length - 1]} (${sorted.length}일)`;
+                      })()}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* 미확인 신청 배지 */}
@@ -196,6 +204,13 @@ export function MonthlySheetDayDetail({
                               className="w-full md:w-auto"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                const groupCtx = row.groupId
+                                  ? {
+                                      groupId: row.groupId,
+                                      groupDates: row.groupDates,
+                                      groupSessionIds: row.groupSessionIds,
+                                    }
+                                  : {};
                                 if (hasPositions) {
                                   onApply({
                                     eventId: ev.id,
@@ -205,6 +220,7 @@ export function MonthlySheetDayDetail({
                                     date: row.date,
                                     usePositions: true,
                                     positions: ev.positions,
+                                    ...groupCtx,
                                   });
                                 } else {
                                   onApply({
@@ -219,6 +235,7 @@ export function MonthlySheetDayDetail({
                                     applied: row.headcount,
                                     usePositions: ev.usePositions,
                                     positions: ev.positions,
+                                    ...groupCtx,
                                   });
                                 }
                               }}
@@ -308,6 +325,11 @@ export function MonthlySheetDayDetail({
                               : statusLabel(a.status)}
                           </Badge>
                           <span>{a.name}</span>
+                          {a.groupDates && a.groupDates.length > 1 ? (
+                            <span className="inline-flex items-center rounded-md bg-blue-500/15 px-1 py-px text-[10px] font-semibold text-blue-300 ring-1 ring-blue-500/25 md:text-[11px]">
+                              {a.groupDates.length}일
+                            </span>
+                          ) : null}
                         </li>
                       ))}
                     </ul>

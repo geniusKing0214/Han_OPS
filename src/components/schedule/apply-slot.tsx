@@ -38,6 +38,10 @@ export type ApplySlotContext = {
   // 포지션 기반 (usePositions=true)
   usePositions?: boolean;
   positions?: PositionDef[];
+  // 연속 일정 묶음
+  groupId?: string;
+  groupDates?: string[];
+  groupSessionIds?: string[];
 };
 
 /** 포지션+슬롯 선택 상태 */
@@ -148,6 +152,14 @@ export function ApplySlotSurface({
   );
 
   // ── Option B: 포지션×시간 그리드 body ──────────────────────────
+  const isGroupApp = !!(ctx.groupId && ctx.groupDates && ctx.groupDates.length > 1);
+  const groupDateLabel = isGroupApp
+    ? (() => {
+        const sorted = [...ctx.groupDates!].sort();
+        return `${sorted[0]} ~ ${sorted[sorted.length - 1]} (${sorted.length}일 연속)`;
+      })()
+    : null;
+
   const positionSlotBody = (
     <>
       <div className="space-y-1 text-sm text-muted-foreground">
@@ -156,7 +168,15 @@ export function ApplySlotSurface({
           <span className="mx-1">·</span>
           {ctx.venue}
         </p>
-        <p className="tabular-nums text-xs">{ctx.date}</p>
+        {isGroupApp ? (
+          <p className="tabular-nums text-xs">
+            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+              {groupDateLabel}
+            </span>
+          </p>
+        ) : (
+          <p className="tabular-nums text-xs">{ctx.date}</p>
+        )}
       </div>
 
       <div className="mt-4 space-y-1">
@@ -258,7 +278,7 @@ export function ApplySlotSurface({
       const applicantEmail = user.email ?? "";
 
       if (hasPositionSlots && selectedCombo) {
-        // Option B 신청
+        // Option B 신청 (연속 일정 묶음 포함)
         await createApplication({
           userId: user.uid,
           applicantDisplayName,
@@ -275,6 +295,9 @@ export function ApplySlotSurface({
           positionLabel: selectedCombo.position.label,
           positionSlotId: selectedCombo.slot.id,
           positionSlotTime: selectedCombo.slot.time,
+          ...(ctx.groupId ? { groupId: ctx.groupId } : {}),
+          ...(ctx.groupDates ? { groupDates: ctx.groupDates } : {}),
+          ...(ctx.groupSessionIds ? { groupSessionIds: ctx.groupSessionIds } : {}),
         });
       } else {
         // 일반 신청

@@ -27,10 +27,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
-type SessionDraft = { id: string; date: string };
+type SessionDraft = { id: string; date: string; groupNum: string };
 
 function emptySession(): SessionDraft {
-  return { id: crypto.randomUUID(), date: "" };
+  return { id: crypto.randomUUID(), date: "", groupNum: "" };
 }
 
 export type CreateScheduleDialogProps = {
@@ -74,7 +74,7 @@ export function CreateScheduleDialog({
     setTeamExposure("team_1");
     setSessions([
       defaultDate
-        ? { id: crypto.randomUUID(), date: defaultDate }
+        ? { id: crypto.randomUUID(), date: defaultDate, groupNum: "" }
         : emptySession(),
     ]);
     setPositions(DEFAULT_POSITIONS);
@@ -94,6 +94,12 @@ export function CreateScheduleDialog({
   const updateSessionDate = (sid: string, date: string) => {
     setSessions((prev) =>
       prev.map((s) => (s.id === sid ? { ...s, date } : s)),
+    );
+  };
+
+  const updateSessionGroupNum = (sid: string, groupNum: string) => {
+    setSessions((prev) =>
+      prev.map((s) => (s.id === sid ? { ...s, groupNum } : s)),
     );
   };
 
@@ -117,11 +123,24 @@ export function CreateScheduleDialog({
       return;
     }
 
-    const builtSessions: Session[] = sessions.map((sess) => ({
-      id: sess.id,
-      date: sess.date,
-      slots: [], // 포지션 기반 이벤트: 세션 슬롯 없음
-    }));
+    // 묶음 번호 → groupId UUID 변환
+    const groupNumToId = new Map<string, string>();
+    for (const sess of sessions) {
+      const num = sess.groupNum.trim();
+      if (num && !groupNumToId.has(num)) {
+        groupNumToId.set(num, crypto.randomUUID());
+      }
+    }
+
+    const builtSessions: Session[] = sessions.map((sess) => {
+      const num = sess.groupNum.trim();
+      return {
+        id: sess.id,
+        date: sess.date,
+        slots: [],
+        ...(num ? { groupId: groupNumToId.get(num) } : {}),
+      };
+    });
 
     const payload: Omit<EventItem, "id"> = {
       title: title.trim(),
@@ -439,13 +458,24 @@ export function CreateScheduleDialog({
                 key={sess.id}
                 className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
               >
-                <div className="flex-1 min-w-[160px] space-y-1">
+                <div className="flex-1 min-w-[140px] space-y-1">
                   <label className="text-xs text-muted-foreground">날짜 *</label>
                   <Input
                     type="date"
                     className="w-full"
                     value={sess.date}
                     onChange={(e) => updateSessionDate(sess.id, e.target.value)}
+                  />
+                </div>
+                <div className="w-16 shrink-0 space-y-1">
+                  <label className="text-xs text-muted-foreground">묶음 #</label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="—"
+                    className="h-9 text-center text-sm"
+                    value={sess.groupNum}
+                    onChange={(e) => updateSessionGroupNum(sess.id, e.target.value.replace(/[^0-9]/g, ""))}
                   />
                 </div>
                 <Button

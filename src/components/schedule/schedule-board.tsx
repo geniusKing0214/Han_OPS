@@ -44,6 +44,20 @@ function sessionsForDate(events: EventItem[], ymd: string) {
   return out;
 }
 
+/** 같은 이벤트 내에서 동일 groupId를 가진 모든 세션 (날짜순 정렬) */
+function groupSessionsFor(event: EventItem, groupId: string): Session[] {
+  return event.sessions
+    .filter((s) => s.groupId === groupId)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function groupDateLabel(groupSessions: Session[]): string {
+  const dates = groupSessions.map((s) => s.date).sort();
+  if (dates.length === 0) return "";
+  if (dates.length === 1) return dates[0];
+  return `${dates[0]} ~ ${dates[dates.length - 1]} (${dates.length}일)`;
+}
+
 export function ScheduleBoard({
   events,
   memberTeamId,
@@ -125,7 +139,22 @@ export function ScheduleBoard({
             </Card>
           ) : (
             <div className="space-y-3">
-              {rows.map(({ event, session }) => {
+              {(() => {
+                const renderedGroupKeys = new Set<string>();
+                return rows.map(({ event, session }) => {
+                // 그룹 세션: 같은 groupId가 이미 렌더됐으면 건너뜀
+                const groupKey = session.groupId ? `${event.id}:${session.groupId}` : null;
+                if (groupKey) {
+                  if (renderedGroupKeys.has(groupKey)) return null;
+                  renderedGroupKeys.add(groupKey);
+                }
+                // 그룹 세션 전체 정보 계산
+                const groupSessions = session.groupId
+                  ? groupSessionsFor(event, session.groupId)
+                  : null;
+                const isGroup = !!groupSessions && groupSessions.length > 1;
+                const primarySession = isGroup ? groupSessions[0] : session;
+
                 const expanded = openEv[event.id] ?? true;
                 const teamApplyLocked =
                   memberTeamId === "team_2" &&
@@ -138,13 +167,13 @@ export function ScheduleBoard({
                   ? formatTeam2ApplyOpensAt(event)
                   : null;
                 const windowStatus = resolveEventApplyStatus(
-                  session.date,
+                  primarySession.date,
                   myAvailability,
                 );
                 const windowOpen = windowStatus === "open";
                 return (
                   <Card
-                    key={`${event.id}-${session.id}`}
+                    key={groupKey ?? `${event.id}-${session.id}`}
                     className={cn(
                       "overflow-hidden",
                       event.color && "border-l-[3px]",
@@ -168,6 +197,11 @@ export function ScheduleBoard({
                           <CardDescription className="mt-1">
                             {event.venue}
                           </CardDescription>
+                          {isGroup && groupSessions ? (
+                            <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+                              {groupDateLabel(groupSessions)}
+                            </p>
+                          ) : null}
                           {event.notice ? (
                             <p className="mt-2 text-xs text-muted-foreground">
                               {event.notice}
@@ -266,12 +300,17 @@ export function ScheduleBoard({
                                           onClick={() => {
                                             setApplyCtx({
                                               eventId: event.id,
-                                              sessionId: session.id,
+                                              sessionId: primarySession.id,
                                               eventTitle: event.title,
                                               venue: event.venue,
-                                              date: session.date,
+                                              date: primarySession.date,
                                               usePositions: true,
                                               positions: event.positions,
+                                              ...(isGroup && session.groupId ? {
+                                                groupId: session.groupId,
+                                                groupDates: groupSessions!.map((s) => s.date),
+                                                groupSessionIds: groupSessions!.map((s) => s.id),
+                                              } : {}),
                                             });
                                             setApplyOpen(true);
                                           }}
@@ -317,16 +356,21 @@ export function ScheduleBoard({
                                 onClick={() => {
                                   setApplyCtx({
                                     eventId: event.id,
-                                    sessionId: session.id,
+                                    sessionId: primarySession.id,
                                     slotId: slot.id,
                                     eventTitle: event.title,
                                     venue: event.venue,
-                                    date: session.date,
+                                    date: primarySession.date,
                                     slotStart: slot.start_time,
                                     capacity: slot.capacity,
                                     applied: slot.applied_count,
                                     usePositions: event.usePositions,
                                     positions: event.positions,
+                                    ...(isGroup && session.groupId ? {
+                                      groupId: session.groupId,
+                                      groupDates: groupSessions!.map((s) => s.date),
+                                      groupSessionIds: groupSessions!.map((s) => s.id),
+                                    } : {}),
                                   });
                                   setApplyOpen(true);
                                 }}
