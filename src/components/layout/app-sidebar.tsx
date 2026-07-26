@@ -7,6 +7,7 @@ import {
   Bell,
   ClipboardList,
   LayoutDashboard,
+  MessageSquareText,
   Settings,
   Shield,
   Table2,
@@ -34,6 +35,7 @@ const overviewGroup: SidebarLink[] = [
   { href: "/dashboard", label: "마이페이지", icon: LayoutDashboard },
   { href: "/monthly-sheet", label: "월간 취합표", icon: Table2 },
   { href: "/notices", label: "Notices", icon: Bell },
+  { href: "/bamboo-forest", label: "한대나무숲", icon: MessageSquareText },
 ];
 
 const myWorkGroup: SidebarLink[] = [

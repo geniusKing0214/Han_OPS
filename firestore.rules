@@ -62,6 +62,30 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // 한대나무숲 — 익명 건의사항. 제목만 이 문서에 저장되고 전 사용자에게 공개된다.
+    // 본문은 detail/content 서브문서에 분리 저장해 관리자만 읽을 수 있게 한다.
+    match /bambooForest/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 200
+        && request.resource.data.keys().hasOnly(['title', 'created_at']);
+      allow update: if false;
+      allow delete: if isAdmin();
+
+      match /detail/{docId} {
+        allow read: if isAdmin();
+        allow create: if isSignedIn()
+          && request.resource.data.content is string
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 5000
+          && request.resource.data.keys().hasOnly(['content']);
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
     match /config/admins {
       allow read: if isSignedIn();
       allow write: if isAdmin();
