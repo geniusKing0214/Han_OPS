@@ -211,6 +211,10 @@ export function MonthlySheetDayDetail({
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 잠금
                             </Button>
+                          ) : windowStatus !== "open" ? (
+                            <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
+                              {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
+                            </Button>
                           ) : (
                             <Button
                               size="sm"
