@@ -8,6 +8,7 @@ import {
   CalendarCheck2,
   ClipboardList,
   LayoutDashboard,
+  MessageSquareText,
   MoreHorizontal,
   Settings,
   Shield,
@@ -43,6 +44,7 @@ const primary = [
 
 const moreLinks: MoreLink[] = [
   { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
+  { href: "/bamboo-forest", label: "한대나무숲", icon: MessageSquareText },
 ];
 
 function MoreLinkItem({ href, label, icon: Icon }: MoreLink) {
