@@ -186,14 +186,9 @@ export function ScheduleBoard({
                   myAvailability,
                   event.forceApplyOpen,
                 );
-                // 상시 신청 허용 이벤트: 신청기간·잠금과 무관하게 항상 허용
-                // 잠금 없는 이벤트: 신청전(before)·신청중(open)은 허용, 신청마감(closed)만 차단
-                // 잠금 있는 이벤트: open일 때만 허용
-                const windowOpen = event.forceApplyOpen
-                  ? true
-                  : event.locked !== true
-                    ? windowStatus !== "closed"
-                    : windowStatus === "open";
+                // 상시 신청 허용(forceApplyOpen) 이벤트만 신청기간과 무관하게 허용.
+                // 그 외에는 신청중(open) 상태일 때만 신청 가능 — 신청전·신청마감·신청불가는 모두 차단.
+                const windowOpen = event.forceApplyOpen || windowStatus === "open";
                 return (
                   <Card
                     key={groupKey ?? `${event.id}-${session.id}`}
@@ -397,6 +392,10 @@ export function ScheduleBoard({
                                         </Button>
                                       ) : alreadyAppliedEvent ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 완료</Button>
+                                      ) : !windowOpen ? (
+                                        <Button size="sm" variant="outline" disabled className="w-full">
+                                          {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
+                                        </Button>
                                       ) : null}
                                     </>
                                   ) : (
