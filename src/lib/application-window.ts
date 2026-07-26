@@ -17,7 +17,8 @@ export type EventApplyWindowStatus = "before" | "open" | "closed" | "blocked";
 /**
  * 일정 신청 기간: 일정이 속한 주(익주) 바로 전 주의 화/수/목요일에만 신청 가능.
  * - 신청 주(전 주) 화/수/목: open (신청중)
- * - 신청 주(전 주) 월/금/토/일, 그 이후(일정 주 포함): closed (신청마감)
+ * - 신청 주(전 주) 월요일(아직 화요일 전): before (신청전) — 창이 아직 안 열렸을 뿐 마감된 게 아님
+ * - 신청 주(전 주) 금/토/일, 그 이후(일정 주 포함): closed (신청마감)
  * - 신청 주보다 이전(그 이전 주들): before (신청전)
  */
 export function getEventApplyWindowStatus(
@@ -31,6 +32,7 @@ export function getEventApplyWindowStatus(
   if (nowWeekStart > applyWeekStart) return "closed";
   const key = weekdayKeyFromYmd(toYmd(now));
   if (key === "tue" || key === "wed" || key === "thu") return "open";
+  if (key === "mon") return "before";
   return "closed";
 }
 
