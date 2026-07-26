@@ -233,10 +233,12 @@ export async function createApplication(input: CreateApplicationInput) {
     // 1) 연속 일정 묶음(groupId) 신청
     // 2) 기간 패키지(packageId) 신청
     // 3) 어드민이 명시적으로 잠금 해제(locked=false)한 이벤트 — 미리 신청 받는 경우
+    // 4) 어드민이 상시 신청 허용(forceApplyOpen)을 켠 이벤트 — 신청기간 무관 오픈
     const isGroupApp = !!input.groupId && Array.isArray(input.groupDates) && input.groupDates.length > 1;
     const isPackageApp = !!input.packageId;
     const isExplicitlyUnlocked = eventData.locked === false;
-    const skipWeeklyCheck = isGroupApp || isPackageApp || isExplicitlyUnlocked;
+    const isForceApplyOpen = eventData.forceApplyOpen === true;
+    const skipWeeklyCheck = isGroupApp || isPackageApp || isExplicitlyUnlocked || isForceApplyOpen;
     if (!skipWeeklyCheck) {
       if (!isUserAvailableOnDate(avail, input.date)) {
         throw new Error("근무 불가로 설정한 날짜에는 신청할 수 없습니다.");
