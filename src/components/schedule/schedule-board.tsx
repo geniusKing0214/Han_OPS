@@ -184,12 +184,16 @@ export function ScheduleBoard({
                 const windowStatus = resolveEventApplyStatus(
                   primarySession.date,
                   myAvailability,
+                  event.forceApplyOpen,
                 );
+                // 상시 신청 허용 이벤트: 신청기간·잠금과 무관하게 항상 허용
                 // 잠금 없는 이벤트: 신청전(before)·신청중(open)은 허용, 신청마감(closed)만 차단
                 // 잠금 있는 이벤트: open일 때만 허용
-                const windowOpen = event.locked !== true
-                  ? windowStatus !== "closed"
-                  : windowStatus === "open";
+                const windowOpen = event.forceApplyOpen
+                  ? true
+                  : event.locked !== true
+                    ? windowStatus !== "closed"
+                    : windowStatus === "open";
                 return (
                   <Card
                     key={groupKey ?? `${event.id}-${session.id}`}
@@ -230,7 +234,7 @@ export function ScheduleBoard({
                             <p className="mt-2 text-xs font-semibold text-red-400">
                               신청 마감
                             </p>
-                          ) : event.locked ? (
+                          ) : event.locked && !event.forceApplyOpen ? (
                             <p className="mt-2 text-xs font-semibold text-blue-400">
                               신청 잠금
                             </p>
@@ -252,6 +256,11 @@ export function ScheduleBoard({
                               >
                                 {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
                               </span>
+                              {event.forceApplyOpen ? (
+                                <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-300">
+                                  상시신청
+                                </span>
+                              ) : null}
                               {windowStatus === "blocked" ? (
                                 <Link
                                   href="/my-availability"
@@ -293,7 +302,7 @@ export function ScheduleBoard({
                                   </div>
                                   {event.closed ? (
                                     <Button size="sm" variant="outline" disabled>신청 마감</Button>
-                                  ) : event.locked ? (
+                                  ) : event.locked && !event.forceApplyOpen ? (
                                     <Button size="sm" variant="outline" disabled>신청 잠금</Button>
                                   ) : alreadyAppliedEvent ? (
                                     <Button size="sm" variant="outline" disabled>신청 완료</Button>
@@ -358,7 +367,7 @@ export function ScheduleBoard({
                                       {/* 이 포지션에 열린 슬롯이 하나라도 있으면 신청 버튼 */}
                                       {event.closed ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 마감</Button>
-                                      ) : event.locked ? (
+                                      ) : event.locked && !event.forceApplyOpen ? (
                                         <Button size="sm" variant="outline" disabled className="w-full">신청 잠금</Button>
                                       ) : !alreadyAppliedEvent && !teamApplyLocked && windowOpen &&
                                       pos.slots.some((s) => s.applied_count < s.capacity) ? (
@@ -403,7 +412,7 @@ export function ScheduleBoard({
                             {session.slots.map((slot) => {
                               const full = slot.applied_count >= slot.capacity;
                               const alreadyAppliedEvent = appliedEventIds.has(event.id);
-                              const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || !!event.locked || !windowOpen;
+                              const blocked = full || alreadyAppliedEvent || teamApplyLocked || !!event.closed || (event.locked && !event.forceApplyOpen) || !windowOpen;
                               return (
                                 <div
                                   key={slot.id}
@@ -449,7 +458,7 @@ export function ScheduleBoard({
                                       ? "신청 완료"
                                       : event.closed
                                         ? "신청 마감"
-                                        : event.locked
+                                        : event.locked && !event.forceApplyOpen
                                           ? "신청 잠금"
                                           : full
                                             ? "마감"

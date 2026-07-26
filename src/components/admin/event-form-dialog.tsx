@@ -69,6 +69,7 @@ export function CreateScheduleDialog({
   const [positions, setPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [packages, setPackages] = useState<PackageDraft[]>([]);
   const [locked, setLocked] = useState(false);
+  const [forceApplyOpen, setForceApplyOpen] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export function CreateScheduleDialog({
     setPositions(DEFAULT_POSITIONS);
     setPackages([]);
     setLocked(false);
+    setForceApplyOpen(false);
     setError("");
   }, [open, defaultDate]);
 
@@ -169,6 +171,7 @@ export function CreateScheduleDialog({
       usePositions: builtPackages.length === 0,
       positions: builtPackages.length === 0 ? positions.filter((p) => p.label.trim()) : [],
       locked,
+      forceApplyOpen,
       ...(builtPackages.length > 0 ? { packages: builtPackages } : {}),
     };
     if (notice.trim()) payload.notice = notice.trim();
@@ -445,6 +448,35 @@ export function CreateScheduleDialog({
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
                   locked ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          <Separator />
+
+          {/* 상시 신청 허용 설정 */}
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">상시 신청 허용</p>
+              <p className="text-xs text-muted-foreground">
+                활성화하면 신청기간이 아니어도 항상 신청을 받습니다. 중요 일정에
+                긴급하게 신청을 받고 싶을 때 사용하세요. 언제든 꺼서 다시
+                신청기간 기준으로 되돌릴 수 있습니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={forceApplyOpen}
+              onClick={() => setForceApplyOpen((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                forceApplyOpen ? "bg-violet-500" : "bg-muted-foreground/30"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  forceApplyOpen ? "translate-x-6" : "translate-x-1"
                 }`}
               />
             </button>
