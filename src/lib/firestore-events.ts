@@ -187,6 +187,14 @@ export async function toggleEventClosed(
   await updateDoc(doc(db, EVENTS_COLLECTION, eventId), { closed });
 }
 
+/** 상시 신청 허용(신청기간 무관 오픈) 토글 */
+export async function toggleEventForceApplyOpen(
+  eventId: string,
+  forceApplyOpen: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, EVENTS_COLLECTION, eventId), { forceApplyOpen });
+}
+
 /** 신규 스케줄 저장 + 해당 팀 멤버 알림 */
 export async function createScheduleEvent(
   event: EventItem,

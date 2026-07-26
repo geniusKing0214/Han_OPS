@@ -37,12 +37,17 @@ export function getEventApplyWindowStatus(
 /**
  * 신청 기간(open)이더라도, 일정이 속한 주에 대한 근무 가능일을 아직
  * 제출하지 않았다면 신청할 수 없도록 blocked(신청불가)로 낮춘다.
+ *
+ * @param forceOpen 어드민이 상시 신청 허용(forceApplyOpen)을 켠 이벤트라면
+ *   신청기간·근무가능일 제출 여부와 무관하게 항상 open으로 취급한다.
  */
 export function resolveEventApplyStatus(
   eventDateYmd: string,
   avail: WorkforceAvailability | null,
+  forceOpen = false,
   now: Date = new Date(),
 ): EventApplyWindowStatus {
+  if (forceOpen) return "open";
   const base = getEventApplyWindowStatus(eventDateYmd, now);
   if (base !== "open") return base;
   const eventWeekStart = getWeekStartMonday(parseYmd(eventDateYmd));

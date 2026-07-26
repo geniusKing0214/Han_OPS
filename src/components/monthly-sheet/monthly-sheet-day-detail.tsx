@@ -182,6 +182,7 @@ export function MonthlySheetDayDetail({
                       const windowStatus = resolveEventApplyStatus(
                         row.date,
                         myAvailability ?? null,
+                        ev.forceApplyOpen,
                       );
                       return (
                         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -193,6 +194,11 @@ export function MonthlySheetDayDetail({
                           >
                             {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
                           </span>
+                          {ev.forceApplyOpen ? (
+                            <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-300">
+                              상시신청
+                            </span>
+                          ) : null}
                           {alreadyApplied ? (
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 완료
@@ -201,7 +207,7 @@ export function MonthlySheetDayDetail({
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 마감
                             </Button>
-                          ) : ev?.locked ? (
+                          ) : ev?.locked && !ev.forceApplyOpen ? (
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 잠금
                             </Button>

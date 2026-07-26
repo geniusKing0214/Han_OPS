@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
 import { TeamFilter } from "@/components/team/team-filter";
-import { deleteEvent, createScheduleEvent, saveEvent, toggleEventClosed, toggleEventLocked } from "@/lib/firestore-events";
+import { deleteEvent, createScheduleEvent, saveEvent, toggleEventClosed, toggleEventLocked, toggleEventForceApplyOpen } from "@/lib/firestore-events";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useEvents } from "@/hooks/use-events";
 import { filterEventsByTeamFilter } from "@/lib/team-utils";
@@ -286,6 +286,11 @@ export function ScheduleManager() {
                           마감
                         </span>
                       ) : null}
+                      {event.forceApplyOpen ? (
+                        <span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300 ring-1 ring-violet-500/30">
+                          상시신청
+                        </span>
+                      ) : null}
                     </div>
                     <button
                       type="button"
@@ -320,6 +325,20 @@ export function ScheduleManager() {
                       </div>
                     </button>
                     <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
+                          event.forceApplyOpen
+                            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
+                            : "bg-violet-500/15 text-violet-300 ring-violet-500/30 hover:bg-violet-500/25"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void toggleEventForceApplyOpen(event.id, !event.forceApplyOpen);
+                        }}
+                      >
+                        {event.forceApplyOpen ? "상시신청 해제" : "상시신청 허용"}
+                      </button>
                       <button
                         type="button"
                         className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
