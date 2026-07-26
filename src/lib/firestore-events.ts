@@ -75,6 +75,7 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
   const closed = data.closed === true ? true : undefined;
   // locked: true=잠금, false=명시 해제(윈도우 우회), undefined=미설정(구형 이벤트)
   const locked = typeof data.locked === "boolean" ? data.locked : undefined;
+  const forceApplyOpen = data.forceApplyOpen === true ? true : undefined;
   const packages: EventPackage[] = Array.isArray(data.packages)
     ? (data.packages as Array<Record<string, unknown>>)
         .filter(
@@ -106,6 +107,7 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     positions,
     ...(closed ? { closed } : {}),
     ...(locked !== undefined ? { locked } : {}),
+    ...(forceApplyOpen ? { forceApplyOpen } : {}),
     ...(packages.length > 0 ? { packages } : {}),
   };
 }
