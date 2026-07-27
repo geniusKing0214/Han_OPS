@@ -86,8 +86,8 @@ export function CreateScheduleDialog({
         ? [{ id: crypto.randomUUID(), date: defaultDate, groupNum: "" }]
         : [],
     );
-    setRangeStart("");
-    setRangeEnd("");
+    setRangeStart(defaultDate ?? "");
+    setRangeEnd(defaultDate ?? "");
     setPositions(DEFAULT_POSITIONS);
     setPackages([]);
     setForceApplyOpen(false);
@@ -555,13 +555,7 @@ export function CreateScheduleDialog({
 
           <p className="text-sm font-medium">날짜 · 슬롯</p>
 
-          {defaultDate ? (
-            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <p className="text-xs text-muted-foreground">날짜</p>
-              <p className="text-sm font-medium">{defaultDate}</p>
-            </div>
-          ) : (
-            <>
+          <>
               {/* 기간 범위 입력 */}
               <div className="space-y-2 rounded-lg border border-border bg-muted/30 px-4 py-3">
                 <p className="text-xs font-medium text-muted-foreground">
@@ -688,8 +682,7 @@ export function CreateScheduleDialog({
                   + 날짜 직접 추가
                 </Button>
               </div>
-            </>
-          )}
+          </>
         </div>
 
         {error ? (
