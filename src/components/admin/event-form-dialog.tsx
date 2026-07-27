@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { MultiDateCalendar } from "@/components/admin/multi-date-calendar";
 import type { EventItem, EventPackage, PositionDef, Session } from "@/types/schedule";
 import { DEFAULT_POSITIONS } from "@/types/schedule";
 import {
@@ -29,6 +28,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
 type SessionDraft = { id: string; date: string; groupNum: string };
+
+function sessionYMD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 type PackageDraft = { id: string; label: string; startDate: string; endDate: string };
 
@@ -63,7 +66,8 @@ export function CreateScheduleDialog({
   });
   const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [sessions, setSessions] = useState<SessionDraft[]>([]);
-  const [calMonth, setCalMonth] = useState<Date>(() => new Date());
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const [positions, setPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [packages, setPackages] = useState<PackageDraft[]>([]);
   const [forceApplyOpen, setForceApplyOpen] = useState(false);
@@ -82,38 +86,47 @@ export function CreateScheduleDialog({
         ? [{ id: crypto.randomUUID(), date: defaultDate, groupNum: "" }]
         : [],
     );
-    if (defaultDate) {
-      const parts = defaultDate.split("-");
-      setCalMonth(new Date(Number(parts[0]), Number(parts[1]) - 1, 1));
-    } else {
-      setCalMonth(new Date());
-    }
+    setRangeStart("");
+    setRangeEnd("");
     setPositions(DEFAULT_POSITIONS);
     setPackages([]);
     setForceApplyOpen(false);
     setError("");
   }, [open, defaultDate]);
 
-  /** 캘린더 날짜 클릭 → 선택/해제 토글 */
-  const toggleCalendarDate = (ymd: string) => {
-    setSessions((prev) => {
-      if (prev.some((s) => s.date === ymd)) {
-        return prev.filter((s) => s.date !== ymd);
-      }
-      return [...prev, { id: crypto.randomUUID(), date: ymd, groupNum: "" }].sort(
-        (a, b) => a.date.localeCompare(b.date),
-      );
-    });
+  /** 시작~종료일 범위의 모든 날짜를 세션으로 생성 (기존 세션 교체) */
+  const applyDateRange = () => {
+    if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) return;
+    const result: SessionDraft[] = [];
+    const cur = new Date(rangeStart + "T00:00:00");
+    const end = new Date(rangeEnd + "T00:00:00");
+    while (cur <= end && result.length < 365) {
+      result.push({ id: crypto.randomUUID(), date: sessionYMD(cur), groupNum: "" });
+      cur.setDate(cur.getDate() + 1);
+    }
+    setSessions(result);
   };
 
-  const updateSessionGroupNum = (sid: string, groupNum: string) => {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === sid ? { ...s, groupNum } : s)),
-    );
-  };
+  /** 날짜를 하나 더 추가 (직접 입력용, 빈 날짜로 시작) */
+  const addSession = () =>
+    setSessions((prev) => [...prev, { id: crypto.randomUUID(), date: "", groupNum: "" }]);
 
-  /** 선택된 날짜 Set (캘린더에 하이라이트 전달용) */
-  const selectedDateSet = new Set(sessions.map((s) => s.date));
+  const removeSession = (sid: string) =>
+    setSessions((prev) => prev.filter((s) => s.id !== sid));
+
+  const updateSessionDate = (sid: string, date: string) =>
+    setSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, date } : s)));
+
+  const updateSessionGroupNum = (sid: string, groupNum: string) =>
+    setSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, groupNum } : s)));
+
+  /** 범위 날짜 수 미리보기 */
+  const rangeCount =
+    rangeStart && rangeEnd && rangeStart <= rangeEnd
+      ? Math.round(
+          (new Date(rangeEnd).getTime() - new Date(rangeStart).getTime()) / 86_400_000,
+        ) + 1
+      : null;
 
   const handleSubmit = async () => {
     setError("");
@@ -122,8 +135,14 @@ export function CreateScheduleDialog({
       return;
     }
     if (sessions.length === 0) {
-      setError("날짜를 최소 1개 선택하세요.");
+      setError("날짜를 최소 1개 입력하세요.");
       return;
+    }
+    for (const sess of sessions) {
+      if (!sess.date) {
+        setError("날짜가 비어있는 항목이 있습니다. 모든 날짜를 입력하세요.");
+        return;
+      }
     }
     const hasAnyPackage = packages.some(
       (p) => p.label.trim() && p.startDate && p.endDate,
@@ -534,14 +553,7 @@ export function CreateScheduleDialog({
 
           <Separator />
 
-          <div>
-            <p className="text-sm font-medium">날짜 · 슬롯</p>
-            <p className="text-xs text-muted-foreground">
-              {defaultDate
-                ? "지정된 날짜로 생성됩니다"
-                : "캘린더에서 날짜를 클릭해 선택하세요 (복수 선택 가능)"}
-            </p>
-          </div>
+          <p className="text-sm font-medium">날짜 · 슬롯</p>
 
           {defaultDate ? (
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
@@ -550,62 +562,140 @@ export function CreateScheduleDialog({
             </div>
           ) : (
             <>
-              <MultiDateCalendar
-                month={calMonth}
-                onMonthChange={setCalMonth}
-                selectedDates={selectedDateSet}
-                onToggleDate={toggleCalendarDate}
-              />
-
-              {sessions.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    선택된 날짜 ({sessions.length}개) — 재클릭으로 해제
+              {/* 기간 범위 입력 */}
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <p className="text-xs font-medium text-muted-foreground">
+                  기간으로 일괄 추가
+                </p>
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex-1 min-w-[120px] space-y-1">
+                    <label className="text-[10px] text-muted-foreground">시작일</label>
+                    <Input
+                      type="date"
+                      className="h-9"
+                      value={rangeStart}
+                      onChange={(e) => setRangeStart(e.target.value)}
+                    />
+                  </div>
+                  <span className="pb-1 text-sm text-muted-foreground">~</span>
+                  <div className="flex-1 min-w-[120px] space-y-1">
+                    <label className="text-[10px] text-muted-foreground">종료일</label>
+                    <Input
+                      type="date"
+                      className="h-9"
+                      value={rangeEnd}
+                      onChange={(e) => setRangeEnd(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="accent"
+                    className="shrink-0"
+                    disabled={!rangeStart || !rangeEnd || rangeStart > rangeEnd}
+                    onClick={applyDateRange}
+                  >
+                    적용
+                  </Button>
+                </div>
+                {rangeCount !== null ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    총 <span className="font-semibold text-foreground">{rangeCount}일</span> 생성 예정
+                    {rangeCount > 90 ? " (최대 90일)" : ""}
                   </p>
-                  {sessions.map((sess) => {
-                    const parts = sess.date.split("-");
-                    const dateObj = new Date(
-                      Number(parts[0]),
-                      Number(parts[1]) - 1,
-                      Number(parts[2]),
-                    );
-                    const dow = ["일", "월", "화", "수", "목", "금", "토"][
-                      dateObj.getDay()
-                    ];
-                    return (
-                      <div
-                        key={sess.id}
-                        className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2.5"
-                      >
-                        <span className="flex-1 text-sm font-medium tabular-nums">
-                          {parts[1]}/{parts[2]} ({dow})
-                        </span>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <label className="text-[10px] text-muted-foreground whitespace-nowrap">
-                            묶음 #
-                          </label>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="—"
-                            className="h-8 w-14 text-center text-sm"
-                            value={sess.groupNum}
-                            onChange={(e) =>
-                              updateSessionGroupNum(
-                                sess.id,
-                                e.target.value.replace(/[^0-9]/g, ""),
-                              )
-                            }
-                          />
+                ) : null}
+              </div>
+
+              {/* 세션 목록 */}
+              {sessions.length > 0 ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      날짜 목록 ({sessions.length}개)
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={addSession}
+                    >
+                      + 날짜 추가
+                    </Button>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                    {sessions.map((sess) => {
+                      const parts = sess.date ? sess.date.split("-") : [];
+                      const dateObj =
+                        parts.length === 3
+                          ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+                          : null;
+                      const dow = dateObj
+                        ? ["일", "월", "화", "수", "목", "금", "토"][dateObj.getDay()]
+                        : "";
+                      return (
+                        <div
+                          key={sess.id}
+                          className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
+                        >
+                          {dateObj ? (
+                            <span className="flex-1 text-sm font-medium tabular-nums">
+                              {parts[1]}/{parts[2]} ({dow})
+                            </span>
+                          ) : (
+                            <Input
+                              type="date"
+                              className="flex-1 h-8 text-sm"
+                              value={sess.date}
+                              onChange={(e) => updateSessionDate(sess.id, e.target.value)}
+                            />
+                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                              묶음#
+                            </span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="—"
+                              className="h-7 w-12 text-center text-xs"
+                              value={sess.groupNum}
+                              onChange={(e) =>
+                                updateSessionGroupNum(
+                                  sess.id,
+                                  e.target.value.replace(/[^0-9]/g, ""),
+                                )
+                              }
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="shrink-0 text-muted-foreground/60 hover:text-red-400 text-base leading-none"
+                            onClick={() => removeSession(sess.id)}
+                            aria-label="날짜 삭제"
+                          >
+                            ×
+                          </button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
-                <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-                  위 캘린더에서 날짜를 선택하세요
-                </p>
+                <div className="space-y-2">
+                  <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-xs text-muted-foreground">
+                    위에서 기간을 지정하거나 날짜를 직접 추가하세요
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={addSession}
+                  >
+                    + 날짜 직접 추가
+                  </Button>
+                </div>
               )}
             </>
           )}
