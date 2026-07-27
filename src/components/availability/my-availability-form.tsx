@@ -118,7 +118,9 @@ export function MyAvailabilityForm({
 
   const submitted = !!avail?.memberSubmittedWeeks.includes(nextWeekStart);
   const windowOpen = windowStatus === "open";
-  const locked = submitted || !windowOpen;
+  // 화~목(신청 기간 중)에는 제출 여부 관계없이 수정 가능
+  // 금요일 00:00 이후(closed) 또는 신청 기간 전(before)에는 잠금
+  const locked = !windowOpen;
 
   useEffect(() => {
     if (!user) return;
@@ -241,11 +243,22 @@ export function MyAvailabilityForm({
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           가능 {availableCount}/7일
-          {submitted ? " · 신청 완료(잠금)" : ""}
+          {submitted && !windowOpen ? " · 신청 완료(잠금)" : submitted ? " · 신청 완료(수정 가능)" : ""}
         </p>
       </div>
 
-      {submitted ? (
+      {/* 화~목 신청 기간 중 이미 제출한 경우: 수정 가능 안내 */}
+      {windowOpen && submitted ? (
+        <div className="flex items-start gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-100">
+          <Pencil className="mt-0.5 size-4 shrink-0" />
+          <p>
+            신청 완료 상태입니다.{" "}
+            <span className="font-medium">화·수·목요일</span>에는 직접 수정할 수 있습니다.
+            금요일 00:00 이후에는 관리자에게 수정 요청해 주세요.
+          </p>
+        </div>
+      ) : !windowOpen && submitted ? (
+        /* 신청 기간 외 + 제출 완료: 잠금 */
         <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-100">
           <Lock className="mt-0.5 size-4 shrink-0" />
           <p>
@@ -282,7 +295,7 @@ export function MyAvailabilityForm({
       ) : null}
       {saved && !dirty ? (
         <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
-          신청이 완료되었습니다. 이후 변경은 관리자만 가능합니다.
+          저장되었습니다. 금요일 이후에는 관리자에게 수정 요청해 주세요.
         </p>
       ) : null}
 
@@ -388,7 +401,7 @@ export function MyAvailabilityForm({
               disabled={busy}
               onClick={() => void save()}
             >
-              {busy ? "신청 중…" : "익주 가능일 신청하기"}
+              {busy ? "저장 중…" : submitted ? "수정사항 저장하기" : "익주 가능일 신청하기"}
             </Button>
           </div>
         </div>

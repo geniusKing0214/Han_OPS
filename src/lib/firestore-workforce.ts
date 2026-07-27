@@ -712,11 +712,8 @@ export async function upsertMyAvailability(input: {
     ? docToAvailability(uid, snap.data() as Record<string, unknown>)
     : defaultAvailability(uid);
 
-  if (prev.memberSubmittedWeeks.includes(allowedWeek)) {
-    throw new Error(
-      "이미 익주 가능일을 신청했습니다. 변경은 관리자에게 요청해 주세요.",
-    );
-  }
+  // 화~목 신청 기간 중에는 이미 제출했어도 재저장 허용
+  // (금요일 이후 잠금은 isAvailabilityWindowOpen() 체크가 위에서 처리)
 
   const nextExceptions = {
     ...prev.dateExceptions,
