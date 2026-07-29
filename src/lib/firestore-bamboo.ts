@@ -6,11 +6,12 @@ import {
   onSnapshot,
   serverTimestamp,
   Timestamp,
+  updateDoc,
   writeBatch,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
-import type { BambooPost } from "@/types/bamboo";
+import type { BambooPost, BambooPostContent } from "@/types/bamboo";
 
 export const BAMBOO_COLLECTION = "bambooForest";
 const CONTENT_SUBCOLLECTION = "detail";
@@ -72,13 +73,35 @@ export async function createBambooPost(input: {
   await batch.commit();
 }
 
-/** 본문 조회 — Firestore 규칙상 관리자만 읽기가 허용된다. */
-export async function fetchBambooPostContent(postId: string): Promise<string> {
+/** 본문(+답변) 조회 — Firestore 규칙상 관리자만 읽기가 허용된다. */
+export async function fetchBambooPostDetail(
+  postId: string,
+): Promise<BambooPostContent> {
   const snap = await getDoc(
     doc(db, BAMBOO_COLLECTION, postId, CONTENT_SUBCOLLECTION, CONTENT_DOC_ID),
   );
-  const content = snap.data()?.content;
-  return typeof content === "string" ? content : "";
+  const data = snap.data() ?? {};
+  const content = data.content;
+  const answer = data.answer;
+  return {
+    content: typeof content === "string" ? content : "",
+    answer: typeof answer === "string" ? answer : undefined,
+    answered_at: data.answered_at ? tsToIso(data.answered_at) : undefined,
+  };
+}
+
+/** 관리자 답변 저장 — 본문(content)은 그대로 두고 answer/answered_at만 갱신한다. */
+export async function saveBambooPostAnswer(
+  postId: string,
+  answer: string,
+): Promise<void> {
+  await updateDoc(
+    doc(db, BAMBOO_COLLECTION, postId, CONTENT_SUBCOLLECTION, CONTENT_DOC_ID),
+    {
+      answer: answer.trim(),
+      answered_at: serverTimestamp(),
+    },
+  );
 }
 
 /** 게시물 삭제 (관리자 전용) */

@@ -81,7 +81,13 @@ service cloud.firestore {
           && request.resource.data.content.size() > 0
           && request.resource.data.content.size() <= 5000
           && request.resource.data.keys().hasOnly(['content']);
-        allow update: if false;
+        // 관리자 답변만 수정 허용 — 원본 content는 절대 변경할 수 없다.
+        allow update: if isAdmin()
+          && request.resource.data.content == resource.data.content
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer', 'answered_at'])
+          && request.resource.data.answer is string
+          && request.resource.data.answer.size() > 0
+          && request.resource.data.answer.size() <= 5000;
         allow delete: if isAdmin();
       }
     }
