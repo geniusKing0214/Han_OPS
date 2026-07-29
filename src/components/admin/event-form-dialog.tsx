@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 
 import type { EventItem, EventPackage, PositionDef, Session } from "@/types/schedule";
-import { DEFAULT_POSITIONS } from "@/types/schedule";
 import {
   TEAM_EXPOSURE_OPTIONS,
   teamExposureToTeamIds,
@@ -68,7 +67,7 @@ export function CreateScheduleDialog({
   const [sessions, setSessions] = useState<SessionDraft[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
-  const [positions, setPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
+  const [positions, setPositions] = useState<PositionDef[]>([]);
   const [packages, setPackages] = useState<PackageDraft[]>([]);
   const [forceApplyOpen, setForceApplyOpen] = useState(false);
   const [error, setError] = useState("");
@@ -88,7 +87,7 @@ export function CreateScheduleDialog({
     );
     setRangeStart(defaultDate ?? "");
     setRangeEnd(defaultDate ?? "");
-    setPositions(DEFAULT_POSITIONS);
+    setPositions([]);
     setPackages([]);
     setForceApplyOpen(false);
     setError("");
@@ -144,20 +143,6 @@ export function CreateScheduleDialog({
         return;
       }
     }
-    const hasAnyPackage = packages.some(
-      (p) => p.label.trim() && p.startDate && p.endDate,
-    );
-    if (!hasAnyPackage) {
-      // 패키지 없는 일반 이벤트는 슬롯 필수
-      const hasAnySlot = positions.some(
-        (p) => p.label.trim() && p.slots.length > 0,
-      );
-      if (!hasAnySlot) {
-        setError("포지션에 최소 1개 이상의 시간 슬롯을 추가하거나, 기간 패키지를 정의하세요.");
-        return;
-      }
-    }
-
     // 묶음 번호 → groupId UUID 변환
     const groupNumToId = new Map<string, string>();
     for (const sess of sessions) {
