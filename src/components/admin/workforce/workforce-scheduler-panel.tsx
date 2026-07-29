@@ -2096,6 +2096,25 @@ function ScheduleCard({
       </div>
 
       <div className="space-y-1.5 px-2.5 pb-2 pt-1.5">
+        {/* 포지션 뱃지 목록 */}
+        {schedule.positions && schedule.positions.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {schedule.positions.map((p) => (
+              <span
+                key={p.id}
+                className={cn(
+                  "rounded-sm px-1.5 py-0.5 text-[9px] font-semibold leading-4",
+                  positionBadgeClass(p.label),
+                )}
+              >
+                {p.label}
+                {p.slots?.length
+                  ? ` · ${p.slots.reduce((s, sl) => s + sl.capacity, 0)}명`
+                  : ""}
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="flex items-center justify-between gap-1">
           <span className="text-[10px] tabular-nums text-muted-foreground">
             {schedule.startTime}

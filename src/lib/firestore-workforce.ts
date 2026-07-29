@@ -1092,6 +1092,10 @@ export function mergeWeekSchedulesWithEvents(
         usedIds.add(s.id);
         for (const uid of s.assignedUserIds) assigneeSet.add(uid);
       }
+      const eventPositions =
+        row.event.usePositions && row.event.positions?.some((p) => p.label?.trim())
+          ? row.event.positions
+          : undefined;
       merged.push({
         ...primary,
         title: row.event.title || primary.title,
@@ -1106,8 +1110,14 @@ export function mergeWeekSchedulesWithEvents(
         sourceEventId: row.event.id,
         sourceSessionId: row.sessionId,
         sourceSlotId: MERGED_SLOT_ID,
+        // 이벤트 포지션 항상 최신 상태로 유지 (usePositions=true일 때만)
+        ...(eventPositions ? { positions: eventPositions } : {}),
       });
     } else {
+      const eventPositions =
+        row.event.usePositions && row.event.positions?.some((p) => p.label?.trim())
+          ? row.event.positions
+          : undefined;
       merged.push({
         id: `virtual:${key}`,
         weekStart: getWeekStartMonday(parseYmd(row.date)),
@@ -1127,6 +1137,8 @@ export function mergeWeekSchedulesWithEvents(
         createdAt: "",
         updatedAt: "",
         createdBy: "",
+        // 이벤트 포지션 전달 (virtual 상태에서도 포지션 드롭다운 표시)
+        ...(eventPositions ? { positions: eventPositions } : {}),
       });
     }
   }
@@ -1207,7 +1219,7 @@ export async function importEventsForWeek(input: {
       sourceEventId: row.event.id,
       sourceSessionId: row.sessionId,
       sourceSlotId: MERGED_SLOT_ID,
-      ...(row.event.usePositions && row.event.positions?.length
+      ...(row.event.usePositions && row.event.positions?.some((p) => p.label?.trim())
         ? { positions: row.event.positions }
         : {}),
     });
