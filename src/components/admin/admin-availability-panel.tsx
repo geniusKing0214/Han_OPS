@@ -416,16 +416,19 @@ export function AdminAvailabilityPanel() {
           <DialogHeader>
             <DialogTitle>불가 사유</DialogTitle>
             <DialogDescription>
-              {reasonMember
-                ? `${reasonMember.displayName || reasonMember.email} · ${formatWeekRangeLabel(weekStart)}`
+              {reasonMember && expandedBucket
+                ? (() => {
+                    const { label, dow } = formatDayHeader(expandedBucket.date);
+                    return `${reasonMember.displayName || reasonMember.email} · ${dow}요일 · ${label}`;
+                  })()
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {reasonMember
+            {reasonMember && expandedBucket
               ? unavailableReasonsFor(
                   resolveAvailability(availMap, reasonMember.uid),
-                  weekDates,
+                  [expandedBucket.date],
                 ).map(({ date, note }) => {
                   const { label, dow } = formatDayHeader(date);
                   return (
