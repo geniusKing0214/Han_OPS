@@ -58,6 +58,7 @@ export function AdminAvailabilityPanel() {
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
   const [reasonMember, setReasonMember] = useState<ListedUserRow | null>(null);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [notSubmittedOpen, setNotSubmittedOpen] = useState(false);
 
   const [users, setUsers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
@@ -194,15 +195,73 @@ export function AdminAvailabilityPanel() {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-muted/30">
+        <button
+          type="button"
+          onClick={() => setNotSubmittedOpen((v) => !v)}
+          className={cn(
+            "rounded-xl border text-left transition-colors",
+            notSubmittedOpen
+              ? "border-red-500/40 bg-red-500/10"
+              : "border-border bg-muted/30 hover:border-red-500/30",
+          )}
+        >
           <CardContent className="space-y-1 p-4">
             <p className="text-xs text-muted-foreground">미신청</p>
-            <p className="text-2xl font-semibold tabular-nums text-red-400">
-              {notSubmitted.length}
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-2xl font-semibold tabular-nums text-red-400">
+                {notSubmitted.length}
+              </p>
+              {notSubmittedOpen ? (
+                <ChevronUp className="size-4 text-red-400" />
+              ) : (
+                <ChevronDown className="size-4 text-muted-foreground" />
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              클릭해서 미신청자 보기
             </p>
           </CardContent>
-        </Card>
+        </button>
       </div>
+
+      {/* 미신청자 리스트 */}
+      {notSubmittedOpen && notSubmitted.length > 0 ? (
+        <Card className="border-red-500/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-red-400">
+              미신청자 목록 ({notSubmitted.length}명)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+              {notSubmitted.map((u) => (
+                <div
+                  key={u.uid}
+                  className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {u.displayName || u.email}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {TEAM_LABELS[normalizeTeamId(u.team_id)]}
+                    </p>
+                  </div>
+                  <Badge variant="destructive" className="shrink-0 text-[10px]">
+                    미신청
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : notSubmittedOpen && notSubmitted.length === 0 ? (
+        <Card className="border-emerald-500/20">
+          <CardContent className="py-6 text-center text-sm text-emerald-400">
+            모든 멤버가 신청을 완료했습니다 🎉
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
