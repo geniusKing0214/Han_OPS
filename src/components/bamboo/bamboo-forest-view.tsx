@@ -21,9 +21,11 @@ import { useBambooPosts } from "@/hooks/use-bamboo-posts";
 import {
   createBambooPost,
   deleteBambooPost,
-  fetchBambooPostContent,
+  fetchBambooPostDetail,
+  saveBambooPostAnswer,
 } from "@/lib/firestore-bamboo";
 import { BAMBOO_DEFAULT_TITLE } from "@/types/bamboo";
+import type { BambooPostContent } from "@/types/bamboo";
 
 function formatWhen(iso: string) {
   try {
@@ -47,9 +49,15 @@ export function BambooForestView() {
   const [submitError, setSubmitError] = useState("");
 
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
-  const [contentById, setContentById] = useState<Record<string, string>>({});
+  const [detailById, setDetailById] = useState<Record<string, BambooPostContent>>(
+    {},
+  );
+  const [answerDraftById, setAnswerDraftById] = useState<Record<string, string>>(
+    {},
+  );
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [savingAnswerId, setSavingAnswerId] = useState<string | null>(null);
 
   const openCreate = () => {
     setFormTitle(BAMBOO_DEFAULT_TITLE);
@@ -85,11 +93,14 @@ export function BambooForestView() {
       }
       return next;
     });
-    if (!(id in contentById)) {
+    if (!(id in detailById)) {
       setLoadingId(id);
       try {
-        const content = await fetchBambooPostContent(id);
-        setContentById((prev) => ({ ...prev, [id]: content }));
+        const detail = await fetchBambooPostDetail(id);
+        setDetailById((prev) => ({ ...prev, [id]: detail }));
+        setAnswerDraftById((prev) =>
+          id in prev ? prev : { ...prev, [id]: detail.answer ?? "" },
+        );
       } finally {
         setLoadingId(null);
       }
@@ -104,6 +115,25 @@ export function BambooForestView() {
       await deleteBambooPost(id);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleSaveAnswer = async (id: string) => {
+    const answer = (answerDraftById[id] ?? "").trim();
+    if (!answer) return;
+    setSavingAnswerId(id);
+    try {
+      await saveBambooPostAnswer(id, answer);
+      setDetailById((prev) => ({
+        ...prev,
+        [id]: {
+          content: prev[id]?.content ?? "",
+          answer,
+          answered_at: new Date().toISOString(),
+        },
+      }));
+    } finally {
+      setSavingAnswerId(null);
     }
   };
 
@@ -224,14 +254,49 @@ export function BambooForestView() {
                 </button>
               </CardHeader>
               {expanded ? (
-                <CardContent className="space-y-3 border-t border-border pt-3">
-                  {loadingId === post.id && !(post.id in contentById) ? (
+                <CardContent className="space-y-4 border-t border-border pt-3">
+                  {loadingId === post.id && !(post.id in detailById) ? (
                     <p className="text-sm text-muted-foreground">불러오는 중...</p>
                   ) : (
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {contentById[post.id] ?? ""}
+                      {detailById[post.id]?.content ?? ""}
                     </p>
                   )}
+
+                  <div className="space-y-2 border-t border-border pt-3">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      관리자 답변
+                      {detailById[post.id]?.answered_at
+                        ? ` · ${formatWhen(detailById[post.id]!.answered_at!)} 저장됨`
+                        : " (작성자에게는 노출되지 않는 내부 기록입니다)"}
+                    </label>
+                    <Textarea
+                      value={answerDraftById[post.id] ?? ""}
+                      onChange={(e) =>
+                        setAnswerDraftById((prev) => ({
+                          ...prev,
+                          [post.id]: e.target.value,
+                        }))
+                      }
+                      className="min-h-[80px]"
+                      placeholder="이 건의사항에 대한 답변을 남겨보세요."
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="accent"
+                        size="sm"
+                        disabled={
+                          savingAnswerId === post.id ||
+                          !(answerDraftById[post.id] ?? "").trim()
+                        }
+                        onClick={() => void handleSaveAnswer(post.id)}
+                      >
+                        {savingAnswerId === post.id ? "저장 중..." : "답변 저장"}
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end">
                     <Button
                       type="button"
