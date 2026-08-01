@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -692,4 +693,129 @@ export async function notifyWorkforceWeekConfirmed(input: {
       });
     }),
   );
+}
+
+// ─── 어드민 공지 알림 (notices collection) ───────────────────────────────────
+
+export const NOTICES_COLLECTION = "notices";
+
+export type AdminNoticeType = "일반" | "중요" | "공지";
+
+export type AdminNotice = {
+  id: string;
+  title: string;
+  message: string;
+  type: AdminNoticeType;
+  scheduledDate: string; // YYYY-MM-DD
+  sentAt: string;        // ISO — 발송 시각
+  createdBy: string;     // uid
+  createdByName: string;
+  recipientCount: number;
+};
+
+function docToAdminNotice(
+  id: string,
+  data: Record<string, unknown>,
+): AdminNotice {
+  return {
+    id,
+    title: typeof data.title === "string" ? data.title : "",
+    message: typeof data.message === "string" ? data.message : "",
+    type:
+      data.type === "중요" || data.type === "공지"
+        ? data.type
+        : "일반",
+    scheduledDate:
+      typeof data.scheduledDate === "string" ? data.scheduledDate : "",
+    sentAt: timestampToIso(data.sentAt),
+    createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
+    createdByName:
+      typeof data.createdByName === "string" ? data.createdByName : "",
+    recipientCount:
+      typeof data.recipientCount === "number" ? data.recipientCount : 0,
+  };
+}
+
+/** 어드민 공지 목록 실시간 구독 (최신순) */
+export function subscribeAdminNotices(
+  onData: (items: AdminNotice[]) => void,
+  onError?: (err: FirestoreError) => void,
+) {
+  const q = query(
+    collection(db, NOTICES_COLLECTION),
+    orderBy("sentAt", "desc"),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(
+        snap.docs.map((d) =>
+          docToAdminNotice(d.id, d.data() as Record<string, unknown>),
+        ),
+      );
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** 공지 발송: notices doc 저장 + 전체 유저 notification fan-out */
+export async function createAdminNotice(input: {
+  title: string;
+  message: string;
+  type: AdminNoticeType;
+  scheduledDate: string;
+  createdBy: string;
+  createdByName: string;
+}): Promise<string> {
+  const users = await listAllApprovedUsers();
+
+  // 1) notices 컬렉션에 저장
+  const ref = await addDoc(collection(db, NOTICES_COLLECTION), {
+    title: input.title,
+    message: input.message,
+    type: input.type,
+    scheduledDate: input.scheduledDate,
+    sentAt: serverTimestamp(),
+    createdBy: input.createdBy,
+    createdByName: input.createdByName,
+    recipientCount: users.length,
+  });
+
+  // 2) 전체 유저에게 notification fan-out
+  await Promise.all(
+    users.map((user) =>
+      createNotificationDoc({
+        targetUserId: user.uid,
+        targetEmail: user.email,
+        targetRole: user.role === "admin" ? "admin" : "member",
+        type: "notice_posted",
+        title: input.title,
+        message: input.message,
+        noticeId: ref.id,
+        eventTitle: input.title,
+        eventDate: input.scheduledDate,
+        slotTime: "",
+        location: "",
+        createdByUserId: input.createdBy,
+      }),
+    ),
+  );
+
+  return ref.id;
+}
+
+/** 공지 수정 (내용만 — 재발송 없음) */
+export async function updateAdminNotice(
+  id: string,
+  patch: Partial<Pick<AdminNotice, "title" | "message" | "type" | "scheduledDate">>,
+) {
+  await updateDoc(doc(db, NOTICES_COLLECTION, id), {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** 공지 삭제 */
+export async function deleteAdminNotice(id: string) {
+  await deleteDoc(doc(db, NOTICES_COLLECTION, id));
 }
