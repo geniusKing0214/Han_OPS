@@ -123,10 +123,12 @@ export async function setApplicationWorkStatus(
 
     const userRef = doc(db, USERS_COLLECTION, userId);
     const userSnap = await tx.get(userRef);
+    if (!userSnap.exists()) {
+      throw new Error("신청자의 사용자 문서를 찾을 수 없습니다.");
+    }
     const currentTotal =
-      userSnap.exists() &&
       typeof (userSnap.data() as Record<string, unknown>).total_points ===
-        "number"
+      "number"
         ? ((userSnap.data() as Record<string, unknown>).total_points as number)
         : 0;
 

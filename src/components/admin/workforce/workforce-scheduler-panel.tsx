@@ -96,6 +96,7 @@ import {
 } from "@/lib/workforce-logic";
 import {
   notifyMemberWorkforce,
+  notifyWorkforceWeekCancelled,
   notifyWorkforceWeekConfirmed,
 } from "@/lib/firestore-notifications";
 import {
@@ -616,17 +617,17 @@ export function WorkforceSchedulerPanel({
     setBusy(true);
     try {
       const scheduleId = await ensureWorkforceSchedulePersisted(schedule);
-      const baseIds = schedule.id.startsWith("virtual:")
-        ? []
-        : schedule.assignedUserIds;
-      const assignees = [...new Set([...baseIds, ...userIds])];
-      await setScheduleAssignees(scheduleId, assignees, {
-        action: "assign",
-        targetUserId: userIds[0],
-        targetUserName: nameByUid.get(userIds[0]!),
-        reason: opts?.reason,
-        detail: schedule.title,
-      });
+      await setScheduleAssignees(
+        scheduleId,
+        (current) => [...new Set([...current, ...userIds])],
+        {
+          action: "assign",
+          targetUserId: userIds[0],
+          targetUserName: nameByUid.get(userIds[0]!),
+          reason: opts?.reason,
+          detail: schedule.title,
+        },
+      );
       if (weekMeta?.status === "confirmed" && user) {
         for (const uid of userIds) {
           await notifyMemberWorkforce({
@@ -657,7 +658,7 @@ export function WorkforceSchedulerPanel({
     try {
       await setScheduleAssignees(
         schedule.id,
-        schedule.assignedUserIds.filter((id) => id !== uid),
+        (current) => current.filter((id) => id !== uid),
         {
           action: "unassign",
           targetUserId: uid,
@@ -704,7 +705,7 @@ export function WorkforceSchedulerPanel({
   ) => {
     if (schedule.id.startsWith("virtual:")) return;
     try {
-      await setScheduleAssignees(schedule.id, schedule.assignedUserIds, {
+      await setScheduleAssignees(schedule.id, (current) => current, {
         action: "update_schedule",
         detail: schedule.title,
         assigneePositionsPatch: { [uid]: positionLabel },
@@ -780,17 +781,20 @@ export function WorkforceSchedulerPanel({
           color: form.color,
         });
         if (weekMeta?.status === "confirmed" && prev && user) {
+          const dateChanged = prev.date !== form.date;
           const timeChanged = prev.startTime !== form.startTime;
           const venueChanged = prev.venue !== form.venue;
-          if (timeChanged || venueChanged) {
+          if (dateChanged || timeChanged || venueChanged) {
             for (const uid of prev.assignedUserIds) {
               await notifyMemberWorkforce({
                 targetUserId: uid,
                 createdByUserId: user.uid,
                 type: "workforce_updated",
-                title: timeChanged
-                  ? "출근 시간이 변경되었습니다"
-                  : "근무 장소가 변경되었습니다",
+                title: dateChanged
+                  ? "근무 날짜가 변경되었습니다"
+                  : timeChanged
+                    ? "출근 시간이 변경되었습니다"
+                    : "근무 장소가 변경되었습니다",
                 message: `${form.date} ${form.title}: ${form.startTime} / ${form.venue}`,
                 eventTitle: form.title,
                 eventDate: form.date,
@@ -1091,8 +1095,15 @@ export function WorkforceSchedulerPanel({
                   return;
                 setBusy(true);
                 try {
-                  const n = await deleteSchedulesInMonth(ym);
-                  alert(`${ym} 월 일정 ${n}건을 삭제했습니다.`);
+                  const { deleted, cancelledSchedules } =
+                    await deleteSchedulesInMonth(ym);
+                  if (cancelledSchedules.length > 0 && user) {
+                    await notifyWorkforceWeekCancelled({
+                      createdByUserId: user.uid,
+                      schedules: cancelledSchedules,
+                    });
+                  }
+                  alert(`${ym} 월 일정 ${deleted}건을 삭제했습니다.`);
                 } catch (e) {
                   setError(
                     e instanceof Error ? e.message : "월 일정 삭제 실패",
@@ -1122,7 +1133,14 @@ export function WorkforceSchedulerPanel({
                 setBusy(true);
                 try {
                   for (const ws of weekStarts) {
-                    await resetWorkforceWeek(ws);
+                    const { wasConfirmed, schedules: removed } =
+                      await resetWorkforceWeek(ws);
+                    if (wasConfirmed && user) {
+                      await notifyWorkforceWeekCancelled({
+                        createdByUserId: user.uid,
+                        schedules: removed,
+                      });
+                    }
                   }
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "초기화 실패");
@@ -1613,6 +1631,16 @@ export function WorkforceSchedulerPanel({
                               }
                               if (!confirm("이 일정을 삭제할까요?")) return;
                               await deleteWorkforceSchedule(s.id);
+                              if (
+                                weekMeta?.status === "confirmed" &&
+                                user &&
+                                s.assignedUserIds.length > 0
+                              ) {
+                                await notifyWorkforceWeekCancelled({
+                                  createdByUserId: user.uid,
+                                  schedules: [s],
+                                });
+                              }
                             })()
                           }
                           onDropWorker={() => {

@@ -39,7 +39,10 @@ export function isWithinCheckInWindow(
   slotTime: string,
   now = new Date(),
 ): boolean {
-  if (!isWorkDateToday(workDate, now)) return false;
+  // openAt/closeAt은 scheduledCheckInDate 기준 실제 Date 연산이라 자정을 걸치는
+  // 심야 슬롯도 정확히 표현된다. workDate와 now의 달력 날짜를 별도로 비교하면
+  // 자정을 걸치는 버퍼(예: 00:30 슬롯 + 2시간 전 오픈 → 전날 22:30)를 놓치므로
+  // 여기서는 openAt~closeAt 구간 비교만 사용한다.
   const { openAt, closeAt } = getCheckInWindow(settings, workDate, slotTime);
   return now.getTime() >= openAt.getTime() && now.getTime() <= closeAt.getTime();
 }

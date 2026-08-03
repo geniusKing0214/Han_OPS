@@ -700,6 +700,55 @@ export async function notifyWorkforceWeekConfirmed(input: {
   );
 }
 
+/** 확정된 주간의 일정을 삭제/초기화할 때 배정되어 있던 유저 전원에게 알림 */
+export async function notifyWorkforceWeekCancelled(input: {
+  createdByUserId: string;
+  schedules: {
+    id: string;
+    title: string;
+    date: string;
+    startTime: string;
+    venue: string;
+    assignedUserIds: string[];
+  }[];
+}) {
+  const byUser = new Map<
+    string,
+    { id: string; title: string; date: string; startTime: string; venue: string }[]
+  >();
+  for (const s of input.schedules) {
+    for (const uid of s.assignedUserIds) {
+      const list = byUser.get(uid) ?? [];
+      list.push({
+        id: s.id,
+        title: s.title,
+        date: s.date,
+        startTime: s.startTime,
+        venue: s.venue,
+      });
+      byUser.set(uid, list);
+    }
+  }
+  await Promise.all(
+    [...byUser.entries()].map(async ([uid, items]) => {
+      const first = items[0]!;
+      const more = items.length > 1 ? ` 외 ${items.length - 1}건` : "";
+      await notifyMemberWorkforce({
+        targetUserId: uid,
+        createdByUserId: input.createdByUserId,
+        type: "workforce_cancelled",
+        title: "근무 배정이 취소되었습니다",
+        message: `${first.date} ${first.title}${more} 배정이 취소되었습니다.`,
+        eventTitle: first.title,
+        eventDate: first.date,
+        slotTime: first.startTime,
+        location: first.venue,
+        scheduleId: first.id,
+      });
+    }),
+  );
+}
+
 // ─── 어드민 공지 알림 (notices collection) ───────────────────────────────────
 
 export const NOTICES_COLLECTION = "notices";

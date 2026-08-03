@@ -287,7 +287,10 @@ function buildSlotRow(
     venue: event.venue,
     slotTime: slot.start_time.trim() || "—",
     capacity: slot.capacity,
-    headcount: approvedCount || slot.applied_count || applicants.length,
+    // slot.applied_count는 팀 구분 없이 전체 합산된 값이라 팀별 화면에 쓰면
+    // 상대 팀 인원이 새어 보일 수 있어 폴백에서 제외 (approvedCount/applicants는
+    // 이미 이 함수 상단에서 teamId로 필터링된 값이라 안전하다).
+    headcount: approvedCount || applicants.length,
     applicants,
     eventNotice: event.notice,
     eventColor: event.color,
