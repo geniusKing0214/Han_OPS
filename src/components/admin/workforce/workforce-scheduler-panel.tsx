@@ -41,7 +41,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
-  subscribeAllUsersForAdmin,
   subscribeAllUsersForWorkforce,
   type ListedUserRow,
 } from "@/lib/firestore-users";
@@ -109,7 +108,6 @@ import {
 import {
   WEEKDAY_KEYS,
   WEEKDAY_LABELS,
-  WEEKDAY_SHORT,
   WORKFORCE_COLORS,
   WORKFORCE_WORKER_STATUS_LABELS,
   type WorkforceAvailability,
@@ -615,7 +613,6 @@ export function WorkforceSchedulerPanel({
       return;
     }
 
-    const next = [...new Set([...schedule.assignedUserIds, ...userIds])];
     setBusy(true);
     try {
       const scheduleId = await ensureWorkforceSchedulePersisted(schedule);

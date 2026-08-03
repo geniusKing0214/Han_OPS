@@ -25,7 +25,6 @@ import { getUserProfilesByIds } from "@/lib/firestore-users";
 import { useAdminApplicationsByDate } from "@/hooks/use-admin-applications-by-date";
 import { useEvents } from "@/hooks/use-events";
 import type { ApplicationItem } from "@/types/application";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,

@@ -1,6 +1,5 @@
 import {
   type FirestoreError,
-  addDoc,
   collection,
   doc,
   getDocs,

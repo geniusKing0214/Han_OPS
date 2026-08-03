@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
-import { ko } from "date-fns/locale";
-import { Bell, Pencil, Plus, Send, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Pencil, Plus, Send, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -167,11 +164,11 @@ export function AdminNoticesPanel() {
   };
 
   const formatSentAt = (iso: string) => {
-    try {
-      return format(new Date(iso), "M월 d일 HH:mm", { locale: ko });
-    } catch {
-      return iso;
-    }
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${hh}:${mm}`;
   };
 
   return (
