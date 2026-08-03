@@ -139,6 +139,24 @@ function docToAttendance(
     attempt: typeof data.attempt === "number" ? data.attempt : 1,
     createdAt: tsToIso(data.createdAt) || "",
     updatedAt: tsToIso(data.updatedAt) || "",
+    gpsVerified: typeof data.gpsVerified === "boolean" ? data.gpsVerified : undefined,
+    serverDistanceMeters:
+      typeof data.serverDistanceMeters === "number" ? data.serverDistanceMeters : null,
+    gpsSuspicious: typeof data.gpsSuspicious === "boolean" ? data.gpsSuspicious : undefined,
+    gpsSuspiciousReasons: Array.isArray(data.gpsSuspiciousReasons)
+      ? (data.gpsSuspiciousReasons as string[])
+      : null,
+    mockLocationRiskLevel:
+      data.mockLocationRiskLevel === "low" ||
+      data.mockLocationRiskLevel === "medium" ||
+      data.mockLocationRiskLevel === "high"
+        ? data.mockLocationRiskLevel
+        : data.mockLocationRiskLevel === "none"
+          ? "none"
+          : null,
+    mockLocationReasons: Array.isArray(data.mockLocationReasons)
+      ? (data.mockLocationReasons as string[])
+      : null,
   };
 }
 

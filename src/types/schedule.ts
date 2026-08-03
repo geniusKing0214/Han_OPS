@@ -37,7 +37,19 @@ export type Session = {
   slots: Slot[];
   /** 연속 일정 묶음 ID — 같은 groupId 끼리 하나의 신청으로 처리 */
   groupId?: string;
+  /**
+   * 포지션 슬롯(Option B) 정원 카운트 — 날짜(세션)별로 독립 관리한다.
+   * key: `${positionId}::${positionSlotId}` (positionSlotKey 참고),
+   * value: 해당 세션에서 승인/완료된 신청 수.
+   * event.positions[].slots[].capacity/time 등 "정의"는 이벤트 레벨에서 공유하지만,
+   * 실제 인원 카운트는 날짜마다 달라야 하므로 여기서 별도로 추적한다.
+   */
+  positionSlotCounts?: Record<string, number>;
 };
+
+export function positionSlotKey(positionId: string, positionSlotId: string): string {
+  return `${positionId}::${positionSlotId}`;
+}
 
 export type EventItem = {
   id: string;

@@ -9,6 +9,7 @@ import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
 import { TeamFilter } from "@/components/team/team-filter";
 import { deleteEvent, createScheduleEvent, saveEvent, toggleEventClosed, toggleEventLocked, toggleEventForceApplyOpen } from "@/lib/firestore-events";
+import { backfillPositionSlotCounts } from "@/lib/backfill-position-slot-counts";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useEvents } from "@/hooks/use-events";
 import { filterEventsByTeamFilter } from "@/lib/team-utils";
@@ -56,6 +57,9 @@ export function ScheduleManager() {
   const [teamFilter, setTeamFilter] = useState<TeamFilterValue>("all");
   const [saving, setSaving] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  const [backfillResult, setBackfillResult] = useState("");
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [sheetEditorKey, setSheetEditorKey] = useState(0);
@@ -110,6 +114,30 @@ export function ScheduleManager() {
       setDetailCtx(null);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBackfillPositionSlotCounts = async () => {
+    if (
+      !confirm(
+        "포지션 슬롯 정원 카운트를 날짜별로 다시 계산합니다. 기존 승인 신청 데이터로부터 다시 세는 작업이라 되돌릴 필요는 없지만, 실행 중에는 승인/취소를 피해주세요. 계속할까요?",
+      )
+    )
+      return;
+    setBackfillRunning(true);
+    setBackfillResult("");
+    try {
+      const { eventsScanned, eventsUpdated, sessionsUpdated } =
+        await backfillPositionSlotCounts();
+      setBackfillResult(
+        `완료: 포지션 사용 이벤트 ${eventsScanned}개 중 ${eventsUpdated}개 갱신 (세션 ${sessionsUpdated}개).`,
+      );
+    } catch (e) {
+      setBackfillResult(
+        `실패: ${e instanceof Error ? e.message : "알 수 없는 오류"}`,
+      );
+    } finally {
+      setBackfillRunning(false);
     }
   };
 
@@ -202,6 +230,30 @@ export function ScheduleManager() {
           >
             이번 달
           </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-2 p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground">
+            포지션(Option B) 이벤트의 날짜별 정원 카운트를 승인된 신청 데이터 기준으로
+            다시 계산합니다. 한 번만 실행하면 됩니다 — 이후에는 승인/취소 시 자동으로
+            날짜별로 정확히 반영됩니다.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={backfillRunning}
+              onClick={() => void handleBackfillPositionSlotCounts()}
+            >
+              {backfillRunning ? "실행 중…" : "정원 카운트 재계산"}
+            </Button>
+            {backfillResult ? (
+              <span className="text-xs text-muted-foreground">{backfillResult}</span>
+            ) : null}
           </div>
         </CardContent>
       </Card>

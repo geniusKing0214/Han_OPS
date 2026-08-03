@@ -38,6 +38,15 @@ function toYmd(d = new Date()) {
   return `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`;
 }
 
+/** 서버 GPS 재검증 또는 클라이언트 Mock Location 탐지에서 위조 의심 신호가 있었는지 */
+function isGpsSuspicious(r: AttendanceRecord): boolean {
+  return r.gpsSuspicious === true || r.mockLocationRiskLevel === "high";
+}
+
+function gpsSuspiciousReasons(r: AttendanceRecord): string[] {
+  return [...(r.gpsSuspiciousReasons ?? []), ...(r.mockLocationReasons ?? [])];
+}
+
 export function AttendanceAdminPanel() {
   const { user, isAdmin } = useAuth();
   const { events } = useEvents();
@@ -341,6 +350,11 @@ export function AttendanceAdminPanel() {
                       {r.distanceFromVenueMeters != null
                         ? ` · ${r.distanceFromVenueMeters}m`
                         : ""}
+                      {isGpsSuspicious(r) ? (
+                        <Badge variant="destructive" className="ml-1.5">
+                          GPS 의심
+                        </Badge>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2">{REVIEW_STATUS_LABELS[r.reviewStatus]}</td>
                     <td className="px-3 py-2">
@@ -398,6 +412,9 @@ export function AttendanceAdminPanel() {
                         ? ` ${r.distanceFromVenueMeters}m`
                         : ""}
                     </Badge>
+                    {isGpsSuspicious(r) ? (
+                      <Badge variant="destructive">GPS 의심</Badge>
+                    ) : null}
                   </div>
                   <Button
                     className="h-11 w-full"
@@ -459,9 +476,22 @@ export function AttendanceAdminPanel() {
                 </p>
                 <p>
                   GPS: {detail.latitude ?? "—"}, {detail.longitude ?? "—"}
+                  {detail.serverDistanceMeters != null
+                    ? ` · 서버 재검증 거리 ${detail.serverDistanceMeters}m`
+                    : ""}
                 </p>
                 <p>확인: {REVIEW_STATUS_LABELS[detail.reviewStatus]}</p>
               </div>
+              {isGpsSuspicious(detail) ? (
+                <div className="space-y-1 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                  <p className="font-medium">GPS 위조 의심</p>
+                  <ul className="list-disc space-y-0.5 pl-4">
+                    {gpsSuspiciousReasons(detail).map((reason, i) => (
+                      <li key={i}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <label className="block space-y-1 text-xs">
                 <span className="text-muted-foreground">관리자 메모</span>
                 <textarea
