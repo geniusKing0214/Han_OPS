@@ -154,8 +154,13 @@ type NotificationPayload = {
 };
 
 async function createNotificationDoc(payload: NotificationPayload) {
+  // Firestore addDoc()은 값이 undefined인 필드를 거부하므로, 선택 필드가
+  // undefined인 경우 키 자체를 생략한다.
+  const cleanedPayload = Object.fromEntries(
+    Object.entries(payload).filter(([, v]) => v !== undefined),
+  );
   const ref = await addDoc(collection(db, NOTIFICATIONS_COLLECTION), {
-    ...payload,
+    ...cleanedPayload,
     isRead: false,
     createdAt: serverTimestamp(),
   });
