@@ -27,7 +27,8 @@ import {
 } from "@/lib/firestore-notifications";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
 import type { WorkStatus } from "@/types/points";
-import type { EventItem } from "@/types/schedule";
+import type { EventItem, Session } from "@/types/schedule";
+import { positionSlotKey } from "@/types/schedule";
 import { EVENTS_COLLECTION } from "@/lib/firestore-events";
 import { USERS_COLLECTION } from "@/lib/firestore-users";
 import {
@@ -77,6 +78,41 @@ function normalizeStatus(value: unknown): ApplicationStatus {
     return value;
   }
   return "pending";
+}
+
+/**
+ * 특정 이벤트/포지션/슬롯에 대해, 주어진 세션(sessionId)을 (직접 또는 연속 묶음으로)
+ * 차지하고 있는 승인/완료 신청 수를 applications 컬렉션에서 직접 세어 반환한다.
+ * session.positionSlotCounts가 아직 없는 세션(이 기능 배포 이전에 승인된 건)을
+ * 처음 건드릴 때 실카운트로 시드하는 용도 — ground truth인 applications 문서 기준.
+ */
+export async function countApprovedForPositionSlot(
+  eventId: string,
+  sessionId: string,
+  positionId: string,
+  positionSlotId: string,
+): Promise<number> {
+  const q = query(
+    collection(db, APPLICATIONS_COLLECTION),
+    where("eventId", "==", eventId),
+    where("positionId", "==", positionId),
+    where("positionSlotId", "==", positionSlotId),
+  );
+  const snap = await getDocs(q);
+  let count = 0;
+  for (const d of snap.docs) {
+    const data = d.data() as Record<string, unknown>;
+    const status = normalizeStatus(data.status);
+    if (status !== "approved" && status !== "completed") continue;
+    const docSessionId = typeof data.sessionId === "string" ? data.sessionId : "";
+    const groupSessionIds = Array.isArray(data.groupSessionIds)
+      ? (data.groupSessionIds as unknown[]).filter((s): s is string => typeof s === "string")
+      : null;
+    if (docSessionId === sessionId || (groupSessionIds?.includes(sessionId) ?? false)) {
+      count++;
+    }
+  }
+  return count;
 }
 
 function docToApplicationItem(
@@ -625,33 +661,61 @@ export async function decideApplication(
 
     const eventData = eventSnap.data() as Record<string, unknown>;
 
-    // Option B: 포지션 슬롯 기반 승인
+    // Option B: 포지션 슬롯 기반 승인 — 정원(카운트)은 세션(날짜)별로 독립 추적한다.
+    // (positions[].slots[].capacity/time 등 "정의"는 이벤트 레벨 공유 템플릿 그대로 사용)
     if (positionId && positionSlotId) {
       const positions = Array.isArray(eventData.positions)
         ? (eventData.positions as Array<Record<string, unknown>>)
         : [];
-      let posFound = false;
-      let psFound = false;
-      const nextPositions = positions.map((pos) => {
-        if (pos.id !== positionId) return pos;
-        posFound = true;
-        const slots = Array.isArray(pos.slots) ? (pos.slots as Array<Record<string, unknown>>) : [];
-        return {
-          ...pos,
-          slots: slots.map((s) => {
-            if (s.id !== positionSlotId) return s;
-            psFound = true;
-            const cap = typeof s.capacity === "number" ? s.capacity : 0;
-            const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
-            if (applied >= cap) throw new Error("포지션 슬롯이 이미 마감되어 승인할 수 없습니다.");
-            return { ...s, applied_count: applied + 1 };
-          }),
-        };
-      });
-      if (!posFound || !psFound) {
+      const posDef = positions.find((p) => p.id === positionId);
+      const slotDef = Array.isArray(posDef?.slots)
+        ? (posDef.slots as Array<Record<string, unknown>>).find((s) => s.id === positionSlotId)
+        : undefined;
+      if (!posDef || !slotDef) {
         throw new Error("포지션/슬롯을 찾을 수 없습니다.");
       }
-      tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+      const cap = typeof slotDef.capacity === "number" ? slotDef.capacity : 0;
+
+      const groupSessionIds = Array.isArray(freshData.groupSessionIds)
+        ? (freshData.groupSessionIds as unknown[]).filter(
+            (s): s is string => typeof s === "string",
+          )
+        : [];
+      const targetSessionIds = groupSessionIds.length > 0 ? groupSessionIds : [sessionId];
+
+      const sessions = Array.isArray(eventData.sessions)
+        ? (eventData.sessions as Session[])
+        : [];
+      const key = positionSlotKey(positionId, positionSlotId);
+
+      const currentCounts = new Map<string, number>();
+      for (const sid of targetSessionIds) {
+        const sess = sessions.find((s) => s.id === sid);
+        if (!sess) throw new Error("이벤트의 세션을 찾을 수 없습니다.");
+        const existing = sess.positionSlotCounts?.[key];
+        const count =
+          existing ??
+          (await countApprovedForPositionSlot(eventId, sid, positionId, positionSlotId));
+        currentCounts.set(sid, count);
+      }
+      for (const sid of targetSessionIds) {
+        if (currentCounts.get(sid)! >= cap) {
+          throw new Error("포지션 슬롯이 이미 마감되어 승인할 수 없습니다.");
+        }
+      }
+
+      const nextSessions = sessions.map((sess) => {
+        if (!targetSessionIds.includes(sess.id)) return sess;
+        return {
+          ...sess,
+          positionSlotCounts: {
+            ...(sess.positionSlotCounts ?? {}),
+            [key]: currentCounts.get(sess.id)! + 1,
+          },
+        };
+      });
+
+      tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
       tx.update(appRef, { status: nextStatus });
       return;
     }
@@ -781,6 +845,7 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
       }
 
       const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+      const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
       const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
       const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
       if (!eventId) {
@@ -796,30 +861,47 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
 
       const eventData = eventSnap.data() as Record<string, unknown>;
 
-      // Option B: 포지션 슬롯 기반 취소
+      // Option B: 포지션 슬롯 기반 취소 — 승인 로직과 동일하게 세션별로 독립 추적한다.
       if (positionId && positionSlotId) {
-        const positions = Array.isArray(eventData.positions)
-          ? (eventData.positions as Array<Record<string, unknown>>)
+        const groupSessionIds = Array.isArray(freshData.groupSessionIds)
+          ? (freshData.groupSessionIds as unknown[]).filter(
+              (s): s is string => typeof s === "string",
+            )
           : [];
-        const nextPositions = positions.map((pos) => {
-          if (pos.id !== positionId) return pos;
-          const slots = Array.isArray(pos.slots) ? (pos.slots as Array<Record<string, unknown>>) : [];
+        const targetSessionIds = groupSessionIds.length > 0 ? groupSessionIds : [sessionId];
+
+        const sessions = Array.isArray(eventData.sessions)
+          ? (eventData.sessions as Session[])
+          : [];
+        const key = positionSlotKey(positionId, positionSlotId);
+
+        const currentCounts = new Map<string, number>();
+        for (const sid of targetSessionIds) {
+          const sess = sessions.find((s) => s.id === sid);
+          if (!sess) continue;
+          const existing = sess.positionSlotCounts?.[key];
+          const count =
+            existing ??
+            (await countApprovedForPositionSlot(eventId, sid, positionId, positionSlotId));
+          currentCounts.set(sid, count);
+        }
+
+        const nextSessions = sessions.map((sess) => {
+          if (!currentCounts.has(sess.id)) return sess;
           return {
-            ...pos,
-            slots: slots.map((s) => {
-              if (s.id !== positionSlotId) return s;
-              const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
-              return { ...s, applied_count: Math.max(0, applied - 1) };
-            }),
+            ...sess,
+            positionSlotCounts: {
+              ...(sess.positionSlotCounts ?? {}),
+              [key]: Math.max(0, currentCounts.get(sess.id)! - 1),
+            },
           };
         });
-        tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+        tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
         tx.delete(appRef);
         return;
       }
 
       // 기존: 세션 슬롯 기반 취소
-      const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
       const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
       if (!sessionId || !slotId) {
         tx.delete(appRef);
@@ -876,6 +958,7 @@ export async function adminRemoveApprovedApplicant(applicationId: string) {
     }
 
     const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
+    const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
     const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
     const positionSlotId =
       typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
@@ -893,32 +976,47 @@ export async function adminRemoveApprovedApplicant(applicationId: string) {
     }
     const eventData = eventSnap.data() as Record<string, unknown>;
 
-    // Option B: 포지션 슬롯 기반 배정 해제
+    // Option B: 포지션 슬롯 기반 배정 해제 — 승인/취소와 동일하게 세션별로 독립 추적한다.
     if (positionId && positionSlotId) {
-      const positions = Array.isArray(eventData.positions)
-        ? (eventData.positions as Array<Record<string, unknown>>)
+      const groupSessionIds = Array.isArray(freshData.groupSessionIds)
+        ? (freshData.groupSessionIds as unknown[]).filter(
+            (s): s is string => typeof s === "string",
+          )
         : [];
-      const nextPositions = positions.map((pos) => {
-        if (pos.id !== positionId) return pos;
-        const slots = Array.isArray(pos.slots)
-          ? (pos.slots as Array<Record<string, unknown>>)
-          : [];
+      const targetSessionIds = groupSessionIds.length > 0 ? groupSessionIds : [sessionId];
+
+      const sessions = Array.isArray(eventData.sessions)
+        ? (eventData.sessions as Session[])
+        : [];
+      const key = positionSlotKey(positionId, positionSlotId);
+
+      const currentCounts = new Map<string, number>();
+      for (const sid of targetSessionIds) {
+        const sess = sessions.find((s) => s.id === sid);
+        if (!sess) continue;
+        const existing = sess.positionSlotCounts?.[key];
+        const count =
+          existing ??
+          (await countApprovedForPositionSlot(eventId, sid, positionId, positionSlotId));
+        currentCounts.set(sid, count);
+      }
+
+      const nextSessions = sessions.map((sess) => {
+        if (!currentCounts.has(sess.id)) return sess;
         return {
-          ...pos,
-          slots: slots.map((s) => {
-            if (s.id !== positionSlotId) return s;
-            const applied = typeof s.applied_count === "number" ? s.applied_count : 0;
-            return { ...s, applied_count: Math.max(0, applied - 1) };
-          }),
+          ...sess,
+          positionSlotCounts: {
+            ...(sess.positionSlotCounts ?? {}),
+            [key]: Math.max(0, currentCounts.get(sess.id)! - 1),
+          },
         };
       });
-      tx.update(eventRef, { positions: nextPositions, updatedAt: serverTimestamp() });
+      tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
       tx.delete(appRef);
       return;
     }
 
     // 기존: 세션 슬롯 기반 배정 해제
-    const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
     const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
     if (!sessionId || !slotId) {
       tx.delete(appRef);
