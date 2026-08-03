@@ -55,6 +55,20 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
+
+      // 일반 회원: 본인 승인 신청 취소 시 정원(applied_count)만 되돌릴 수 있도록 허용.
+      // positions/sessions 배열 크기(포지션·슬롯 구조)는 바뀔 수 없고, applied_count 외 다른 필드는 건드릴 수 없다.
+      allow update: if isSignedIn() && !isAdmin() && (
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['positions', 'updatedAt'])
+          && request.resource.data.positions.size() == resource.data.positions.size()
+        )
+        ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sessions', 'updatedAt'])
+          && request.resource.data.sessions.size() == resource.data.sessions.size()
+        )
+      );
     }
 
     match /notices/{noticeId} {
