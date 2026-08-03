@@ -252,10 +252,13 @@ export async function createApplication(input: CreateApplicationInput) {
     }
   }
 
+  // 세션(날짜) 단위로 중복 체크 — 이벤트 단위로만 체크하면 같은 반복 이벤트의
+  // 다른 날짜에 정상적으로 재신청하는 경우까지 막히므로 sessionId도 함께 본다.
   const dupQuery = query(
     collection(db, APPLICATIONS_COLLECTION),
     where("userId", "==", input.userId),
     where("eventId", "==", input.eventId),
+    where("sessionId", "==", input.sessionId),
   );
   const dupSnap = await getDocs(dupQuery);
   const hasActive = dupSnap.docs.some((d) => {
@@ -264,7 +267,7 @@ export async function createApplication(input: CreateApplicationInput) {
     return s === "pending" || s === "approved" || s === "completed";
   });
   if (hasActive) {
-    throw new Error("같은 이벤트에는 중복 신청할 수 없습니다.");
+    throw new Error("같은 일정에는 중복 신청할 수 없습니다.");
   }
 
   const appRef = await addDoc(collection(db, APPLICATIONS_COLLECTION), {

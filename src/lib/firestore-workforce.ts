@@ -8,6 +8,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -473,7 +474,9 @@ export async function duplicateWorkforceSchedule(
 
 export async function setScheduleAssignees(
   scheduleId: string,
-  assignedUserIds: string[],
+  /** 현재 커밋된 assignedUserIds → 다음 assignedUserIds. 동시 수정 시 유실을 막기 위해
+   * 절대값이 아닌 델타(함수)로 받아 트랜잭션 안에서 최신 상태 기준으로 적용한다. */
+  computeNextAssignees: (current: string[]) => string[],
   meta?: {
     action?: WorkforceLogAction;
     targetUserId?: string;
@@ -486,45 +489,53 @@ export async function setScheduleAssignees(
 ): Promise<void> {
   const uid = await assertAdmin();
   const ref = doc(db, WORKFORCE_SCHEDULES, scheduleId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error("일정을 찾을 수 없습니다.");
-  const prev = docToSchedule(scheduleId, snap.data() as Record<string, unknown>);
-  const unique = [...new Set(assignedUserIds)];
+  let prevWeekStart = "";
+  let prevTitle = "";
 
-  // 포지션 패치 처리: null이면 삭제, 값이면 업데이트
-  let mergedPositions: Record<string, string> | undefined;
-  if (meta?.assigneePositionsPatch) {
-    const base: Record<string, string> = { ...(prev.assigneePositions ?? {}) };
-    for (const [userId, pos] of Object.entries(meta.assigneePositionsPatch)) {
-      if (pos === null) {
-        delete base[userId];
-      } else {
-        base[userId] = pos;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("일정을 찾을 수 없습니다.");
+    const prev = docToSchedule(scheduleId, snap.data() as Record<string, unknown>);
+    prevWeekStart = prev.weekStart;
+    prevTitle = prev.title;
+    const unique = [...new Set(computeNextAssignees(prev.assignedUserIds))];
+
+    // 포지션 패치 처리: null이면 삭제, 값이면 업데이트
+    let mergedPositions: Record<string, string> | undefined;
+    if (meta?.assigneePositionsPatch) {
+      const base: Record<string, string> = { ...(prev.assigneePositions ?? {}) };
+      for (const [userId, pos] of Object.entries(meta.assigneePositionsPatch)) {
+        if (pos === null) {
+          delete base[userId];
+        } else {
+          base[userId] = pos;
+        }
       }
+      // 배정 해제된 유저의 포지션도 제거
+      for (const userId of Object.keys(base)) {
+        if (!unique.includes(userId)) delete base[userId];
+      }
+      mergedPositions = base;
+    } else if (prev.assigneePositions) {
+      // 배정 해제된 유저 포지션만 정리
+      const base = { ...prev.assigneePositions };
+      for (const userId of Object.keys(base)) {
+        if (!unique.includes(userId)) delete base[userId];
+      }
+      mergedPositions = base;
     }
-    // 배정 해제된 유저의 포지션도 제거
-    for (const userId of Object.keys(base)) {
-      if (!unique.includes(userId)) delete base[userId];
-    }
-    mergedPositions = base;
-  } else if (prev.assigneePositions) {
-    // 배정 해제된 유저 포지션만 정리
-    const base = { ...prev.assigneePositions };
-    for (const userId of Object.keys(base)) {
-      if (!unique.includes(userId)) delete base[userId];
-    }
-    mergedPositions = base;
-  }
 
-  await updateDoc(ref, {
-    assignedUserIds: unique,
-    ...(mergedPositions !== undefined
-      ? { assigneePositions: mergedPositions }
-      : {}),
-    updatedAt: serverTimestamp(),
+    tx.update(ref, {
+      assignedUserIds: unique,
+      ...(mergedPositions !== undefined
+        ? { assigneePositions: mergedPositions }
+        : {}),
+      updatedAt: serverTimestamp(),
+    });
   });
+
   await writeAssignmentLog({
-    weekStart: prev.weekStart,
+    weekStart: prevWeekStart,
     scheduleId,
     actorUserId: uid,
     actorName: "",
@@ -532,7 +543,7 @@ export async function setScheduleAssignees(
     targetUserId: meta?.targetUserId,
     targetUserName: meta?.targetUserName,
     reason: meta?.reason,
-    detail: meta?.detail ?? prev.title,
+    detail: meta?.detail ?? prevTitle,
   });
 }
 
@@ -596,15 +607,23 @@ export async function confirmWorkforceWeek(weekStart: string): Promise<{
   return { schedules };
 }
 
-export async function resetWorkforceWeek(weekStart: string): Promise<void> {
+export async function resetWorkforceWeek(weekStart: string): Promise<{
+  wasConfirmed: boolean;
+  schedules: WorkforceSchedule[];
+}> {
   const uid = await assertAdmin();
+  const weekSnap = await getDoc(doc(db, WORKFORCE_WEEKS, weekStart));
+  const wasConfirmed =
+    weekSnap.exists() && weekSnap.data().status === "confirmed";
   const q = query(
     collection(db, WORKFORCE_SCHEDULES),
     where("weekStart", "==", weekStart),
   );
   const snap = await getDocs(q);
   const batch = writeBatch(db);
+  const schedules: WorkforceSchedule[] = [];
   for (const d of snap.docs) {
+    schedules.push(docToSchedule(d.id, d.data() as Record<string, unknown>));
     batch.delete(d.ref);
   }
   batch.set(
@@ -624,6 +643,7 @@ export async function resetWorkforceWeek(weekStart: string): Promise<void> {
     actorName: "",
     action: "reset_week",
   });
+  return { wasConfirmed, schedules };
 }
 
 export async function upsertAvailability(
@@ -778,15 +798,20 @@ export function subscribeMyAvailability(
 }
 
 /** 해당 월(YYYY-MM)에 속한 일정만 삭제 */
-export async function deleteSchedulesInMonth(
-  yearMonth: string,
-): Promise<number> {
+export async function deleteSchedulesInMonth(yearMonth: string): Promise<{
+  deleted: number;
+  cancelledSchedules: WorkforceSchedule[];
+}> {
   const uid = await assertAdmin();
   const monthDates = new Set(getMonthDates(yearMonth));
   const weekStarts = getWeekStartsCoveringDates([...monthDates]);
   let deleted = 0;
+  const cancelledSchedules: WorkforceSchedule[] = [];
 
   for (const ws of weekStarts) {
+    const weekSnap = await getDoc(doc(db, WORKFORCE_WEEKS, ws));
+    const wasConfirmed =
+      weekSnap.exists() && weekSnap.data().status === "confirmed";
     const snap = await getDocs(
       query(
         collection(db, WORKFORCE_SCHEDULES),
@@ -797,6 +822,13 @@ export async function deleteSchedulesInMonth(
       const date = (d.data() as { date?: string }).date;
       return typeof date === "string" && monthDates.has(date);
     });
+    if (wasConfirmed) {
+      for (const d of toDelete) {
+        cancelledSchedules.push(
+          docToSchedule(d.id, d.data() as Record<string, unknown>),
+        );
+      }
+    }
     for (let i = 0; i < toDelete.length; i += 400) {
       const chunk = toDelete.slice(i, i + 400);
       const batch = writeBatch(db);
@@ -813,7 +845,7 @@ export async function deleteSchedulesInMonth(
     action: "reset_week",
     detail: `${yearMonth} 월 일정 ${deleted}건 삭제`,
   });
-  return deleted;
+  return { deleted, cancelledSchedules };
 }
 
 export async function exportWeekToMonthlySheet(input: {
