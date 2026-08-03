@@ -75,12 +75,30 @@ export function MonthlySheetDayEditor({
     setSaving(true);
     setError("");
     try {
-      const override: SheetDayOverride = {
+      // Firestore setDoc은 값이 undefined인 필드를 거부하므로, 비운 입력값은
+      // 키 자체를 생략해야 한다 (undefined로 남겨두면 저장이 실패한다).
+      const cleanedEntryEdits = Object.fromEntries(
+        Object.entries(entryEdits)
+          .map(([key, entry]) => [
+            key,
+            Object.fromEntries(
+              Object.entries(entry).filter(([, v]) => v !== undefined),
+            ),
+          ])
+          .filter(([, entry]) => Object.keys(entry).length > 0),
+      ) as Record<string, SheetEntryOverride>;
+
+      const rawOverride: SheetDayOverride = {
         color: dayColor.trim() || undefined,
         customMemo: customMemo.trim() || undefined,
         manualText: manualText.trim() || undefined,
-        entryOverrides: Object.keys(entryEdits).length ? entryEdits : undefined,
+        entryOverrides: Object.keys(cleanedEntryEdits).length
+          ? cleanedEntryEdits
+          : undefined,
       };
+      const override = Object.fromEntries(
+        Object.entries(rawOverride).filter(([, v]) => v !== undefined),
+      ) as SheetDayOverride;
 
       const isEmpty =
         !override.color &&
