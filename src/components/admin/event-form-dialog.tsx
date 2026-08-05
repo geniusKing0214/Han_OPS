@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { EventItem, Slot } from "@/types/schedule";
+import type { EventItem, PositionDef, Slot } from "@/types/schedule";
 import { DEFAULT_ATTENDANCE_SETTINGS } from "@/types/attendance";
 import { teamExposureToTeamIds } from "@/types/team";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ export function CreateScheduleDialog({
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("09:00");
+  const [position, setPosition] = useState("");
   const [capacity, setCapacity] = useState("1");
   const [color, setColor] = useState("#C8A96B");
   const [error, setError] = useState("");
@@ -56,6 +57,7 @@ export function CreateScheduleDialog({
     setVenue("");
     setDate(defaultDate ?? "");
     setStartTime("09:00");
+    setPosition("");
     setCapacity("1");
     setColor("#C8A96B");
     setError("");
@@ -76,24 +78,56 @@ export function CreateScheduleDialog({
       return;
     }
     const cap = Math.max(1, Number.parseInt(capacity, 10) || 0);
+    const positionLabel = position.trim();
 
-    const slot: Slot = {
-      id: crypto.randomUUID(),
-      start_time: startTime,
-      capacity: cap,
-      applied_count: 0,
-    };
-
-    const payload: Omit<EventItem, "id"> = {
-      title: title.trim(),
-      venue: venue.trim(),
-      team_ids: teamExposureToTeamIds("team_1"),
-      sessions: [{ id: crypto.randomUUID(), date, slots: [slot] }],
-      attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
-      usePositions: false,
-      positions: [],
-      forceApplyOpen: false,
-    };
+    const payload: Omit<EventItem, "id"> = positionLabel
+      ? {
+          title: title.trim(),
+          venue: venue.trim(),
+          team_ids: teamExposureToTeamIds("team_1"),
+          sessions: [{ id: crypto.randomUUID(), date, slots: [] }],
+          attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
+          usePositions: true,
+          positions: [
+            {
+              id: crypto.randomUUID(),
+              label: positionLabel,
+              capacity: cap,
+              slots: [
+                {
+                  id: crypto.randomUUID(),
+                  time: startTime,
+                  capacity: cap,
+                  applied_count: 0,
+                },
+              ],
+            } satisfies PositionDef,
+          ],
+          forceApplyOpen: false,
+        }
+      : {
+          title: title.trim(),
+          venue: venue.trim(),
+          team_ids: teamExposureToTeamIds("team_1"),
+          sessions: [
+            {
+              id: crypto.randomUUID(),
+              date,
+              slots: [
+                {
+                  id: crypto.randomUUID(),
+                  start_time: startTime,
+                  capacity: cap,
+                  applied_count: 0,
+                } satisfies Slot,
+              ],
+            },
+          ],
+          attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
+          usePositions: false,
+          positions: [],
+          forceApplyOpen: false,
+        };
     if (color.trim()) payload.color = color.trim();
 
     try {
@@ -115,26 +149,27 @@ export function CreateScheduleDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              이벤트명 *
-            </label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: WDHL 인천지사"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              장소 *
-            </label>
-            <Input
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              placeholder="예: 인천"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                이벤트명 *
+              </label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="예: WDHL 인천지사"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                장소 *
+              </label>
+              <Input
+                value={venue}
+                onChange={(e) => setVenue(e.target.value)}
+                placeholder="예: 인천"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -170,6 +205,16 @@ export function CreateScheduleDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
+                포지션
+              </label>
+              <Input
+                value={position}
+                onChange={(e) => setPosition(e.target.value)}
+                placeholder="예: 딜러"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
                 필요 인원 *
               </label>
               <Input
@@ -182,24 +227,25 @@ export function CreateScheduleDialog({
                 placeholder="예: 5"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                표시 색상
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  type="color"
-                  className="h-9 w-12 cursor-pointer p-1"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                />
-                <Input
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  placeholder="#C8A96B"
-                  className="flex-1 font-mono text-xs"
-                />
-              </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              표시 색상
+            </label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                className="h-9 w-12 cursor-pointer p-1"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
+              <Input
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                placeholder="#C8A96B"
+                className="flex-1 font-mono text-xs"
+              />
             </div>
           </div>
         </div>
