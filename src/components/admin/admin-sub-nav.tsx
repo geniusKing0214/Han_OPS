@@ -49,6 +49,13 @@ const items = [
     isActive: (p: string) =>
       p === "/admin/notices" || p.startsWith("/admin/notices/"),
   },
+  {
+    href: "/admin/approval-calendar",
+    label: "승인 달력",
+    isActive: (p: string) =>
+      p === "/admin/approval-calendar" ||
+      p.startsWith("/admin/approval-calendar/"),
+  },
 ] as const;
 
 export function AdminSubNav() {
@@ -63,7 +70,7 @@ export function AdminSubNav() {
         className={cn(
           "items-stretch gap-0",
           "flex min-w-0 flex-nowrap overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          "md:overflow-visible lg:grid lg:grid-cols-7",
+          "md:overflow-visible lg:grid lg:grid-cols-8",
         )}
       >
         {items.map(({ href, label, isActive }) => {

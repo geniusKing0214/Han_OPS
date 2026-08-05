@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
+  CalendarRange,
   ClipboardList,
   LayoutDashboard,
   MessageSquareText,
@@ -49,6 +50,12 @@ const adminNavItem: SidebarLink = {
   label: "Admin",
   icon: Shield,
   isActive: (p) => p === "/admin" || p.startsWith("/admin/"),
+};
+
+const approvalCalendarNavItem: SidebarLink = {
+  href: "/admin/approval-calendar",
+  label: "승인 달력",
+  icon: CalendarRange,
 };
 
 const settingsNavItem: SidebarLink = {
@@ -148,6 +155,12 @@ export function AppSidebar({ className }: { className?: string }) {
           <div className="space-y-0.5">
             {isAdmin ? (
               <NavLink {...adminNavItem} active={isLinkActive(pathname, adminNavItem)} />
+            ) : null}
+            {isAdmin ? (
+              <NavLink
+                {...approvalCalendarNavItem}
+                active={isLinkActive(pathname, approvalCalendarNavItem)}
+              />
             ) : null}
             <NavLink
               {...settingsNavItem}

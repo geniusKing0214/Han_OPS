@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   CalendarCheck2,
+  CalendarRange,
   ClipboardList,
   LayoutDashboard,
   MessageSquareText,
@@ -125,7 +126,14 @@ export function MobileBottomNav({ className }: { className?: string }) {
                 설정
               </p>
               {isAdmin ? (
-                <MoreLinkItem href="/admin/users" label="Admin" icon={Shield} />
+                <>
+                  <MoreLinkItem href="/admin/users" label="Admin" icon={Shield} />
+                  <MoreLinkItem
+                    href="/admin/approval-calendar"
+                    label="승인 달력"
+                    icon={CalendarRange}
+                  />
+                </>
               ) : (
                 <p className="rounded-lg border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
                   Admin 메뉴는 관리자 계정만 표시됩니다.
