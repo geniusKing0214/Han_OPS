@@ -309,7 +309,7 @@ export function CreateScheduleDialog({
                     />
                     <button
                       type="button"
-                      className="shrink-0 text-muted-foreground hover:text-red-400 px-1"
+                      className="shrink-0 text-muted-foreground hover:text-red-600 px-1"
                       onClick={() =>
                         setPositions((prev) => prev.filter((_, i) => i !== idx))
                       }
@@ -377,7 +377,7 @@ export function CreateScheduleDialog({
                         <span className="text-xs text-muted-foreground">명</span>
                         <button
                           type="button"
-                          className="text-muted-foreground hover:text-red-400"
+                          className="text-muted-foreground hover:text-red-600"
                           onClick={() =>
                             setPositions((prev) =>
                               prev.map((p, i) =>
@@ -525,7 +525,7 @@ export function CreateScheduleDialog({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="text-red-400 shrink-0 h-8"
+                      className="text-red-600 shrink-0 h-8"
                       onClick={() => setPackages((prev) => prev.filter((p) => p.id !== pkg.id))}
                     >
                       삭제
@@ -639,7 +639,7 @@ export function CreateScheduleDialog({
                             </div>
                             <button
                               type="button"
-                              className="shrink-0 text-muted-foreground/60 hover:text-red-400 text-base leading-none"
+                              className="shrink-0 text-muted-foreground/60 hover:text-red-600 text-base leading-none"
                               onClick={() => removeSession(sess.id)}
                               aria-label="날짜 삭제"
                             >
@@ -671,7 +671,7 @@ export function CreateScheduleDialog({
         </div>
 
         {error ? (
-          <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
             {error}
           </p>
         ) : null}

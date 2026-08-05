@@ -124,7 +124,7 @@ export function AdminConsole({
         </CardHeader>
         <CardContent className="space-y-3">
           {localError ? (
-            <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
               {localError}
             </p>
           ) : null}
@@ -250,7 +250,7 @@ export function AdminConsole({
             <Button
               type="button"
               variant="outline"
-              className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              className="text-red-600 hover:bg-red-500/10 hover:text-red-700"
               disabled={busyId === rejectTarget?.id}
               onClick={() => void confirmReject()}
             >

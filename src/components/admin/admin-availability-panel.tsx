@@ -140,7 +140,7 @@ export function AdminAvailabilityPanel() {
       />
 
       {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       ) : null}
@@ -190,7 +190,7 @@ export function AdminAvailabilityPanel() {
         <Card className="bg-muted/30">
           <CardContent className="space-y-1 p-4">
             <p className="text-xs text-muted-foreground">신청 완료</p>
-            <p className="text-2xl font-semibold tabular-nums text-emerald-400">
+            <p className="text-2xl font-semibold tabular-nums text-emerald-600">
               {submitted.length}
             </p>
           </CardContent>
@@ -208,11 +208,11 @@ export function AdminAvailabilityPanel() {
           <CardContent className="space-y-1 p-4">
             <p className="text-xs text-muted-foreground">미신청</p>
             <div className="flex items-center justify-between gap-2">
-              <p className="text-2xl font-semibold tabular-nums text-red-400">
+              <p className="text-2xl font-semibold tabular-nums text-red-600">
                 {notSubmitted.length}
               </p>
               {notSubmittedOpen ? (
-                <ChevronUp className="size-4 text-red-400" />
+                <ChevronUp className="size-4 text-red-600" />
               ) : (
                 <ChevronDown className="size-4 text-muted-foreground" />
               )}
@@ -228,7 +228,7 @@ export function AdminAvailabilityPanel() {
       {notSubmittedOpen && notSubmitted.length > 0 ? (
         <Card className="border-red-500/20">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base text-red-400">
+            <CardTitle className="text-base text-red-600">
               미신청자 목록 ({notSubmitted.length}명)
             </CardTitle>
           </CardHeader>
@@ -257,7 +257,7 @@ export function AdminAvailabilityPanel() {
         </Card>
       ) : notSubmittedOpen && notSubmitted.length === 0 ? (
         <Card className="border-emerald-500/20">
-          <CardContent className="py-6 text-center text-sm text-emerald-400">
+          <CardContent className="py-6 text-center text-sm text-emerald-600">
             모든 멤버가 신청을 완료했습니다 🎉
           </CardContent>
         </Card>
@@ -298,7 +298,7 @@ export function AdminAvailabilityPanel() {
                   <p className="text-[11px] text-muted-foreground">
                     가능 <span className="font-medium text-accent">{available.length}</span>
                     {" · "}
-                    불가 <span className="font-medium text-red-300">{unavailable.length}</span>
+                    불가 <span className="font-medium text-red-700">{unavailable.length}</span>
                   </p>
                   {isOpen ? (
                     <ChevronUp className="size-3.5 text-accent" />
@@ -355,7 +355,7 @@ export function AdminAvailabilityPanel() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium text-red-300">
+                <p className="text-sm font-medium text-red-700">
                   근무 불가능 ({expandedBucket.unavailable.length})
                 </p>
                 {expandedBucket.unavailable.length === 0 ? (
@@ -387,7 +387,7 @@ export function AdminAvailabilityPanel() {
                               type="button"
                               onClick={() => setReasonMember(u)}
                               title="불가 사유 보기"
-                              className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"
+                              className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 hover:bg-amber-500/30"
                             >
                               <AlertTriangle className="size-3" />
                             </button>

@@ -280,31 +280,31 @@ export function PointsDashboard() {
       label: isTotal ? "누적 신청" : "총 신청",
       value: stats.totalApplications,
       icon: ClipboardList,
-      tone: "text-violet-400",
+      tone: "text-violet-600",
     },
     {
       label: isTotal ? "누적 승인" : "승인",
       value: stats.approvedCount,
       icon: CheckCircle2,
-      tone: "text-blue-400",
+      tone: "text-blue-600",
     },
     {
       label: isTotal ? "누적 근무완료" : "근무완료",
       value: stats.completedCount,
       icon: CheckCircle2,
-      tone: "text-emerald-400",
+      tone: "text-emerald-600",
     },
     {
       label: isTotal ? "누적 결근" : "결근",
       value: stats.noShowCount,
       icon: CalendarX2,
-      tone: "text-red-400",
+      tone: "text-red-600",
     },
     {
       label: isTotal ? "누적 당일취소" : "당일취소",
       value: stats.lateCancelCount,
       icon: CalendarX2,
-      tone: "text-amber-400",
+      tone: "text-amber-600",
     },
     {
       label: isTotal ? "누적 포인트 합계" : "이번 달 포인트",
@@ -355,13 +355,13 @@ export function PointsDashboard() {
             <p className="text-muted-foreground">
               {isTotal ? "누적 근무완료" : "근무완료"}
             </p>
-            <p className="font-medium tabular-nums text-emerald-400">
+            <p className="font-medium tabular-nums text-emerald-600">
               {selected.completedCount}
             </p>
           </div>
           <div className="rounded-md bg-muted/40 py-2">
             <p className="text-muted-foreground">{isTotal ? "누적 결근" : "결근"}</p>
-            <p className="font-medium tabular-nums text-red-400">
+            <p className="font-medium tabular-nums text-red-600">
               {selected.noShowCount}
             </p>
           </div>
@@ -399,7 +399,7 @@ export function PointsDashboard() {
                       <span
                         className={cn(
                           "shrink-0 font-semibold tabular-nums",
-                          log.points >= 0 ? "text-emerald-400" : "text-red-400",
+                          log.points >= 0 ? "text-emerald-600" : "text-red-600",
                         )}
                       >
                         {log.points >= 0 ? "+" : ""}
@@ -454,13 +454,13 @@ export function PointsDashboard() {
       <Card className="border-accent/20 bg-muted/20">
         <CardContent className="flex flex-col gap-2 py-3 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-4">
           <span>
-            근무완료 <strong className="text-emerald-400">+{POINT_POLICY.completed}P</strong>
+            근무완료 <strong className="text-emerald-600">+{POINT_POLICY.completed}P</strong>
           </span>
           <span>
-            결근 <strong className="text-red-400">{POINT_POLICY.no_show}P</strong>
+            결근 <strong className="text-red-600">{POINT_POLICY.no_show}P</strong>
           </span>
           <span>
-            당일취소 <strong className="text-amber-400">{POINT_POLICY.late_cancel}P</strong>
+            당일취소 <strong className="text-amber-600">{POINT_POLICY.late_cancel}P</strong>
           </span>
           <span className="leading-relaxed">
             신청 시 포인트 미지급 · 동일 건 중복 지급 방지
@@ -582,7 +582,7 @@ export function PointsDashboard() {
       </Card>
 
       {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       ) : null}
@@ -664,13 +664,13 @@ export function PointsDashboard() {
                             <td className="px-2 py-2.5 text-right tabular-nums">
                               {row.approvedCount}
                             </td>
-                            <td className="px-2 py-2.5 text-right tabular-nums text-emerald-400">
+                            <td className="px-2 py-2.5 text-right tabular-nums text-emerald-600">
                               {row.completedCount}
                             </td>
-                            <td className="px-2 py-2.5 text-right tabular-nums text-red-400">
+                            <td className="px-2 py-2.5 text-right tabular-nums text-red-600">
                               {row.noShowCount}
                             </td>
-                            <td className="px-2 py-2.5 text-right tabular-nums text-amber-400">
+                            <td className="px-2 py-2.5 text-right tabular-nums text-amber-600">
                               {row.lateCancelCount}
                             </td>
                             {!isTotal ? (
@@ -759,19 +759,19 @@ export function PointsDashboard() {
                               </div>
                               <div className="rounded-md bg-background/60 px-1 py-1.5">
                                 <p className="text-muted-foreground">완료</p>
-                                <p className="font-medium tabular-nums text-emerald-400">
+                                <p className="font-medium tabular-nums text-emerald-600">
                                   {row.completedCount}
                                 </p>
                               </div>
                               <div className="rounded-md bg-background/60 px-1 py-1.5">
                                 <p className="text-muted-foreground">결근</p>
-                                <p className="font-medium tabular-nums text-red-400">
+                                <p className="font-medium tabular-nums text-red-600">
                                   {row.noShowCount}
                                 </p>
                               </div>
                               <div className="rounded-md bg-background/60 px-1 py-1.5">
                                 <p className="text-muted-foreground">당취</p>
-                                <p className="font-medium tabular-nums text-amber-400">
+                                <p className="font-medium tabular-nums text-amber-600">
                                   {row.lateCancelCount}
                                 </p>
                               </div>

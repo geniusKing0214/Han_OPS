@@ -100,7 +100,7 @@ export function MyApplicationRow({
             </p>
           ) : null}
           {app.status === "rejected" && app.rejectionReason ? (
-            <p className="mt-1 line-clamp-2 text-xs text-red-300/90">
+            <p className="mt-1 line-clamp-2 text-xs text-red-700/90">
               거절 사유: {app.rejectionReason}
             </p>
           ) : null}
@@ -120,7 +120,7 @@ export function MyApplicationRow({
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              className="h-8 border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-700"
               onClick={() => {
                 setError("");
                 setDialogOpen(true);
@@ -148,7 +148,7 @@ export function MyApplicationRow({
             </DialogDescription>
           </DialogHeader>
           {error ? (
-            <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
               {error}
             </p>
           ) : null}
@@ -164,7 +164,7 @@ export function MyApplicationRow({
             <Button
               type="button"
               variant="outline"
-              className="border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              className="border-red-500/40 text-red-600 hover:bg-red-500/10 hover:text-red-700"
               disabled={cancelling}
               onClick={() => void handleCancel()}
             >

@@ -190,7 +190,7 @@ export function BambooForestView() {
               />
             </div>
             {submitError ? (
-              <p className="text-xs text-red-300">{submitError}</p>
+              <p className="text-xs text-red-700">{submitError}</p>
             ) : null}
           </div>
           <DialogFooter>
@@ -302,7 +302,7 @@ export function BambooForestView() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="text-red-400 hover:bg-red-500/10"
+                      className="text-red-600 hover:bg-red-500/10"
                       disabled={deletingId === post.id}
                       onClick={() => void handleDelete(post.id, post.title)}
                     >

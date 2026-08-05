@@ -103,8 +103,8 @@ export function ProfileSettingsForm() {
           <p
             className={
               feedback.kind === "ok"
-                ? "text-xs text-emerald-400"
-                : "text-xs text-red-300"
+                ? "text-xs text-emerald-600"
+                : "text-xs text-red-700"
             }
           >
             {feedback.text}

@@ -142,7 +142,7 @@ export function SessionScheduleSheetBody({
 
       <div className="mt-4 space-y-6 text-sm">
         {saveError ? (
-          <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
             {saveError}
           </p>
         ) : null}
@@ -266,7 +266,7 @@ export function SessionScheduleSheetBody({
                       />
                       <button
                         type="button"
-                        className="shrink-0 text-muted-foreground hover:text-red-400 px-1"
+                        className="shrink-0 text-muted-foreground hover:text-red-600 px-1"
                         onClick={() =>
                           setMetaPositions((prev) => prev.filter((_, i) => i !== idx))
                         }
@@ -318,7 +318,7 @@ export function SessionScheduleSheetBody({
                           <span className="text-xs text-muted-foreground">명</span>
                           <button
                             type="button"
-                            className="text-muted-foreground hover:text-red-400"
+                            className="text-muted-foreground hover:text-red-600"
                             onClick={() =>
                               setMetaPositions((prev) =>
                                 prev.map((p, i) =>
@@ -391,7 +391,7 @@ export function SessionScheduleSheetBody({
               type="button"
               size="sm"
               variant="ghost"
-              className="text-red-400 hover:text-red-300"
+              className="text-red-600 hover:text-red-700"
               disabled={saving}
               onClick={() => {
                 if (!confirm(`${session.date} 세션과 포함된 슬롯을 삭제할까요?`))
@@ -473,7 +473,7 @@ export function SessionScheduleSheetBody({
             type="button"
             size="sm"
             variant="outline"
-            className="gap-1 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            className="gap-1 text-red-600 hover:bg-red-500/10 hover:text-red-700"
             disabled={saving}
             onClick={() => void onDeleteEvent()}
           >

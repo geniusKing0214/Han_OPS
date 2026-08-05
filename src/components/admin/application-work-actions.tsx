@@ -73,7 +73,7 @@ export function ApplicationWorkActions({
               type="button"
               size="sm"
               variant="outline"
-              className="text-red-400 hover:bg-red-500/10"
+              className="text-red-600 hover:bg-red-500/10"
               disabled={busy}
               onClick={onReject}
             >
@@ -89,7 +89,7 @@ export function ApplicationWorkActions({
               size="sm"
               variant="outline"
               className={cn(
-                "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10",
+                "border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10",
                 ws === "completed" && "ring-1 ring-emerald-500/50",
               )}
               disabled={busy}
@@ -102,7 +102,7 @@ export function ApplicationWorkActions({
               size="sm"
               variant="outline"
               className={cn(
-                "text-red-400 hover:bg-red-500/10",
+                "text-red-600 hover:bg-red-500/10",
                 ws === "no_show" && "ring-1 ring-red-500/50",
               )}
               disabled={busy}
@@ -115,7 +115,7 @@ export function ApplicationWorkActions({
               size="sm"
               variant="outline"
               className={cn(
-                "border-amber-500/40 text-amber-400 hover:bg-amber-500/10",
+                "border-amber-500/40 text-amber-600 hover:bg-amber-500/10",
                 ws === "late_cancel" && "ring-1 ring-amber-500/50",
               )}
               disabled={busy}

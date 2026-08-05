@@ -48,7 +48,7 @@ export function AttendanceStatusBlock({
           {existing?.reviewStatus === "rejected" ? "다시 인증" : "출근 인증"}
         </Button>
         {existing?.reviewStatus === "rejected" && existing.rejectionReason ? (
-          <p className="mt-2 text-xs text-amber-300">
+          <p className="mt-2 text-xs text-amber-700">
             재확인 사유: {existing.rejectionReason}
           </p>
         ) : null}
@@ -93,7 +93,7 @@ export function AttendanceStatusBlock({
     const photoDeleted = existing.photoStatus === "deleted";
     return (
       <div className="mt-3 space-y-1.5 rounded-md border border-border bg-muted/40 px-3 py-2.5 text-sm">
-        <p className="font-medium text-emerald-400">출근 인증 확인 완료</p>
+        <p className="font-medium text-emerald-600">출근 인증 확인 완료</p>
         {existing.reviewedAt ? (
           <p className="text-xs text-muted-foreground tabular-nums">
             관리자 확인 시간 {formatAttendanceDateTime(existing.reviewedAt)}

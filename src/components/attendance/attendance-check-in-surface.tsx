@@ -85,10 +85,10 @@ function DistanceIndicator({
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <MapPin
-            className={`size-3.5 ${inside ? "text-green-400" : "text-muted-foreground"}`}
+            className={`size-3.5 ${inside ? "text-green-600" : "text-muted-foreground"}`}
           />
           {inside ? (
-            <span className="font-semibold text-green-400">반경 안에 있습니다 ✓</span>
+            <span className="font-semibold text-green-600">반경 안에 있습니다 ✓</span>
           ) : (
             <span className="text-foreground">
               행사장까지 약{" "}
@@ -121,16 +121,16 @@ function DistanceIndicator({
 function MockLocationWarning({ signal }: { signal: MockLocationSignal }) {
   if (!signal.suspicious) return null;
   return (
-    <div className="flex gap-2 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
+    <div className="flex gap-2 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-700">
       <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
       <div>
         <p className="font-semibold">위치 이상 감지</p>
-        <ul className="mt-0.5 list-disc pl-3 text-yellow-300/80">
+        <ul className="mt-0.5 list-disc pl-3 text-yellow-700/80">
           {signal.reasons.map((r) => (
             <li key={r}>{r}</li>
           ))}
         </ul>
-        <p className="mt-1 text-yellow-300/70">
+        <p className="mt-1 text-yellow-700/70">
           실제 기기 GPS를 사용하고 있는지 확인해주세요.
         </p>
       </div>
@@ -311,7 +311,7 @@ export function AttendanceCheckInSurface({
         </p>
         <p>{app.venue}</p>
         <p>현재 시각 {new Date().toLocaleTimeString("ko-KR")}</p>
-        {gpsError && <p className="text-xs text-red-400">GPS 오류: {gpsError}</p>}
+        {gpsError && <p className="text-xs text-red-600">GPS 오류: {gpsError}</p>}
       </div>
 
       {/* 실시간 거리 인디케이터 */}
@@ -332,7 +332,7 @@ export function AttendanceCheckInSurface({
       {needsGps &&
         distanceMeters !== null &&
         distanceMeters <= allowedRadius && (
-          <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-400">
+          <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-medium text-green-600">
             <CheckCircle2 className="size-4" />
             반경 진입 확인 — 인증 가능합니다
           </div>
@@ -371,7 +371,7 @@ export function AttendanceCheckInSurface({
       ) : null}
 
       {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
           {error}
         </p>
       ) : null}
