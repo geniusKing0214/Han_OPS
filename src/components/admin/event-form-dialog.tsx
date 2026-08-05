@@ -170,7 +170,7 @@ export function CreateScheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>스케줄 생성</DialogTitle>
           <DialogDescription>
@@ -179,7 +179,7 @@ export function CreateScheduleDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
                 이벤트명 *
@@ -200,23 +200,22 @@ export function CreateScheduleDialog({
                 placeholder="예: 인천"
               />
             </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              날짜 *
-            </label>
-            {defaultDate ? (
-              <div className="flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm">
-                {formatDateLabel(defaultDate)}
-              </div>
-            ) : (
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            )}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                날짜 *
+              </label>
+              {defaultDate ? (
+                <div className="flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm">
+                  {formatDateLabel(defaultDate)}
+                </div>
+              ) : (
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              )}
+            </div>
           </div>
 
           <div className="space-y-1.5">
