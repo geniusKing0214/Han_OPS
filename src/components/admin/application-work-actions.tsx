@@ -23,14 +23,19 @@ export function ApplicationWorkActions({
   onApprove,
   onReject,
   onWorkStatus,
+  onApproveCancelRequest,
+  onRejectCancelRequest,
 }: {
   application: ApplicationItem;
   busy: boolean;
   onApprove: () => void;
   onReject: () => void;
   onWorkStatus: (status: WorkStatus) => void;
+  onApproveCancelRequest?: () => void;
+  onRejectCancelRequest?: () => void;
 }) {
   const ws = a.workStatus ?? "not_checked";
+  const cancelRequested = a.status === "approved" && !!a.cancelRequestedAt;
 
   return (
     <div className="flex flex-col gap-2">
@@ -48,6 +53,9 @@ export function ApplicationWorkActions({
         >
           {statusLabels[a.status]}
         </Badge>
+        {cancelRequested ? (
+          <Badge variant="warning">취소 요청</Badge>
+        ) : null}
         {ws !== "not_checked" ? (
           <Badge variant={workStatusBadgeVariant(ws)}>{WORK_STATUS_LABELS[ws]}</Badge>
         ) : null}
@@ -57,6 +65,31 @@ export function ApplicationWorkActions({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
+        {cancelRequested ? (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-red-600 hover:bg-red-500/10"
+              disabled={busy}
+              onClick={onApproveCancelRequest}
+            >
+              취소 승인
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+              disabled={busy}
+              onClick={onRejectCancelRequest}
+            >
+              취소 거절(계속 근무)
+            </Button>
+          </>
+        ) : null}
+
         {a.status === "pending" ? (
           <>
             <Button
