@@ -123,7 +123,7 @@ export function NoticesView() {
       />
 
       {error ? (
-        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
           공지를 불러오지 못했습니다: {error}
         </p>
       ) : null}

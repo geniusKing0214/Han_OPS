@@ -55,22 +55,22 @@ const DAY_STATE_STYLE: Record<
   available: {
     card: "border-emerald-400/40 bg-emerald-500/15 shadow-sm",
     badge: "bg-emerald-500 text-white",
-    text: "text-emerald-300",
+    text: "text-emerald-700",
   },
   pending: {
     card: "border-blue-400/40 bg-blue-500/15 shadow-sm",
     badge: "bg-blue-500 text-white",
-    text: "text-blue-300",
+    text: "text-blue-700",
   },
   done: {
     card: "border-zinc-400/40 bg-zinc-500/15 shadow-sm",
     badge: "bg-zinc-500 text-white",
-    text: "text-zinc-300",
+    text: "text-zinc-700",
   },
   unavailable: {
     card: "border-red-400/30 bg-red-500/10",
     badge: "bg-red-500/90 text-white",
-    text: "text-red-300",
+    text: "text-red-700",
   },
 };
 
@@ -278,7 +278,7 @@ export function MyAvailabilityForm({
           </p>
         </div>
       ) : windowStatus === "closed" ? (
-        <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-200">
+        <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-800">
           <Lock className="mt-0.5 size-4 shrink-0" />
           <p>
             신청 기간이 종료되었습니다. 근무 가능일은{" "}
@@ -289,12 +289,12 @@ export function MyAvailabilityForm({
       ) : null}
 
       {error ? (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       ) : null}
       {saved && !dirty ? (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
           저장되었습니다. 금요일 이후에는 관리자에게 수정 요청해 주세요.
         </p>
       ) : null}
@@ -369,8 +369,8 @@ export function MyAvailabilityForm({
                   className={cn(
                     "flex max-w-full items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
                     note
-                      ? "bg-red-500/20 text-red-200"
-                      : "text-red-200/60",
+                      ? "bg-red-500/20 text-red-800"
+                      : "text-red-800/60",
                     locked && "pointer-events-none opacity-70",
                   )}
                 >
@@ -434,7 +434,7 @@ export function MyAvailabilityForm({
             autoFocus
           />
           {memoError ? (
-            <p className="text-xs text-red-300">{memoError}</p>
+            <p className="text-xs text-red-700">{memoError}</p>
           ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeMemoDialog}>
