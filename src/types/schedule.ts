@@ -45,6 +45,12 @@ export type Session = {
    * 실제 인원 카운트는 날짜마다 달라야 하므로 여기서 별도로 추적한다.
    */
   positionSlotCounts?: Record<string, number>;
+  /**
+   * 포지션 슬롯 시간 오버라이드 — 날짜(세션)별로 이벤트 레벨 기본 시간과
+   * 다르게 쓰고 싶을 때 사용한다. key: positionSlotKey 참고, value: "HH:mm".
+   * 지정하지 않은 세션은 event.positions[].slots[].time(기본값)을 그대로 쓴다.
+   */
+  positionSlotTimeOverrides?: Record<string, string>;
 };
 
 export function positionSlotKey(positionId: string, positionSlotId: string): string {

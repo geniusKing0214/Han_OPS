@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { EventItem, PositionDef, Slot } from "@/types/schedule";
+import { positionSlotKey } from "@/types/schedule";
 import { DEFAULT_ATTENDANCE_SETTINGS } from "@/types/attendance";
 import { teamExposureToTeamIds } from "@/types/team";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export type CreateScheduleDialogProps = {
   open: boolean;
@@ -28,10 +30,18 @@ export type CreateScheduleDialogProps = {
   defaultDate?: string;
 };
 
-type PositionRow = { id: string; label: string; time: string; capacity: string };
+type PositionRow = {
+  id: string;
+  label: string;
+  capacity: string;
+  /** 기본 시간 — 날짜별로 따로 설정하지 않은 모든 날짜에 적용 */
+  time: string;
+  /** 날짜별 시간 오버라이드. key: YYYY-MM-DD */
+  timeByDate: Record<string, string>;
+};
 
 function emptyPositionRow(time = "09:00"): PositionRow {
-  return { id: crypto.randomUUID(), label: "", time, capacity: "1" };
+  return { id: crypto.randomUUID(), label: "", capacity: "1", time, timeByDate: {} };
 }
 
 function formatDateLabel(ymd: string): string {
@@ -54,6 +64,8 @@ export function CreateScheduleDialog({
   const [dates, setDates] = useState<string[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
+  /** 빈 문자열이면 "기본 시간" 편집 중, 날짜를 탭하면 그 날짜만 다른 시간 편집 */
+  const [activeDate, setActiveDate] = useState("");
   const [positionRows, setPositionRows] = useState<PositionRow[]>([
     emptyPositionRow(),
   ]);
@@ -68,6 +80,7 @@ export function CreateScheduleDialog({
     setDates(defaultDate ? [defaultDate] : []);
     setRangeStart("");
     setRangeEnd("");
+    setActiveDate("");
     setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
     setNotice("");
@@ -93,8 +106,23 @@ export function CreateScheduleDialog({
     setRangeEnd("");
   };
 
-  const removeDate = (ymd: string) =>
+  const removeDate = (ymd: string) => {
     setDates((prev) => prev.filter((d) => d !== ymd));
+    setPositionRows((prev) =>
+      prev.map((r) => {
+        if (!(ymd in r.timeByDate)) return r;
+        const nextTimeByDate = { ...r.timeByDate };
+        delete nextTimeByDate[ymd];
+        return { ...r, timeByDate: nextTimeByDate };
+      }),
+    );
+    setActiveDate((prev) => (prev === ymd ? "" : prev));
+  };
+
+  /** 날짜 칩을 탭하면 그 날짜의 시간만 따로 편집하는 모드로 전환.
+   * 같은 칩을 다시 탭하면 기본 시간 편집으로 돌아간다. */
+  const toggleActiveDate = (ymd: string) =>
+    setActiveDate((prev) => (prev === ymd ? "" : ymd));
 
   const removePositionRow = (id: string) =>
     setPositionRows((prev) =>
@@ -107,7 +135,11 @@ export function CreateScheduleDialog({
     setPositionRows((prev) => {
       const idx = prev.findIndex((r) => r.id === id);
       if (idx === -1) return prev;
-      const copy: PositionRow = { ...prev[idx]!, id: crypto.randomUUID() };
+      const copy: PositionRow = {
+        ...prev[idx]!,
+        id: crypto.randomUUID(),
+        timeByDate: { ...prev[idx]!.timeByDate },
+      };
       return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
     });
 
@@ -116,15 +148,25 @@ export function CreateScheduleDialog({
       prev.map((r) => (r.id === id ? { ...r, label } : r)),
     );
 
+  /** activeDate가 있으면 그 날짜만의 시간을, 없으면 기본 시간을 바꾼다 */
   const updatePositionTime = (id: string, time: string) =>
     setPositionRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, time } : r)),
+      prev.map((r) => {
+        if (r.id !== id) return r;
+        if (activeDate) {
+          return { ...r, timeByDate: { ...r.timeByDate, [activeDate]: time } };
+        }
+        return { ...r, time };
+      }),
     );
 
   const updatePositionCapacity = (id: string, capacity: string) =>
     setPositionRows((prev) =>
       prev.map((r) => (r.id === id ? { ...r, capacity } : r)),
     );
+
+  const timeForRow = (row: PositionRow) =>
+    (activeDate ? row.timeByDate[activeDate] : undefined) ?? row.time;
 
   const handleSubmit = async () => {
     setError("");
@@ -140,35 +182,54 @@ export function CreateScheduleDialog({
       positionRows.length > 1 || positionRows[0]!.label.trim() !== "";
 
     const payload: Omit<EventItem, "id"> = useMultiplePositions
-      ? {
-          title: title.trim(),
-          venue: venue.trim(),
-          team_ids: teamExposureToTeamIds("team_1"),
-          sessions: dates.map((d) => ({
-            id: crypto.randomUUID(),
-            date: d,
-            slots: [],
-          })),
-          attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
-          usePositions: true,
-          positions: positionRows.map((row, idx) => {
+      ? (() => {
+          const built = positionRows.map((row, idx) => {
+            const posId = crypto.randomUUID();
+            const slotId = crypto.randomUUID();
             const rowCap = Math.max(1, Number.parseInt(row.capacity, 10) || 0);
-            return {
-              id: crypto.randomUUID(),
+            const def: PositionDef = {
+              id: posId,
               label: row.label.trim() || `포지션 ${idx + 1}`,
               capacity: rowCap,
               slots: [
                 {
-                  id: crypto.randomUUID(),
+                  id: slotId,
                   time: row.time || "09:00",
                   capacity: rowCap,
                   applied_count: 0,
                 },
               ],
-            } satisfies PositionDef;
-          }),
-          forceApplyOpen: false,
-        }
+            };
+            return { row, posId, slotId, def };
+          });
+
+          return {
+            title: title.trim(),
+            venue: venue.trim(),
+            team_ids: teamExposureToTeamIds("team_1"),
+            sessions: dates.map((d) => {
+              const overrides: Record<string, string> = {};
+              for (const { row, posId, slotId, def } of built) {
+                const override = row.timeByDate[d];
+                if (override && override !== def.slots[0]!.time) {
+                  overrides[positionSlotKey(posId, slotId)] = override;
+                }
+              }
+              return {
+                id: crypto.randomUUID(),
+                date: d,
+                slots: [],
+                ...(Object.keys(overrides).length > 0
+                  ? { positionSlotTimeOverrides: overrides }
+                  : {}),
+              };
+            }),
+            attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
+            usePositions: true,
+            positions: built.map((b) => b.def),
+            forceApplyOpen: false,
+          };
+        })()
       : {
           title: title.trim(),
           venue: venue.trim(),
@@ -179,7 +240,7 @@ export function CreateScheduleDialog({
             slots: [
               {
                 id: crypto.randomUUID(),
-                start_time: positionRows[0]!.time || "09:00",
+                start_time: timeForRow(positionRows[0]!) || "09:00",
                 capacity: Math.max(
                   1,
                   Number.parseInt(positionRows[0]!.capacity, 10) || 0,
@@ -281,22 +342,41 @@ export function CreateScheduleDialog({
             </div>
             {dates.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {dates.map((d) => (
-                  <span
-                    key={d}
-                    className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs tabular-nums"
-                  >
-                    {formatDateLabel(d)}
-                    <button
-                      type="button"
-                      onClick={() => removeDate(d)}
-                      className="text-muted-foreground hover:text-red-600"
-                      aria-label="날짜 삭제"
+                {dates.map((d) => {
+                  const isActive = activeDate === d;
+                  return (
+                    <span
+                      key={d}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs tabular-nums transition-colors",
+                        isActive
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border bg-muted text-foreground",
+                      )}
                     >
-                      ×
-                    </button>
-                  </span>
-                ))}
+                      <button
+                        type="button"
+                        onClick={() => toggleActiveDate(d)}
+                        className="font-medium"
+                        title="탭하면 이 날짜만 다른 시간으로 설정"
+                      >
+                        {formatDateLabel(d)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeDate(d)}
+                        className={cn(
+                          isActive
+                            ? "text-accent/70 hover:text-red-600"
+                            : "text-muted-foreground hover:text-red-600",
+                        )}
+                        aria-label="날짜 삭제"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
@@ -304,11 +384,20 @@ export function CreateScheduleDialog({
                 한 번에 추가됩니다.
               </p>
             )}
+            {dates.length > 1 ? (
+              <p className="text-[11px] text-muted-foreground">
+                날짜를 탭하면 그 날짜만 다른 시간으로 설정할 수 있습니다.
+                {activeDate
+                  ? ` 지금은 ${formatDateLabel(activeDate)}의 시간만 편집 중.`
+                  : " 지금은 모든 날짜에 적용되는 기본 시간을 편집 중."}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
               포지션 · 시간 · 인원
+              {activeDate ? ` — ${formatDateLabel(activeDate)}만 다르게` : ""}
             </label>
             <div className="space-y-2">
               {positionRows.map((row) => (
@@ -326,7 +415,7 @@ export function CreateScheduleDialog({
                       type="time"
                       step={60}
                       className="tabular-nums"
-                      value={row.time}
+                      value={timeForRow(row)}
                       onChange={(e) =>
                         updatePositionTime(row.id, e.target.value)
                       }
