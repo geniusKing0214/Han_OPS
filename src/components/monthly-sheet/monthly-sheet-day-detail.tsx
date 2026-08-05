@@ -13,7 +13,7 @@ import {
   resolveEventApplyStatus,
 } from "@/lib/application-window";
 import { cn } from "@/lib/utils";
-import type { SheetDayBundle, SheetSlotRow } from "@/types/monthly-sheet";
+import type { SheetApplicant, SheetDayBundle, SheetSlotRow } from "@/types/monthly-sheet";
 import type { EventItem } from "@/types/schedule";
 import { TEAM_LABELS } from "@/types/team";
 import type { WorkforceAvailability } from "@/types/workforce";
@@ -29,6 +29,61 @@ function statusLabel(status: string): string {
 
 function pendingCount(row: SheetSlotRow): number {
   return row.applicants.filter((a) => a.status === "pending").length;
+}
+
+function applicantBadgeLabel(a: SheetApplicant): string {
+  return (a.status === "approved" || a.status === "completed") && a.positionLabel
+    ? a.positionLabel
+    : statusLabel(a.status);
+}
+
+/** 이름을 5개씩 끊어 1행5열이 넘어가면 다음 행으로 이어지게 한다 */
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+type ApplicantGroup = {
+  label: string;
+  variant: "success" | "warning" | "destructive" | "default";
+  applicants: SheetApplicant[];
+};
+
+/** 포지션(또는 상태) 뱃지가 같은 신청자끼리 묶어 뱃지를 한 번만 보여준다 */
+function groupApplicants(applicants: SheetApplicant[]): ApplicantGroup[] {
+  const groups: ApplicantGroup[] = [];
+  const indexByLabel = new Map<string, number>();
+  for (const a of applicants) {
+    const label = applicantBadgeLabel(a);
+    let idx = indexByLabel.get(label);
+    if (idx === undefined) {
+      idx = groups.length;
+      indexByLabel.set(label, idx);
+      groups.push({ label, variant: statusBadgeVariant(a.status), applicants: [] });
+    }
+    groups[idx]!.applicants.push(a);
+  }
+  return groups;
+}
+
+function ApplicantExtraBadge({ a }: { a: SheetApplicant }) {
+  if (a.packageDates && a.packageDates.length > 0) {
+    return (
+      <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-1 py-px text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-500/25">
+        {a.packageLabel ? `${a.packageLabel} ` : ""}
+        {a.packageDates.length}일
+      </span>
+    );
+  }
+  if (a.groupDates && a.groupDates.length > 1) {
+    return (
+      <span className="inline-flex items-center rounded-md bg-blue-500/15 px-1 py-px text-[10px] font-semibold text-blue-700 ring-1 ring-blue-500/25">
+        {a.groupDates.length}일
+      </span>
+    );
+  }
+  return null;
 }
 
 export function MonthlySheetDayDetail({
@@ -325,36 +380,38 @@ export function MonthlySheetDayDetail({
                     </p>
                   ) : null}
 
-                  {/* 신청자 목록 */}
+                  {/* 신청자 목록 — 포지션(상태)별로 묶어서 뱃지는 한 번만, 이름은 5개씩 줄바꿈 */}
                   {row.applicants.length > 0 ? (
-                    <ul className="space-y-1.5 md:space-y-2">
-                      {row.applicants.map((a, idx) => (
-                        <li
-                          key={`${row.entryKey}-a-${idx}`}
-                          className="flex items-center gap-2 text-sm md:text-base"
-                        >
-                          <Badge
-                            variant={statusBadgeVariant(a.status)}
-                            className="text-[10px] md:text-xs"
-                          >
-                            {(a.status === "approved" || a.status === "completed") &&
-                            a.positionLabel
-                              ? a.positionLabel
-                              : statusLabel(a.status)}
-                          </Badge>
-                          <span>{a.name}</span>
-                          {a.packageDates && a.packageDates.length > 0 ? (
-                            <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-1 py-px text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-500/25 md:text-[11px]">
-                              {a.packageLabel ? `${a.packageLabel} ` : ""}{a.packageDates.length}일
-                            </span>
-                          ) : a.groupDates && a.groupDates.length > 1 ? (
-                            <span className="inline-flex items-center rounded-md bg-blue-500/15 px-1 py-px text-[10px] font-semibold text-blue-700 ring-1 ring-blue-500/25 md:text-[11px]">
-                              {a.groupDates.length}일
-                            </span>
-                          ) : null}
-                        </li>
+                    <div className="space-y-2">
+                      {groupApplicants(row.applicants).map((group, gi) => (
+                        <div key={`${row.entryKey}-g-${gi}`} className="space-y-1">
+                          {chunk(group.applicants, 5).map((chunkRow, ci) => (
+                            <div
+                              key={ci}
+                              className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                            >
+                              {ci === 0 ? (
+                                <Badge
+                                  variant={group.variant}
+                                  className="shrink-0 text-[10px] md:text-xs"
+                                >
+                                  {group.label}
+                                </Badge>
+                              ) : null}
+                              {chunkRow.map((a, ai) => (
+                                <span
+                                  key={ai}
+                                  className="inline-flex items-center gap-1 text-sm md:text-base"
+                                >
+                                  {a.name}
+                                  <ApplicantExtraBadge a={a} />
+                                </span>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   ) : (
                     <p className="text-xs text-muted-foreground md:text-sm">
                       신청자 없음
