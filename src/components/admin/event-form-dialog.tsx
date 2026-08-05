@@ -52,6 +52,38 @@ function formatDateLabel(ymd: string): string {
   return `${parts[1]}.${parts[2]} (${dow})`;
 }
 
+function nextYmd(ymd: string): string {
+  const d = new Date(ymd + "T00:00:00");
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** 연속된 날짜끼리 묶어서 칩 하나로 표시하기 위한 그룹핑 */
+function groupConsecutiveDates(dates: string[]): string[][] {
+  const sorted = [...dates].sort();
+  const groups: string[][] = [];
+  for (const d of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && nextYmd(last[last.length - 1]!) === d) {
+      last.push(d);
+    } else {
+      groups.push([d]);
+    }
+  }
+  return groups;
+}
+
+/** 연속 구간은 "08.18~22"(같은 달) 또는 "08.18~09.02"(달이 바뀌는 경우)로 표시 */
+function formatDateGroupLabel(group: string[]): string {
+  if (group.length === 1) return formatDateLabel(group[0]!);
+  const first = group[0]!.split("-");
+  const last = group[group.length - 1]!.split("-");
+  if (first[1] === last[1]) {
+    return `${first[1]}.${first[2]}~${last[2]}`;
+  }
+  return `${first[1]}.${first[2]}~${last[1]}.${last[2]}`;
+}
+
 export function CreateScheduleDialog({
   open,
   onOpenChange,
@@ -87,6 +119,17 @@ export function CreateScheduleDialog({
     setError("");
   }, [open, defaultDate]);
 
+  /** 연속 구간 칩은 개별 날짜를 탭할 수 없으므로, 활성 날짜가 연속 구간에
+   * 편입되면(예: 이미 활성화한 날짜를 포함하는 범위를 나중에 추가) 기본
+   * 시간 편집으로 되돌린다. */
+  useEffect(() => {
+    if (!activeDate) return;
+    const group = groupConsecutiveDates(dates).find((g) =>
+      g.includes(activeDate),
+    );
+    if (group && group.length > 1) setActiveDate("");
+  }, [dates, activeDate]);
+
   /** 시작일~종료일 범위의 모든 날짜를 추가 (연속 날짜) — 종료일이 비어있으면
    * 시작일 하루만 추가한다 (다른 날에 같은 일정을 하나씩 추가하는 용도). */
   const addDateRange = () => {
@@ -106,17 +149,24 @@ export function CreateScheduleDialog({
     setRangeEnd("");
   };
 
-  const removeDate = (ymd: string) => {
-    setDates((prev) => prev.filter((d) => d !== ymd));
+  /** 날짜 하나 또는 연속 구간(그룹) 전체를 한 번에 제거 */
+  const removeDates = (ymds: string[]) => {
+    const toRemove = new Set(ymds);
+    setDates((prev) => prev.filter((d) => !toRemove.has(d)));
     setPositionRows((prev) =>
       prev.map((r) => {
-        if (!(ymd in r.timeByDate)) return r;
         const nextTimeByDate = { ...r.timeByDate };
-        delete nextTimeByDate[ymd];
-        return { ...r, timeByDate: nextTimeByDate };
+        let changed = false;
+        for (const d of ymds) {
+          if (d in nextTimeByDate) {
+            delete nextTimeByDate[d];
+            changed = true;
+          }
+        }
+        return changed ? { ...r, timeByDate: nextTimeByDate } : r;
       }),
     );
-    setActiveDate((prev) => (prev === ymd ? "" : prev));
+    setActiveDate((prev) => (toRemove.has(prev) ? "" : prev));
   };
 
   /** 날짜 칩을 탭하면 그 날짜의 시간만 따로 편집하는 모드로 전환.
@@ -342,35 +392,55 @@ export function CreateScheduleDialog({
             </div>
             {dates.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {dates.map((d) => {
-                  const isActive = activeDate === d;
+                {groupConsecutiveDates(dates).map((group) => {
+                  const key = group.join(",");
+                  if (group.length === 1) {
+                    const d = group[0]!;
+                    const isActive = activeDate === d;
+                    return (
+                      <span
+                        key={key}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs tabular-nums transition-colors",
+                          isActive
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border bg-muted text-foreground",
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleActiveDate(d)}
+                          className="font-medium"
+                          title="탭하면 이 날짜만 다른 시간으로 설정"
+                        >
+                          {formatDateLabel(d)}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeDates([d])}
+                          className={cn(
+                            isActive
+                              ? "text-accent/70 hover:text-red-600"
+                              : "text-muted-foreground hover:text-red-600",
+                          )}
+                          aria-label="날짜 삭제"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  }
                   return (
                     <span
-                      key={d}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs tabular-nums transition-colors",
-                        isActive
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-border bg-muted text-foreground",
-                      )}
+                      key={key}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium tabular-nums text-foreground"
                     >
+                      {formatDateGroupLabel(group)}
                       <button
                         type="button"
-                        onClick={() => toggleActiveDate(d)}
-                        className="font-medium"
-                        title="탭하면 이 날짜만 다른 시간으로 설정"
-                      >
-                        {formatDateLabel(d)}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeDate(d)}
-                        className={cn(
-                          isActive
-                            ? "text-accent/70 hover:text-red-600"
-                            : "text-muted-foreground hover:text-red-600",
-                        )}
-                        aria-label="날짜 삭제"
+                        onClick={() => removeDates(group)}
+                        className="text-muted-foreground hover:text-red-600"
+                        aria-label="날짜 구간 삭제"
                       >
                         ×
                       </button>
