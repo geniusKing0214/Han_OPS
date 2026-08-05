@@ -174,7 +174,7 @@ export function CreateScheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>스케줄 생성</DialogTitle>
           <DialogDescription>
@@ -183,7 +183,7 @@ export function CreateScheduleDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-[1fr_1fr_1fr_3.5rem] gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
                 이벤트명 *
@@ -226,7 +226,7 @@ export function CreateScheduleDialog({
               </label>
               <Input
                 type="color"
-                className="h-9 w-1/3 cursor-pointer p-1"
+                className="h-9 cursor-pointer p-1"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
               />
@@ -240,7 +240,7 @@ export function CreateScheduleDialog({
             <div className="space-y-2">
               {positionRows.map((row) => (
                 <div key={row.id} className="flex items-center gap-2">
-                  <div className="grid flex-1 grid-cols-4 gap-3">
+                  <div className="grid flex-1 grid-cols-[1fr_1fr_1fr_3.5rem] gap-3">
                     <Input
                       className="col-span-2 min-w-0"
                       value={row.label}
