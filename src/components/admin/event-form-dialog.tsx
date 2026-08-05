@@ -96,19 +96,13 @@ export function CreateScheduleDialog({
   const removeDate = (ymd: string) =>
     setDates((prev) => prev.filter((d) => d !== ymd));
 
-  const addPositionRow = () =>
-    setPositionRows((prev) => [
-      ...prev,
-      emptyPositionRow(prev[prev.length - 1]?.time ?? "09:00"),
-    ]);
-
   const removePositionRow = (id: string) =>
     setPositionRows((prev) =>
       prev.length > 1 ? prev.filter((r) => r.id !== id) : prev,
     );
 
-  /** 같은 포지션(이름·시간·인원)을 바로 아래에 복사 — 비슷한 포지션을
-   * 여러 개 빠르게 만들 때 사용 */
+  /** 같은 포지션(이름·시간·인원)을 바로 아래에 복사해 추가 — 각 행의
+   * "추가" 버튼이 곧 포지션 추가 수단이라 별도의 전체 추가 버튼은 없다. */
   const duplicatePositionRow = (id: string) =>
     setPositionRows((prev) => {
       const idx = prev.findIndex((r) => r.id === id);
@@ -354,10 +348,10 @@ export function CreateScheduleDialog({
                     type="button"
                     className="shrink-0 text-muted-foreground hover:text-accent px-1 text-xs"
                     onClick={() => duplicatePositionRow(row.id)}
-                    aria-label="포지션 복사"
-                    title="이 포지션 복사"
+                    aria-label="포지션 추가"
+                    title="이 포지션 복사해서 추가"
                   >
-                    복사
+                    추가
                   </button>
                   {positionRows.length > 1 ? (
                     <button
@@ -372,15 +366,6 @@ export function CreateScheduleDialog({
                 </div>
               ))}
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="w-full text-xs"
-              onClick={addPositionRow}
-            >
-              + 포지션 추가
-            </Button>
           </div>
 
           <div className="space-y-1.5">
