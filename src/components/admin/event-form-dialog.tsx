@@ -240,36 +240,38 @@ export function CreateScheduleDialog({
             <div className="space-y-2">
               {positionRows.map((row) => (
                 <div key={row.id} className="flex items-center gap-2">
-                  <Input
-                    className="flex-1 min-w-0"
-                    value={row.label}
-                    onChange={(e) =>
-                      updatePositionLabel(row.id, e.target.value)
-                    }
-                    placeholder="예: 딜러 (선택)"
-                  />
-                  <Input
-                    type="time"
-                    step={60}
-                    className="w-[7.5rem] shrink-0 tabular-nums"
-                    value={row.time}
-                    onChange={(e) =>
-                      updatePositionTime(row.id, e.target.value)
-                    }
-                  />
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    className="w-14 shrink-0"
-                    value={row.capacity}
-                    onChange={(e) =>
-                      updatePositionCapacity(
-                        row.id,
-                        e.target.value.replace(/[^0-9]/g, ""),
-                      )
-                    }
-                    placeholder="인원"
-                  />
+                  <div className="grid flex-1 grid-cols-4 gap-3">
+                    <Input
+                      className="col-span-2 min-w-0"
+                      value={row.label}
+                      onChange={(e) =>
+                        updatePositionLabel(row.id, e.target.value)
+                      }
+                      placeholder="예: 딜러 (선택)"
+                    />
+                    <Input
+                      type="time"
+                      step={60}
+                      className="col-span-1 tabular-nums"
+                      value={row.time}
+                      onChange={(e) =>
+                        updatePositionTime(row.id, e.target.value)
+                      }
+                    />
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      className="col-span-1"
+                      value={row.capacity}
+                      onChange={(e) =>
+                        updatePositionCapacity(
+                          row.id,
+                          e.target.value.replace(/[^0-9]/g, ""),
+                        )
+                      }
+                      placeholder="인원"
+                    />
+                  </div>
                   {positionRows.length > 1 ? (
                     <button
                       type="button"
