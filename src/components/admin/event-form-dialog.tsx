@@ -38,7 +38,7 @@ function formatDateLabel(ymd: string): string {
   if (parts.length !== 3) return ymd;
   const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
   const dow = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
-  return `${parts[0]}.${parts[1]}.${parts[2]}. (${dow})`;
+  return `${parts[1]}.${parts[2]} (${dow})`;
 }
 
 export function CreateScheduleDialog({
@@ -205,7 +205,7 @@ export function CreateScheduleDialog({
                 날짜 *
               </label>
               {defaultDate ? (
-                <div className="flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm">
+                <div className="flex h-9 items-center whitespace-nowrap rounded-md border border-border bg-muted px-3 text-sm tabular-nums">
                   {formatDateLabel(defaultDate)}
                 </div>
               ) : (
