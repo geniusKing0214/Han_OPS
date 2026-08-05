@@ -23,8 +23,8 @@ export type CreateScheduleDialogProps = {
   saving: boolean;
   /** 저장 시 완성된 이벤트(id 없음 — 부모에서 부여) */
   onSave: (payload: Omit<EventItem, "id">) => Promise<void>;
-  /** 특정 날짜에서 "일정 추가"로 열었을 때 — 날짜를 자동으로 채우고
-   * 날짜 입력 UI 대신 읽기 전용으로 표시한다. */
+  /** 특정 날짜에서 "일정 추가"로 열었을 때 — 해당 날짜를 선택된 날짜
+   * 목록에 미리 담아둔다. 그 상태로도 다른 날짜를 추가/삭제할 수 있다. */
   defaultDate?: string;
 };
 
@@ -51,7 +51,9 @@ export function CreateScheduleDialog({
 }: CreateScheduleDialogProps) {
   const [title, setTitle] = useState("");
   const [venue, setVenue] = useState("");
-  const [date, setDate] = useState("");
+  const [dates, setDates] = useState<string[]>([]);
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const [positionRows, setPositionRows] = useState<PositionRow[]>([
     emptyPositionRow(),
   ]);
@@ -63,12 +65,36 @@ export function CreateScheduleDialog({
     if (!open) return;
     setTitle("");
     setVenue("");
-    setDate(defaultDate ?? "");
+    setDates(defaultDate ? [defaultDate] : []);
+    setRangeStart("");
+    setRangeEnd("");
     setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
     setNotice("");
     setError("");
   }, [open, defaultDate]);
+
+  /** 시작일~종료일 범위의 모든 날짜를 추가 (연속 날짜) — 종료일이 비어있으면
+   * 시작일 하루만 추가한다 (다른 날에 같은 일정을 하나씩 추가하는 용도). */
+  const addDateRange = () => {
+    if (!rangeStart) return;
+    const end = rangeEnd || rangeStart;
+    if (rangeStart > end) return;
+    const added: string[] = [];
+    const cur = new Date(rangeStart + "T00:00:00");
+    const endD = new Date(end + "T00:00:00");
+    while (cur <= endD && added.length < 60) {
+      const ymd = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
+      added.push(ymd);
+      cur.setDate(cur.getDate() + 1);
+    }
+    setDates((prev) => Array.from(new Set([...prev, ...added])).sort());
+    setRangeStart("");
+    setRangeEnd("");
+  };
+
+  const removeDate = (ymd: string) =>
+    setDates((prev) => prev.filter((d) => d !== ymd));
 
   const addPositionRow = () =>
     setPositionRows((prev) => [
@@ -102,8 +128,8 @@ export function CreateScheduleDialog({
       setError("이벤트명과 장소는 필수입니다.");
       return;
     }
-    if (!date) {
-      setError("날짜를 입력하세요.");
+    if (dates.length === 0) {
+      setError("날짜를 최소 1개 추가하세요.");
       return;
     }
     const useMultiplePositions =
@@ -114,7 +140,11 @@ export function CreateScheduleDialog({
           title: title.trim(),
           venue: venue.trim(),
           team_ids: teamExposureToTeamIds("team_1"),
-          sessions: [{ id: crypto.randomUUID(), date, slots: [] }],
+          sessions: dates.map((d) => ({
+            id: crypto.randomUUID(),
+            date: d,
+            slots: [],
+          })),
           attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
           usePositions: true,
           positions: positionRows.map((row, idx) => {
@@ -139,23 +169,21 @@ export function CreateScheduleDialog({
           title: title.trim(),
           venue: venue.trim(),
           team_ids: teamExposureToTeamIds("team_1"),
-          sessions: [
-            {
-              id: crypto.randomUUID(),
-              date,
-              slots: [
-                {
-                  id: crypto.randomUUID(),
-                  start_time: positionRows[0]!.time || "09:00",
-                  capacity: Math.max(
-                    1,
-                    Number.parseInt(positionRows[0]!.capacity, 10) || 0,
-                  ),
-                  applied_count: 0,
-                } satisfies Slot,
-              ],
-            },
-          ],
+          sessions: dates.map((d) => ({
+            id: crypto.randomUUID(),
+            date: d,
+            slots: [
+              {
+                id: crypto.randomUUID(),
+                start_time: positionRows[0]!.time || "09:00",
+                capacity: Math.max(
+                  1,
+                  Number.parseInt(positionRows[0]!.capacity, 10) || 0,
+                ),
+                applied_count: 0,
+              } satisfies Slot,
+            ],
+          })),
           attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
           usePositions: false,
           positions: [],
@@ -183,7 +211,7 @@ export function CreateScheduleDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-[1fr_1fr_1fr_3.5rem] gap-3">
+          <div className="grid grid-cols-[1fr_1fr_3.5rem] gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
                 이벤트명 *
@@ -206,22 +234,6 @@ export function CreateScheduleDialog({
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
-                날짜 *
-              </label>
-              {defaultDate ? (
-                <div className="flex h-9 items-center whitespace-nowrap rounded-md border border-border bg-muted px-3 text-sm tabular-nums">
-                  {formatDateLabel(defaultDate)}
-                </div>
-              ) : (
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
                 표시 색상
               </label>
               <Input
@@ -235,14 +247,71 @@ export function CreateScheduleDialog({
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
+              날짜 * <span className="font-normal">(연속·다른 날 추가 가능)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                className="flex-1"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+              />
+              <span className="shrink-0 text-xs text-muted-foreground">~</span>
+              <Input
+                type="date"
+                className="flex-1"
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(e.target.value)}
+                placeholder="비우면 하루만"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                disabled={!rangeStart}
+                onClick={addDateRange}
+              >
+                + 추가
+              </Button>
+            </div>
+            {dates.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {dates.map((d) => (
+                  <span
+                    key={d}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs tabular-nums"
+                  >
+                    {formatDateLabel(d)}
+                    <button
+                      type="button"
+                      onClick={() => removeDate(d)}
+                      className="text-muted-foreground hover:text-red-600"
+                      aria-label="날짜 삭제"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                시작일만 입력하고 추가하면 하루만, 종료일까지 채우면 연속으로
+                한 번에 추가됩니다.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
               포지션 · 시간 · 인원
             </label>
             <div className="space-y-2">
               {positionRows.map((row) => (
                 <div key={row.id} className="flex items-center gap-2">
-                  <div className="grid flex-1 grid-cols-[1fr_1fr_1fr_3.5rem] gap-3">
+                  <div className="grid flex-1 grid-cols-[1fr_1fr_3.5rem] gap-3">
                     <Input
-                      className="col-span-2 min-w-0"
+                      className="min-w-0"
                       value={row.label}
                       onChange={(e) =>
                         updatePositionLabel(row.id, e.target.value)
@@ -252,7 +321,7 @@ export function CreateScheduleDialog({
                     <Input
                       type="time"
                       step={60}
-                      className="col-span-1 tabular-nums"
+                      className="tabular-nums"
                       value={row.time}
                       onChange={(e) =>
                         updatePositionTime(row.id, e.target.value)
@@ -261,7 +330,6 @@ export function CreateScheduleDialog({
                     <Input
                       type="text"
                       inputMode="numeric"
-                      className="col-span-1"
                       value={row.capacity}
                       onChange={(e) =>
                         updatePositionCapacity(
