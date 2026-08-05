@@ -108,9 +108,9 @@ export function MonthlySheetDayDetail({
   myAvailability?: WorkforceAvailability | null;
   className?: string;
 }) {
-  // 첫 번째 항목만 기본으로 열림
+  // 기본적으로 전부 접힌 상태 — 사용자가 직접 눌러야만 펼쳐진다
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
-    () => new Set(bundle?.rows[0] ? [bundle.rows[0].entryKey] : []),
+    () => new Set<string>(),
   );
 
   const toggleRow = (key: string) => {
