@@ -92,7 +92,11 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
   const [savedTokenCount, setSavedTokenCount] = useState(0);
   const [bannerDismissed, setBannerDismissed] = useState(true);
   const seenNotificationIds = useRef<Set<string>>(new Set());
-  const initializedSeen = useRef(false);
+  // 이 시각 이전에 생성된 알림은 세션 시작 전부터 있던 과거 기록이므로
+  // 로컬 푸시로 재전송하지 않는다 (구독 초기 스냅샷이 빈 배열 → 실제 목록
+  // 순서로 도착하는 경합 때문에, "처음 본 목록을 seen 처리" 방식은
+  // 과거 미확인 알림 전체를 새 알림으로 오인해 한꺼번에 쏘는 버그가 있었음).
+  const sessionStartedAt = useRef(new Date().toISOString());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -301,16 +305,9 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!canAccessApp || getNotificationPermission() !== "granted") return;
 
-    if (!initializedSeen.current) {
-      for (const item of items) {
-        seenNotificationIds.current.add(item.id);
-      }
-      initializedSeen.current = true;
-      return;
-    }
-
     for (const item of items) {
       if (item.isRead || seenNotificationIds.current.has(item.id)) continue;
+      if (item.createdAt <= sessionStartedAt.current) continue;
       if (!shouldPushNotify(item, isAdmin)) continue;
       seenNotificationIds.current.add(item.id);
       showBrowserNotification(item.title, {

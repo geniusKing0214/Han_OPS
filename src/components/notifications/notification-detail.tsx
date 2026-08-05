@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { formatRelativeTime } from "@/lib/format-relative-time";
+import { formatAbsoluteTime } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types/notification";
 import { notificationTypeLabels } from "@/types/notification";
@@ -126,7 +126,7 @@ export function NotificationDetail({
           </div>
           <p className="text-base font-semibold">{item.title}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {notificationTypeLabels[item.type]} · {formatRelativeTime(item.createdAt)}
+            {notificationTypeLabels[item.type]} · {formatAbsoluteTime(item.createdAt)}
           </p>
         </div>
 
