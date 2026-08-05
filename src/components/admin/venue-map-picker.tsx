@@ -261,7 +261,7 @@ export function VenueMapPicker({
           </div>
         )}
         {error && (
-          <div className="flex h-48 items-center justify-center text-xs text-red-400">
+          <div className="flex h-48 items-center justify-center text-xs text-red-600">
             {error}
           </div>
         )}

@@ -239,7 +239,7 @@ export function ScheduleBoard({
                             {event.venue}
                           </CardDescription>
                           {isGroup && groupSessions ? (
-                            <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+                            <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-500/25">
                               {groupDateLabel(groupSessions)}
                             </p>
                           ) : null}
@@ -249,11 +249,11 @@ export function ScheduleBoard({
                             </p>
                           ) : null}
                           {event.closed ? (
-                            <p className="mt-2 text-xs font-semibold text-red-400">
+                            <p className="mt-2 text-xs font-semibold text-red-600">
                               신청 마감
                             </p>
                           ) : event.locked && !event.forceApplyOpen ? (
-                            <p className="mt-2 text-xs font-semibold text-blue-400">
+                            <p className="mt-2 text-xs font-semibold text-blue-600">
                               신청 잠금
                             </p>
                           ) : teamApplyLocked ? (
@@ -275,7 +275,7 @@ export function ScheduleBoard({
                                 {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
                               </span>
                               {event.forceApplyOpen ? (
-                                <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-300">
+                                <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
                                   상시신청
                                 </span>
                               ) : null}

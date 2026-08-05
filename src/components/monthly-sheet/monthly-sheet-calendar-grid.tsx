@@ -146,8 +146,8 @@ export function MonthlySheetCalendarGrid({
             key={w}
             className={cn(
               "min-w-0 border-r border-border py-1.5 last:border-r-0 md:px-1 md:py-2.5",
-              idx === 0 && "text-red-400",
-              idx === 6 && "text-blue-400",
+              idx === 0 && "text-red-600",
+              idx === 6 && "text-blue-600",
             )}
           >
             {w}

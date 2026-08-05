@@ -215,7 +215,7 @@ function SlotRosterRow({
                         if (!attendanceOn) return null;
                         if (!att) {
                           return (
-                            <p className="text-xs text-amber-300/90">
+                            <p className="text-xs text-amber-700/90">
                               출근 인증 미완료
                             </p>
                           );
@@ -390,7 +390,7 @@ function PositionRosterRow({
                         if (!attendanceOn) return null;
                         if (!att) {
                           return (
-                            <p className="text-xs text-amber-300/90">
+                            <p className="text-xs text-amber-700/90">
                               출근 인증 미완료
                             </p>
                           );
@@ -676,7 +676,7 @@ export function ApplicationRosterPanel() {
             </p>
           ) : null}
           {localError ? (
-            <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
               {localError}
             </p>
           ) : null}
@@ -844,7 +844,7 @@ export function ApplicationRosterPanel() {
             <Button
               type="button"
               variant="outline"
-              className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              className="text-red-600 hover:bg-red-500/10 hover:text-red-700"
               disabled={busyId === rejectTarget?.id}
               onClick={() => {
                 if (!rejectTarget) return;

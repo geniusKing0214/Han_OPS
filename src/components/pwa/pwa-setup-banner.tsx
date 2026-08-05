@@ -161,13 +161,13 @@ export function PwaSetupBanner() {
         ) : null}
 
         {pushReady && standalone ? (
-          <p className="text-xs text-emerald-400/90">
+          <p className="text-xs text-emerald-600/90">
             ✓ PWA 설치 및 푸시 알림이 켜져 있습니다.
           </p>
         ) : null}
 
         {pushReady && !standalone && !isIosDevice() ? (
-          <p className="text-xs text-emerald-400/90">
+          <p className="text-xs text-emerald-600/90">
             ✓ 푸시 알림이 켜져 있습니다. 백그라운드 수신을 위해 앱 설치를 권장합니다.
           </p>
         ) : null}

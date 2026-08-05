@@ -118,7 +118,7 @@ export function ApplySlotSurface({
           {remaining === null ? (
             <span className="ml-2 text-muted-foreground">(무제한)</span>
           ) : remaining === 0 ? (
-            <span className="ml-2 text-amber-400">(마감)</span>
+            <span className="ml-2 text-amber-600">(마감)</span>
           ) : (
             <span className="ml-2 text-muted-foreground">(잔여 {remaining})</span>
           )}
@@ -157,7 +157,7 @@ export function ApplySlotSurface({
           disabled={submitting}
         />
       </div>
-      {submitError ? <p className="mt-3 text-xs text-red-300">{submitError}</p> : null}
+      {submitError ? <p className="mt-3 text-xs text-red-700">{submitError}</p> : null}
     </>
   );
 
@@ -178,7 +178,7 @@ export function ApplySlotSurface({
             {ctx.venue}
           </p>
           <p className="tabular-nums text-xs">
-            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-500/25">
               {pkgLabel && `${pkgLabel} · `}{pkgDateRange}
             </span>
           </p>
@@ -193,7 +193,7 @@ export function ApplySlotSurface({
             disabled={submitting}
           />
         </div>
-        {submitError ? <p className="mt-3 text-xs text-red-300">{submitError}</p> : null}
+        {submitError ? <p className="mt-3 text-xs text-red-700">{submitError}</p> : null}
       </>
     );
     const packageFooter = (
@@ -285,7 +285,7 @@ export function ApplySlotSurface({
         </p>
         {isGroupApp ? (
           <p className="tabular-nums text-xs">
-            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-500/25">
               {groupDateLabel}
             </span>
           </p>
@@ -363,7 +363,7 @@ export function ApplySlotSurface({
           disabled={submitting}
         />
       </div>
-      {submitError ? <p className="mt-3 text-xs text-red-300">{submitError}</p> : null}
+      {submitError ? <p className="mt-3 text-xs text-red-700">{submitError}</p> : null}
     </>
   );
 

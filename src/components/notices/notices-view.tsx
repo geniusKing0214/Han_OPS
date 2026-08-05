@@ -233,7 +233,7 @@ export function NoticesView() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="text-red-400 hover:bg-red-500/10"
+                      className="text-red-600 hover:bg-red-500/10"
                       onClick={() => void handleDelete(n)}
                       disabled={saving}
                     >

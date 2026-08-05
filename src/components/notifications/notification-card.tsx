@@ -95,13 +95,13 @@ export function NotificationCard({
               <Icon
                 className={cn(
                   "size-4",
-                  item.type === "application_approved" && "text-emerald-400",
-                  item.type === "application_rejected" && "text-red-400",
+                  item.type === "application_approved" && "text-emerald-600",
+                  item.type === "application_rejected" && "text-red-600",
                   item.type === "application_submitted" && "text-accent",
-                  item.type === "application_cancelled" && "text-red-400",
-                  item.type === "schedule_created" && "text-sky-400",
-                  item.type === "schedule_cancelled" && "text-red-400",
-                  item.type === "notice_posted" && "text-amber-400",
+                  item.type === "application_cancelled" && "text-red-600",
+                  item.type === "schedule_created" && "text-sky-600",
+                  item.type === "schedule_cancelled" && "text-red-600",
+                  item.type === "notice_posted" && "text-amber-600",
                 )}
               />
             </div>
@@ -147,7 +147,7 @@ export function NotificationCard({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0 self-start text-muted-foreground hover:text-red-400"
+            className="size-8 shrink-0 self-start text-muted-foreground hover:text-red-600"
             aria-label="알림 삭제"
             onClick={(e) => {
               e.stopPropagation();
