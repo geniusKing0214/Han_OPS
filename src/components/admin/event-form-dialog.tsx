@@ -96,8 +96,10 @@ export function CreateScheduleDialog({
   const [dates, setDates] = useState<string[]>([]);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
-  /** 빈 문자열이면 "기본 시간" 편집 중, 날짜를 탭하면 그 날짜만 다른 시간 편집 */
-  const [activeDate, setActiveDate] = useState("");
+  /** 비어있으면 "기본 시간" 편집 중. 칩을 탭하면 그 날짜(또는 연속 구간
+   * 전체)만 다른 시간으로 편집 — 구간을 탭하면 구간 안의 모든 날짜에
+   * 같은 시간이 한 번에 적용된다. */
+  const [activeDates, setActiveDates] = useState<string[]>([]);
   const [positionRows, setPositionRows] = useState<PositionRow[]>([
     emptyPositionRow(),
   ]);
@@ -112,23 +114,25 @@ export function CreateScheduleDialog({
     setDates(defaultDate ? [defaultDate] : []);
     setRangeStart("");
     setRangeEnd("");
-    setActiveDate("");
+    setActiveDates([]);
     setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
     setNotice("");
     setError("");
   }, [open, defaultDate]);
 
-  /** 연속 구간 칩은 개별 날짜를 탭할 수 없으므로, 활성 날짜가 연속 구간에
-   * 편입되면(예: 이미 활성화한 날짜를 포함하는 범위를 나중에 추가) 기본
-   * 시간 편집으로 되돌린다. */
+  /** 날짜를 추가/삭제해서 칩 구간이 바뀌면(예: 활성화한 구간에 날짜가
+   * 더 붙거나 일부가 삭제됨) 더 이상 정확히 일치하는 칩이 없을 수 있으므로
+   * 기본 시간 편집으로 되돌린다. */
   useEffect(() => {
-    if (!activeDate) return;
-    const group = groupConsecutiveDates(dates).find((g) =>
-      g.includes(activeDate),
+    if (activeDates.length === 0) return;
+    const stillValid = groupConsecutiveDates(dates).some(
+      (g) =>
+        g.length === activeDates.length &&
+        g.every((d, i) => d === activeDates[i]),
     );
-    if (group && group.length > 1) setActiveDate("");
-  }, [dates, activeDate]);
+    if (!stillValid) setActiveDates([]);
+  }, [dates, activeDates]);
 
   /** 시작일~종료일 범위의 모든 날짜를 추가 (연속 날짜) — 종료일이 비어있으면
    * 시작일 하루만 추가한다 (다른 날에 같은 일정을 하나씩 추가하는 용도). */
@@ -166,13 +170,17 @@ export function CreateScheduleDialog({
         return changed ? { ...r, timeByDate: nextTimeByDate } : r;
       }),
     );
-    setActiveDate((prev) => (toRemove.has(prev) ? "" : prev));
+    setActiveDates((prev) => (prev.some((d) => toRemove.has(d)) ? [] : prev));
   };
 
-  /** 날짜 칩을 탭하면 그 날짜의 시간만 따로 편집하는 모드로 전환.
-   * 같은 칩을 다시 탭하면 기본 시간 편집으로 돌아간다. */
-  const toggleActiveDate = (ymd: string) =>
-    setActiveDate((prev) => (prev === ymd ? "" : ymd));
+  /** 날짜(또는 연속 구간) 칩을 탭하면 그 날짜들만의 시간을 따로 편집하는
+   * 모드로 전환. 같은 칩을 다시 탭하면 기본 시간 편집으로 돌아간다. */
+  const toggleActiveGroup = (group: string[]) =>
+    setActiveDates((prev) =>
+      prev.length === group.length && prev.every((d, i) => d === group[i])
+        ? []
+        : group,
+    );
 
   const removePositionRow = (id: string) =>
     setPositionRows((prev) =>
@@ -198,13 +206,16 @@ export function CreateScheduleDialog({
       prev.map((r) => (r.id === id ? { ...r, label } : r)),
     );
 
-  /** activeDate가 있으면 그 날짜만의 시간을, 없으면 기본 시간을 바꾼다 */
+  /** activeDates가 있으면 그 날짜들 전부에 같은 시간을, 없으면 기본
+   * 시간(다른 날짜 전체 공통)을 바꾼다 */
   const updatePositionTime = (id: string, time: string) =>
     setPositionRows((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r;
-        if (activeDate) {
-          return { ...r, timeByDate: { ...r.timeByDate, [activeDate]: time } };
+        if (activeDates.length > 0) {
+          const nextTimeByDate = { ...r.timeByDate };
+          for (const d of activeDates) nextTimeByDate[d] = time;
+          return { ...r, timeByDate: nextTimeByDate };
         }
         return { ...r, time };
       }),
@@ -216,7 +227,8 @@ export function CreateScheduleDialog({
     );
 
   const timeForRow = (row: PositionRow) =>
-    (activeDate ? row.timeByDate[activeDate] : undefined) ?? row.time;
+    (activeDates.length > 0 ? row.timeByDate[activeDates[0]!] : undefined) ??
+    row.time;
 
   const handleSubmit = async () => {
     setError("");
@@ -394,53 +406,40 @@ export function CreateScheduleDialog({
               <div className="flex flex-wrap gap-1.5">
                 {groupConsecutiveDates(dates).map((group) => {
                   const key = group.join(",");
-                  if (group.length === 1) {
-                    const d = group[0]!;
-                    const isActive = activeDate === d;
-                    return (
-                      <span
-                        key={key}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs tabular-nums transition-colors",
-                          isActive
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border bg-muted text-foreground",
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => toggleActiveDate(d)}
-                          className="font-medium"
-                          title="탭하면 이 날짜만 다른 시간으로 설정"
-                        >
-                          {formatDateLabel(d)}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeDates([d])}
-                          className={cn(
-                            isActive
-                              ? "text-accent/70 hover:text-red-600"
-                              : "text-muted-foreground hover:text-red-600",
-                          )}
-                          aria-label="날짜 삭제"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    );
-                  }
+                  const isActive =
+                    activeDates.length === group.length &&
+                    activeDates.every((d, i) => d === group[i]);
                   return (
                     <span
                       key={key}
-                      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs font-medium tabular-nums text-foreground"
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs tabular-nums transition-colors",
+                        isActive
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border bg-muted text-foreground",
+                      )}
                     >
-                      {formatDateGroupLabel(group)}
+                      <button
+                        type="button"
+                        onClick={() => toggleActiveGroup(group)}
+                        className="font-medium"
+                        title={
+                          group.length > 1
+                            ? "탭하면 이 구간 전체를 다른 시간으로 설정"
+                            : "탭하면 이 날짜만 다른 시간으로 설정"
+                        }
+                      >
+                        {formatDateGroupLabel(group)}
+                      </button>
                       <button
                         type="button"
                         onClick={() => removeDates(group)}
-                        className="text-muted-foreground hover:text-red-600"
-                        aria-label="날짜 구간 삭제"
+                        className={cn(
+                          isActive
+                            ? "text-accent/70 hover:text-red-600"
+                            : "text-muted-foreground hover:text-red-600",
+                        )}
+                        aria-label={group.length > 1 ? "날짜 구간 삭제" : "날짜 삭제"}
                       >
                         ×
                       </button>
@@ -456,9 +455,9 @@ export function CreateScheduleDialog({
             )}
             {dates.length > 1 ? (
               <p className="text-[11px] text-muted-foreground">
-                날짜를 탭하면 그 날짜만 다른 시간으로 설정할 수 있습니다.
-                {activeDate
-                  ? ` 지금은 ${formatDateLabel(activeDate)}의 시간만 편집 중.`
+                날짜(구간)를 탭하면 그 날짜만 다른 시간으로 설정할 수 있습니다.
+                {activeDates.length > 0
+                  ? ` 지금은 ${formatDateGroupLabel(activeDates)}의 시간만 편집 중.`
                   : " 지금은 모든 날짜에 적용되는 기본 시간을 편집 중."}
               </p>
             ) : null}
@@ -467,7 +466,9 @@ export function CreateScheduleDialog({
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
               포지션 · 시간 · 인원
-              {activeDate ? ` — ${formatDateLabel(activeDate)}만 다르게` : ""}
+              {activeDates.length > 0
+                ? ` — ${formatDateGroupLabel(activeDates)}만 다르게`
+                : ""}
             </label>
             <div className="space-y-2">
               {positionRows.map((row) => (
