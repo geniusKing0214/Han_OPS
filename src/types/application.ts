@@ -55,6 +55,12 @@ export type ApplicationItem = {
   packageLabel?: string;
   /** 패키지에 포함된 전체 날짜 목록 (취합표 전 날짜 표시용) */
   packageDates?: string[];
+  /**
+   * 승인된 신청의 취소 요청 시각(ISO). 있으면 관리자 승인 대기 중이며,
+   * status는 그대로 "approved"를 유지한다 — 실제 정원 반환은 관리자가
+   * 취소 요청을 승인해야 이루어진다.
+   */
+  cancelRequestedAt?: string;
 };
 
 export const statusLabels: Record<ApplicationStatus, string> = {

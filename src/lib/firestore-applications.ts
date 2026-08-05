@@ -2,6 +2,7 @@ import {
   type FirestoreError,
   addDoc,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -170,6 +171,9 @@ function docToApplicationItem(
     packageLabel: typeof data.packageLabel === "string" ? data.packageLabel : undefined,
     packageDates: Array.isArray(data.packageDates)
       ? (data.packageDates as string[])
+      : undefined,
+    cancelRequestedAt: data.cancelRequestedAt
+      ? timestampToIso(data.cancelRequestedAt)
       : undefined,
   };
 }
@@ -843,93 +847,52 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
       if (date && date < todayYmd()) {
         throw new Error("지난 일정은 취소할 수 없습니다.");
       }
-
-      const eventId = typeof freshData.eventId === "string" ? freshData.eventId : "";
-      const sessionId = typeof freshData.sessionId === "string" ? freshData.sessionId : "";
-      const positionId = typeof freshData.positionId === "string" ? freshData.positionId : "";
-      const positionSlotId = typeof freshData.positionSlotId === "string" ? freshData.positionSlotId : "";
-      if (!eventId) {
-        throw new Error("신청 데이터에 event 정보가 없습니다.");
+      if (freshData.cancelRequestedAt) {
+        throw new Error(
+          "이미 취소를 요청했습니다. 관리자 승인을 기다려 주세요.",
+        );
       }
-
-      const eventRef = doc(db, EVENTS_COLLECTION, eventId);
-      const eventSnap = await tx.get(eventRef);
-      if (!eventSnap.exists()) {
-        tx.delete(appRef);
-        return;
-      }
-
-      const eventData = eventSnap.data() as Record<string, unknown>;
-
-      // Option B: 포지션 슬롯 기반 취소 — 승인 로직과 동일하게 세션별로 독립 추적한다.
-      if (positionId && positionSlotId) {
-        const groupSessionIds = Array.isArray(freshData.groupSessionIds)
-          ? (freshData.groupSessionIds as unknown[]).filter(
-              (s): s is string => typeof s === "string",
-            )
-          : [];
-        const targetSessionIds = groupSessionIds.length > 0 ? groupSessionIds : [sessionId];
-
-        const sessions = Array.isArray(eventData.sessions)
-          ? (eventData.sessions as Session[])
-          : [];
-        const key = positionSlotKey(positionId, positionSlotId);
-
-        const currentCounts = new Map<string, number>();
-        for (const sid of targetSessionIds) {
-          const sess = sessions.find((s) => s.id === sid);
-          if (!sess) continue;
-          const existing = sess.positionSlotCounts?.[key];
-          const count =
-            existing ??
-            (await countApprovedForPositionSlot(eventId, sid, positionId, positionSlotId));
-          currentCounts.set(sid, count);
-        }
-
-        const nextSessions = sessions.map((sess) => {
-          if (!currentCounts.has(sess.id)) return sess;
-          return {
-            ...sess,
-            positionSlotCounts: {
-              ...(sess.positionSlotCounts ?? {}),
-              [key]: Math.max(0, currentCounts.get(sess.id)! - 1),
-            },
-          };
-        });
-        tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
-        tx.delete(appRef);
-        return;
-      }
-
-      // 기존: 세션 슬롯 기반 취소
-      const slotId = typeof freshData.slotId === "string" ? freshData.slotId : "";
-      if (!sessionId || !slotId) {
-        tx.delete(appRef);
-        return;
-      }
-      const sessions = Array.isArray(eventData.sessions)
-        ? (eventData.sessions as EventItem["sessions"])
-        : [];
-      const nextSessions = sessions.map((sess) => {
-        if (sess.id !== sessionId) return sess;
-        return {
-          ...sess,
-          slots: sess.slots.map((slot) => {
-            if (slot.id !== slotId) return slot;
-            return { ...slot, applied_count: Math.max(0, slot.applied_count - 1) };
-          }),
-        };
-      });
-      tx.update(eventRef, { sessions: nextSessions, updatedAt: serverTimestamp() });
-      tx.delete(appRef);
+      // 승인된 신청은 바로 취소되지 않고, 관리자 승인이 필요한 취소
+      // 요청 상태로 전환한다 (정원은 관리자가 승인해야 반환됨).
+      tx.update(appRef, { cancelRequestedAt: serverTimestamp() });
     }
   });
 
   try {
     await notifyAdminsOnApplicationCancelled(notifyPayload);
   } catch {
-    // 취소는 성공 — 알림만 실패할 수 있음
+    // 취소(요청)는 성공 — 알림만 실패할 수 있음
   }
+}
+
+/** 관리자: 취소 요청 승인 — 정원 반환 + 신청 삭제 (배정 해제와 동일 로직) */
+export async function adminApproveCancelRequest(applicationId: string) {
+  await assertAdmin();
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("신청을 찾을 수 없습니다.");
+  }
+  const appData = appSnap.data() as Record<string, unknown>;
+  if (!appData.cancelRequestedAt) {
+    throw new Error("취소 요청 상태가 아닙니다.");
+  }
+  await adminRemoveApprovedApplicant(applicationId);
+}
+
+/** 관리자: 취소 요청 거절 — 취소 요청만 취소하고 승인 상태를 유지한다 */
+export async function adminRejectCancelRequest(applicationId: string) {
+  await assertAdmin();
+  const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
+  const appSnap = await getDoc(appRef);
+  if (!appSnap.exists()) {
+    throw new Error("신청을 찾을 수 없습니다.");
+  }
+  const appData = appSnap.data() as Record<string, unknown>;
+  if (!appData.cancelRequestedAt) {
+    throw new Error("취소 요청 상태가 아닙니다.");
+  }
+  await updateDoc(appRef, { cancelRequestedAt: deleteField() });
 }
 
 /** 관리자: 승인된 신청자 배정 해제 (슬롯 정원 복구 후 신청 삭제) */

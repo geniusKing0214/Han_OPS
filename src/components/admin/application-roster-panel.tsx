@@ -16,6 +16,8 @@ import {
 } from "@/lib/admin-application-roster";
 import { ApplicationWorkActions } from "@/components/admin/application-work-actions";
 import {
+  adminApproveCancelRequest,
+  adminRejectCancelRequest,
   decideApplication,
   updateApplicationAdminMemo,
 } from "@/lib/firestore-applications";
@@ -108,6 +110,8 @@ type SlotRosterProps = {
   onApprove: (id: string) => void;
   onReject: (app: ApplicationItem) => void;
   onWorkStatus: (id: string, status: WorkStatus) => void;
+  onApproveCancelRequest: (id: string) => void;
+  onRejectCancelRequest: (id: string) => void;
   onMemoBlur: (id: string, memo: string) => void;
   highlightApplicationId?: string | null;
 };
@@ -125,6 +129,8 @@ function SlotRosterRow({
   onApprove,
   onReject,
   onWorkStatus,
+  onApproveCancelRequest,
+  onRejectCancelRequest,
   onMemoBlur,
   highlightApplicationId,
 }: SlotRosterProps) {
@@ -252,6 +258,8 @@ function SlotRosterRow({
                       onApprove={() => onApprove(a.id)}
                       onReject={() => onReject(a)}
                       onWorkStatus={(ws) => onWorkStatus(a.id, ws)}
+                      onApproveCancelRequest={() => onApproveCancelRequest(a.id)}
+                      onRejectCancelRequest={() => onRejectCancelRequest(a.id)}
                     />
                   </div>
                   <div className="mt-2">
@@ -288,6 +296,8 @@ type PositionRosterProps = {
   onApprove: (id: string) => void;
   onReject: (app: ApplicationItem) => void;
   onWorkStatus: (id: string, status: WorkStatus) => void;
+  onApproveCancelRequest: (id: string) => void;
+  onRejectCancelRequest: (id: string) => void;
   onMemoBlur: (id: string, memo: string) => void;
   highlightApplicationId?: string | null;
 };
@@ -304,6 +314,8 @@ function PositionRosterRow({
   onApprove,
   onReject,
   onWorkStatus,
+  onApproveCancelRequest,
+  onRejectCancelRequest,
   onMemoBlur,
   highlightApplicationId,
 }: PositionRosterProps) {
@@ -427,6 +439,8 @@ function PositionRosterRow({
                       onApprove={() => onApprove(a.id)}
                       onReject={() => onReject(a)}
                       onWorkStatus={(ws) => onWorkStatus(a.id, ws)}
+                      onApproveCancelRequest={() => onApproveCancelRequest(a.id)}
+                      onRejectCancelRequest={() => onRejectCancelRequest(a.id)}
                     />
                   </div>
                   <div className="mt-2">
@@ -597,6 +611,34 @@ export function ApplicationRosterPanel() {
     }
   };
 
+  const handleApproveCancelRequest = async (id: string) => {
+    setLocalError("");
+    setBusyId(id);
+    try {
+      await adminApproveCancelRequest(id);
+    } catch (e) {
+      setLocalError(
+        e instanceof Error ? e.message : "취소 승인에 실패했습니다.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRejectCancelRequest = async (id: string) => {
+    setLocalError("");
+    setBusyId(id);
+    try {
+      await adminRejectCancelRequest(id);
+    } catch (e) {
+      setLocalError(
+        e instanceof Error ? e.message : "취소 거절에 실패했습니다.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleMemoBlur = async (id: string, memo: string) => {
     setLocalError("");
     try {
@@ -742,6 +784,12 @@ export function ApplicationRosterPanel() {
                                   onWorkStatus={(id, ws) =>
                                     void handleWorkStatus(id, ws)
                                   }
+                                  onApproveCancelRequest={(id) =>
+                                    void handleApproveCancelRequest(id)
+                                  }
+                                  onRejectCancelRequest={(id) =>
+                                    void handleRejectCancelRequest(id)
+                                  }
                                   onMemoBlur={(id, memo) =>
                                     void handleMemoBlur(id, memo)
                                   }
@@ -781,6 +829,12 @@ export function ApplicationRosterPanel() {
                                       onReject={setRejectTarget}
                                       onWorkStatus={(id, ws) =>
                                         void handleWorkStatus(id, ws)
+                                      }
+                                      onApproveCancelRequest={(id) =>
+                                        void handleApproveCancelRequest(id)
+                                      }
+                                      onRejectCancelRequest={(id) =>
+                                        void handleRejectCancelRequest(id)
                                       }
                                       onMemoBlur={(id, memo) =>
                                         void handleMemoBlur(id, memo)

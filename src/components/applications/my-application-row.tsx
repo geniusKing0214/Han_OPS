@@ -17,7 +17,7 @@ import {
 import { useMyAttendances } from "@/hooks/use-my-attendances";
 import { useEvents } from "@/hooks/use-events";
 import {
-  cancelActionLabel,
+  cancelActionVerb,
   cancelApplicationHint,
   canUserCancelApplication,
 } from "@/lib/application-cancel";
@@ -52,7 +52,8 @@ export function MyApplicationRow({
 
   const canCancel = canUserCancelApplication(app);
   const hint = cancelApplicationHint(app);
-  const actionLabel = cancelActionLabel(app.status);
+  const actionLabel = cancelActionVerb(app.status);
+  const cancelPending = app.status === "approved" && !!app.cancelRequestedAt;
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -115,6 +116,11 @@ export function MyApplicationRow({
           <Badge variant={statusBadgeVariant(app.status)} className="w-fit">
             {statusLabels[app.status]}
           </Badge>
+          {cancelPending ? (
+            <Badge variant="warning" className="w-fit">
+              취소 승인 대기중
+            </Badge>
+          ) : null}
           {canCancel ? (
             <Button
               type="button"

@@ -262,9 +262,12 @@ export async function notifyAdminsOnApplicationCancelled(
   if (adminUids.length === 0) return;
 
   const displayName = input.applicantName.trim() || input.applicantEmail;
-  const title = "신청이 취소되었어요";
-  const statusHint = input.wasApproved ? "승인된 " : "";
-  const message = `${displayName}님이 ${statusHint}${input.eventTitle} 일정 신청을 취소했습니다.`;
+  // 승인된 신청은 즉시 취소되지 않고 관리자 승인이 필요한 취소 요청으로
+  // 전환되므로 문구를 구분한다.
+  const title = input.wasApproved ? "취소 요청이 도착했어요" : "신청이 취소되었어요";
+  const message = input.wasApproved
+    ? `${displayName}님이 승인된 ${input.eventTitle} 일정 취소를 요청했습니다. 신청 관리에서 승인해 주세요.`
+    : `${displayName}님이 ${input.eventTitle} 일정 신청을 취소했습니다.`;
 
   await Promise.all(
     adminUids.map((adminUid) =>
