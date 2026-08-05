@@ -44,7 +44,7 @@ type DayState = "available" | "pending" | "done" | "unavailable";
 const DAY_STATE_LABEL: Record<DayState, string> = {
   available: "가능",
   pending: "대기중",
-  done: "완료",
+  done: "승인됨",
   unavailable: "불가",
 };
 
@@ -63,9 +63,9 @@ const DAY_STATE_STYLE: Record<
     text: "text-blue-700",
   },
   done: {
-    card: "border-zinc-400/40 bg-zinc-500/15 shadow-sm",
+    card: "border-zinc-400/40 bg-zinc-300/40 grayscale-[0.3]",
     badge: "bg-zinc-500 text-white",
-    text: "text-zinc-700",
+    text: "text-zinc-600",
   },
   unavailable: {
     card: "border-red-400/30 bg-red-500/10",
@@ -184,7 +184,7 @@ export function MyAvailabilityForm({
   };
 
   const toggleDay = (date: string) => {
-    if (locked) return;
+    if (locked || appStatusByDate.get(date) === "done") return;
     const isCurrentlyOn = !!draft[date];
     if (isCurrentlyOn) {
       // 가능 → 불가로 전환: 사유 메모 입력 모달을 먼저 띄운다.
@@ -302,11 +302,15 @@ export function MyAvailabilityForm({
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
         {weekDates.map((date) => {
           const on = !!draft[date];
-          const appStatus = on ? appStatusByDate.get(date) : undefined;
-          const dayState: DayState = !on
-            ? "unavailable"
-            : appStatus === "done"
-              ? "done"
+          // 이미 승인된(또는 완료된) 신청이 있는 날은 draft 토글 상태와
+          // 무관하게 항상 "승인됨"으로 표시하고 잠근다 — 확정된 근무일의
+          // 가능 여부를 실수로 바꾸지 못하게 하기 위함.
+          const appStatus = appStatusByDate.get(date);
+          const approvedLocked = appStatus === "done";
+          const dayState: DayState = approvedLocked
+            ? "done"
+            : !on
+              ? "unavailable"
               : appStatus === "pending"
                 ? "pending"
                 : "available";
@@ -314,6 +318,7 @@ export function MyAvailabilityForm({
           const { label, dow } = formatDayHeader(date);
           const isToday = date === today;
           const note = notes[date];
+          const dayLocked = locked || approvedLocked;
           return (
             <div
               key={date}
@@ -321,16 +326,18 @@ export function MyAvailabilityForm({
                 "flex flex-col items-center gap-1.5 rounded-xl border px-1.5 py-2.5 text-center transition-all",
                 style.card,
                 locked && "opacity-90",
+                approvedLocked && "opacity-80",
                 isToday && "ring-2 ring-accent/40",
               )}
             >
               <button
                 type="button"
-                disabled={locked}
+                disabled={dayLocked}
                 onClick={() => toggleDay(date)}
+                title={approvedLocked ? "이미 승인된 근무일이라 변경할 수 없습니다" : undefined}
                 className={cn(
                   "flex w-full flex-col items-center gap-1.5",
-                  locked && "cursor-default",
+                  dayLocked && "cursor-not-allowed",
                 )}
               >
                 <span className="text-[11px] font-medium text-muted-foreground">
@@ -345,7 +352,7 @@ export function MyAvailabilityForm({
                     style.badge,
                   )}
                 >
-                  {locked ? (
+                  {locked || approvedLocked ? (
                     <Lock className="size-3.5 opacity-90" />
                   ) : dayState === "unavailable" ? (
                     <X className="size-4" />
@@ -360,7 +367,7 @@ export function MyAvailabilityForm({
                 </span>
               </button>
 
-              {!on ? (
+              {!on && !approvedLocked ? (
                 <button
                   type="button"
                   disabled={locked}
