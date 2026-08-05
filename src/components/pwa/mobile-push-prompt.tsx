@@ -103,7 +103,7 @@ export function MobilePushPrompt() {
               </ol>
 
               {!relayReady ? (
-                <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
                   서버 푸시 릴레이가 아직 설정되지 않았습니다. 관리자가 Cloudflare
                   Worker 배포 후 앱을 다시 배포해야 백그라운드 OS 알림이 동작합니다.
                 </p>
@@ -129,7 +129,7 @@ export function MobilePushPrompt() {
 
           {phase === "success" ? (
             <>
-              <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+              <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800">
                 ✅ {resultMessage}
               </p>
               <p className="text-xs text-muted-foreground">

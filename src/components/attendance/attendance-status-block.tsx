@@ -111,7 +111,7 @@ export function AttendanceStatusBlock({
   if (existing.reviewStatus === "rejected") {
     return (
       <div className="mt-3 space-y-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm">
-        <p className="font-medium text-amber-200">출근 인증 재확인 필요</p>
+        <p className="font-medium text-amber-800">출근 인증 재확인 필요</p>
         <p className="text-xs text-muted-foreground">
           사유: {existing.rejectionReason || "기타"}
         </p>

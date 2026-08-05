@@ -139,7 +139,7 @@ export function PwaSetupBanner() {
         ) : null}
 
         {!configured ? (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
             Firebase Console에서 VAPID 키를 발급한 뒤{" "}
             <code className="text-[11px]">NEXT_PUBLIC_FIREBASE_VAPID_KEY</code>를
             설정하세요.

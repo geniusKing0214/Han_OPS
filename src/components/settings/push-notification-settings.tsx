@@ -241,7 +241,7 @@ export function PushNotificationSettings() {
         />
 
         {pushSuccessMessage ? (
-          <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+          <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800">
             ✅ {pushSuccessMessage}
             <span className="mt-1 block text-emerald-700/80">
               Firestore 저장까지 확인되었습니다. 이 기기에서 백그라운드 푸시를 받을 수 있습니다.
@@ -259,8 +259,8 @@ export function PushNotificationSettings() {
           <p
             className={`rounded-md border px-3 py-2 text-xs ${
               testPushResult.includes("성공")
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-800"
             }`}
           >
             {testPushResult}

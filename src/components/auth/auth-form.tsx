@@ -107,7 +107,7 @@ export function AuthForm() {
       </button>
 
       {error ? (
-        <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-300">
+        <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-700">
           {error}
         </p>
       ) : null}
