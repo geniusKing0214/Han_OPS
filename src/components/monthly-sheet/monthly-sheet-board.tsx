@@ -332,18 +332,18 @@ export function MonthlySheetBoard(_props: Props = {}) {
           ) : null}
 
           {appsError ? (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
               {appsError}
             </p>
           ) : null}
           {scheduleError ? (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
               일정 작업 오류: {scheduleError}
             </p>
           ) : null}
 
           {canEdit && teamFilter === "all" ? (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200 md:text-sm">
+            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 md:text-sm">
               「전체」에서는 실제 일정 수정만 가능합니다. 취합표 표시 수정과 엑셀
               다운로드는 1팀/2팀 탭에서 선택하세요.
             </p>

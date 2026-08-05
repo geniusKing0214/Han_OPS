@@ -179,7 +179,7 @@ export function ScheduleManager() {
       />
 
       {error ? (
-        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
           일정 로드 오류: {error}
         </p>
       ) : null}
@@ -329,17 +329,17 @@ export function ScheduleManager() {
                   >
                     <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
                       {event.locked ? (
-                        <span className="rounded-md bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-blue-300 ring-1 ring-blue-500/30">
+                        <span className="rounded-md bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-500/30">
                           신청잠금
                         </span>
                       ) : null}
                       {event.closed ? (
-                        <span className="rounded-md bg-red-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-red-300 ring-1 ring-red-500/30">
+                        <span className="rounded-md bg-red-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-500/30">
                           마감
                         </span>
                       ) : null}
                       {event.forceApplyOpen ? (
-                        <span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300 ring-1 ring-violet-500/30">
+                        <span className="rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-500/30">
                           상시신청
                         </span>
                       ) : null}
@@ -381,8 +381,8 @@ export function ScheduleManager() {
                         type="button"
                         className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
                           event.forceApplyOpen
-                            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
-                            : "bg-violet-500/15 text-violet-300 ring-violet-500/30 hover:bg-violet-500/25"
+                            ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30 hover:bg-emerald-500/25"
+                            : "bg-violet-500/15 text-violet-700 ring-violet-500/30 hover:bg-violet-500/25"
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -395,8 +395,8 @@ export function ScheduleManager() {
                         type="button"
                         className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
                           event.locked
-                            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
-                            : "bg-blue-500/15 text-blue-300 ring-blue-500/30 hover:bg-blue-500/25"
+                            ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30 hover:bg-emerald-500/25"
+                            : "bg-blue-500/15 text-blue-700 ring-blue-500/30 hover:bg-blue-500/25"
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -409,8 +409,8 @@ export function ScheduleManager() {
                         type="button"
                         className={`rounded-md px-2 py-1 text-[11px] font-semibold ring-1 transition-colors ${
                           event.closed
-                            ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30 hover:bg-emerald-500/25"
-                            : "bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25"
+                            ? "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30 hover:bg-emerald-500/25"
+                            : "bg-red-500/15 text-red-700 ring-red-500/30 hover:bg-red-500/25"
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
