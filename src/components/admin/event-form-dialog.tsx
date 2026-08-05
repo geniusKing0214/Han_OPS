@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export type CreateScheduleDialogProps = {
   open: boolean;
@@ -55,6 +56,7 @@ export function CreateScheduleDialog({
     emptyPositionRow(),
   ]);
   const [color, setColor] = useState("#C8A96B");
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export function CreateScheduleDialog({
     setDate(defaultDate ?? "");
     setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
+    setNotice("");
     setError("");
   }, [open, defaultDate]);
 
@@ -159,6 +162,7 @@ export function CreateScheduleDialog({
           forceApplyOpen: false,
         };
     if (color.trim()) payload.color = color.trim();
+    if (notice.trim()) payload.notice = notice.trim();
 
     try {
       await onSave(payload);
@@ -179,6 +183,18 @@ export function CreateScheduleDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              표시 색상
+            </label>
+            <Input
+              type="color"
+              className="h-9 w-16 cursor-pointer p-1"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+            />
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
@@ -281,22 +297,14 @@ export function CreateScheduleDialog({
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              표시 색상
+              메모
             </label>
-            <div className="flex gap-2">
-              <Input
-                type="color"
-                className="h-9 w-12 cursor-pointer p-1"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-              />
-              <Input
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                placeholder="#C8A96B"
-                className="flex-1 font-mono text-xs"
-              />
-            </div>
+            <Textarea
+              value={notice}
+              onChange={(e) => setNotice(e.target.value)}
+              placeholder="예: 검정 셔츠 착용"
+              className="min-h-[72px]"
+            />
           </div>
         </div>
 
