@@ -27,6 +27,12 @@ export type CreateScheduleDialogProps = {
   defaultDate?: string;
 };
 
+type PositionRow = { id: string; label: string; capacity: string };
+
+function emptyPositionRow(): PositionRow {
+  return { id: crypto.randomUUID(), label: "", capacity: "1" };
+}
+
 function formatDateLabel(ymd: string): string {
   const parts = ymd.split("-");
   if (parts.length !== 3) return ymd;
@@ -46,8 +52,9 @@ export function CreateScheduleDialog({
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("09:00");
-  const [position, setPosition] = useState("");
-  const [capacity, setCapacity] = useState("1");
+  const [positionRows, setPositionRows] = useState<PositionRow[]>([
+    emptyPositionRow(),
+  ]);
   const [color, setColor] = useState("#C8A96B");
   const [error, setError] = useState("");
 
@@ -57,11 +64,28 @@ export function CreateScheduleDialog({
     setVenue("");
     setDate(defaultDate ?? "");
     setStartTime("09:00");
-    setPosition("");
-    setCapacity("1");
+    setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
     setError("");
   }, [open, defaultDate]);
+
+  const addPositionRow = () =>
+    setPositionRows((prev) => [...prev, emptyPositionRow()]);
+
+  const removePositionRow = (id: string) =>
+    setPositionRows((prev) =>
+      prev.length > 1 ? prev.filter((r) => r.id !== id) : prev,
+    );
+
+  const updatePositionLabel = (id: string, label: string) =>
+    setPositionRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, label } : r)),
+    );
+
+  const updatePositionCapacity = (id: string, capacity: string) =>
+    setPositionRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, capacity } : r)),
+    );
 
   const handleSubmit = async () => {
     setError("");
@@ -77,10 +101,10 @@ export function CreateScheduleDialog({
       setError("시작 시간을 입력하세요.");
       return;
     }
-    const cap = Math.max(1, Number.parseInt(capacity, 10) || 0);
-    const positionLabel = position.trim();
+    const useMultiplePositions =
+      positionRows.length > 1 || positionRows[0]!.label.trim() !== "";
 
-    const payload: Omit<EventItem, "id"> = positionLabel
+    const payload: Omit<EventItem, "id"> = useMultiplePositions
       ? {
           title: title.trim(),
           venue: venue.trim(),
@@ -88,21 +112,22 @@ export function CreateScheduleDialog({
           sessions: [{ id: crypto.randomUUID(), date, slots: [] }],
           attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
           usePositions: true,
-          positions: [
-            {
+          positions: positionRows.map((row, idx) => {
+            const rowCap = Math.max(1, Number.parseInt(row.capacity, 10) || 0);
+            return {
               id: crypto.randomUUID(),
-              label: positionLabel,
-              capacity: cap,
+              label: row.label.trim() || `포지션 ${idx + 1}`,
+              capacity: rowCap,
               slots: [
                 {
                   id: crypto.randomUUID(),
                   time: startTime,
-                  capacity: cap,
+                  capacity: rowCap,
                   applied_count: 0,
                 },
               ],
-            } satisfies PositionDef,
-          ],
+            } satisfies PositionDef;
+          }),
           forceApplyOpen: false,
         }
       : {
@@ -117,7 +142,10 @@ export function CreateScheduleDialog({
                 {
                   id: crypto.randomUUID(),
                   start_time: startTime,
-                  capacity: cap,
+                  capacity: Math.max(
+                    1,
+                    Number.parseInt(positionRows[0]!.capacity, 10) || 0,
+                  ),
                   applied_count: 0,
                 } satisfies Slot,
               ],
@@ -202,31 +230,56 @@ export function CreateScheduleDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                포지션
-              </label>
-              <Input
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
-                placeholder="예: 딜러"
-              />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              포지션 · 필요 인원
+            </label>
+            <div className="space-y-2">
+              {positionRows.map((row) => (
+                <div key={row.id} className="flex items-center gap-2">
+                  <Input
+                    className="flex-1"
+                    value={row.label}
+                    onChange={(e) =>
+                      updatePositionLabel(row.id, e.target.value)
+                    }
+                    placeholder="예: 딜러 (선택)"
+                  />
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    className="w-16"
+                    value={row.capacity}
+                    onChange={(e) =>
+                      updatePositionCapacity(
+                        row.id,
+                        e.target.value.replace(/[^0-9]/g, ""),
+                      )
+                    }
+                    placeholder="인원"
+                  />
+                  {positionRows.length > 1 ? (
+                    <button
+                      type="button"
+                      className="shrink-0 text-muted-foreground hover:text-red-600 px-1"
+                      onClick={() => removePositionRow(row.id)}
+                      aria-label="포지션 삭제"
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                필요 인원 *
-              </label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={capacity}
-                onChange={(e) =>
-                  setCapacity(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                placeholder="예: 5"
-              />
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full text-xs"
+              onClick={addPositionRow}
+            >
+              + 포지션 추가
+            </Button>
           </div>
 
           <div className="space-y-1.5">
