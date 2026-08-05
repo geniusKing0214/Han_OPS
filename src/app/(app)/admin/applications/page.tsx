@@ -2,9 +2,15 @@
 
 import { AdminConsole } from "@/components/admin/admin-console";
 import { usePendingApplicationsAdmin } from "@/hooks/use-pending-applications-admin";
+import { useCancelRequestedApplicationsAdmin } from "@/hooks/use-cancel-requested-applications-admin";
 
 export default function AdminApplicationsPage() {
   const { pending, loading, error } = usePendingApplicationsAdmin();
+  const {
+    cancelRequested,
+    loading: cancelLoading,
+    error: cancelError,
+  } = useCancelRequestedApplicationsAdmin();
 
   return (
     <div className="space-y-4">
@@ -13,7 +19,17 @@ export default function AdminApplicationsPage() {
           {error}
         </p>
       ) : null}
-      <AdminConsole pendingApplications={pending} loading={loading} />
+      {cancelError ? (
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+          {cancelError}
+        </p>
+      ) : null}
+      <AdminConsole
+        pendingApplications={pending}
+        loading={loading}
+        cancelRequestedApplications={cancelRequested}
+        cancelRequestedLoading={cancelLoading}
+      />
     </div>
   );
 }
