@@ -96,10 +96,10 @@ export function ApprovalCalendarGrid({
   return (
     <div
       id="approval-calendar-grid"
-      className="overflow-x-auto rounded-xl border border-border"
+      className="flex min-h-[calc(100vh-260px)] flex-col overflow-x-auto rounded-xl border border-border"
     >
-      <div className="min-w-[1540px]">
-        <div className="grid grid-cols-7">
+      <div className="flex min-w-[1540px] flex-1 flex-col">
+        <div className="grid shrink-0 grid-cols-7">
           {weekdays.map((w) => (
             <div
               key={w}
@@ -109,43 +109,45 @@ export function ApprovalCalendarGrid({
             </div>
           ))}
         </div>
-        {weeks.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7">
-            {week.map((ymd, di) => {
-              if (!ymd) {
+        <div className="flex flex-1 flex-col">
+          {weeks.map((week, wi) => (
+            <div key={wi} className="grid flex-1 grid-cols-7">
+              {week.map((ymd, di) => {
+                if (!ymd) {
+                  return (
+                    <div
+                      key={di}
+                      className="border-b border-r border-border bg-muted/10 last:border-r-0"
+                    />
+                  );
+                }
+                const bundle = days.get(ymd);
+                const dayNum = Number(ymd.slice(-2));
+                const isToday = ymd === today;
                 return (
                   <div
-                    key={di}
-                    className="border-b border-r border-border bg-muted/10 last:border-r-0"
-                  />
+                    key={ymd}
+                    className={cn(
+                      "flex flex-col gap-2 border-b border-r border-border p-2 last:border-r-0",
+                      isToday && "bg-accent/5",
+                    )}
+                  >
+                    <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                      {dayNum}
+                    </span>
+                    {bundle && bundle.entries.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {bundle.entries.map((entry) => (
+                          <EventBlock key={entry.eventId} entry={entry} />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 );
-              }
-              const bundle = days.get(ymd);
-              const dayNum = Number(ymd.slice(-2));
-              const isToday = ymd === today;
-              return (
-                <div
-                  key={ymd}
-                  className={cn(
-                    "flex flex-col gap-2 border-b border-r border-border p-2 last:border-r-0",
-                    isToday && "bg-accent/5",
-                  )}
-                >
-                  <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-                    {dayNum}
-                  </span>
-                  {bundle && bundle.entries.length > 0 ? (
-                    <div className="space-y-2.5">
-                      {bundle.entries.map((entry) => (
-                        <EventBlock key={entry.eventId} entry={entry} />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
