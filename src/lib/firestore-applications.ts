@@ -588,6 +588,52 @@ export function subscribePendingApplicationsForAdmin(
   };
 }
 
+/** 관리자: 취소 승인 대기 중인 신청(승인됨 + cancelRequestedAt 있음) 구독 */
+export function subscribeCancelRequestedApplicationsForAdmin(
+  onData: (items: ApplicationItem[]) => void,
+  onError?: (error: FirestoreError) => void,
+) {
+  let innerUnsub: (() => void) | undefined;
+  let cancelled = false;
+
+  void assertAdmin()
+    .then(() => {
+      if (cancelled) return;
+      const q = query(
+        collection(db, APPLICATIONS_COLLECTION),
+        where("status", "==", "approved"),
+      );
+      innerUnsub = onSnapshot(
+        q,
+        (snap) => {
+          const items = snap.docs
+            .map((d) =>
+              docToApplicationItem(d.id, d.data() as Record<string, unknown>),
+            )
+            .filter((a) => !!a.cancelRequestedAt)
+            .sort((a, b) =>
+              (b.cancelRequestedAt ?? "").localeCompare(a.cancelRequestedAt ?? ""),
+            );
+          onData(items);
+        },
+        (err) => onError?.(err),
+      );
+    })
+    .catch((e) => {
+      if (cancelled) return;
+      onError?.({
+        name: "permission-denied",
+        message:
+          e instanceof Error ? e.message : "관리자 권한이 필요합니다.",
+      } as FirestoreError);
+    });
+
+  return () => {
+    cancelled = true;
+    innerUnsub?.();
+  };
+}
+
 export async function updateApplicationStatus(
   applicationId: string,
   status: Exclude<ApplicationStatus, "pending">,
