@@ -10,28 +10,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: "rgba(255, 255, 255, 0.08)",
-        background: "#0D0F14",
-        foreground: "#FFFFFF",
+        border: "rgba(20, 22, 28, 0.1)",
+        background: "#F7F7F5",
+        foreground: "#14161C",
         surface: {
-          DEFAULT: "#161A22",
-          hover: "#1E2430",
+          DEFAULT: "#FFFFFF",
+          hover: "#EEF0F3",
         },
         muted: {
-          DEFAULT: "#1E2430",
-          foreground: "#A7AFBF",
+          DEFAULT: "#EEF0F3",
+          foreground: "#5B6272",
         },
         accent: {
-          DEFAULT: "#C8A96B",
-          foreground: "#0D0F14",
+          DEFAULT: "#B8863E",
+          foreground: "#FFFFFF",
         },
         secondary: {
-          DEFAULT: "#A7AFBF",
-          foreground: "#FFFFFF",
+          DEFAULT: "#5B6272",
+          foreground: "#14161C",
         },
         card: {
-          DEFAULT: "#161A22",
-          foreground: "#FFFFFF",
+          DEFAULT: "#FFFFFF",
+          foreground: "#14161C",
         },
       },
       borderRadius: {
