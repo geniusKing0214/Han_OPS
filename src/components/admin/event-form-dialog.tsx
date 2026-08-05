@@ -107,6 +107,16 @@ export function CreateScheduleDialog({
       prev.length > 1 ? prev.filter((r) => r.id !== id) : prev,
     );
 
+  /** 같은 포지션(이름·시간·인원)을 바로 아래에 복사 — 비슷한 포지션을
+   * 여러 개 빠르게 만들 때 사용 */
+  const duplicatePositionRow = (id: string) =>
+    setPositionRows((prev) => {
+      const idx = prev.findIndex((r) => r.id === id);
+      if (idx === -1) return prev;
+      const copy: PositionRow = { ...prev[idx]!, id: crypto.randomUUID() };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+
   const updatePositionLabel = (id: string, label: string) =>
     setPositionRows((prev) =>
       prev.map((r) => (r.id === id ? { ...r, label } : r)),
@@ -340,6 +350,15 @@ export function CreateScheduleDialog({
                       placeholder="인원"
                     />
                   </div>
+                  <button
+                    type="button"
+                    className="shrink-0 text-muted-foreground hover:text-accent px-1 text-xs"
+                    onClick={() => duplicatePositionRow(row.id)}
+                    aria-label="포지션 복사"
+                    title="이 포지션 복사"
+                  >
+                    복사
+                  </button>
                   {positionRows.length > 1 ? (
                     <button
                       type="button"
