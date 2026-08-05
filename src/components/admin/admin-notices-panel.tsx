@@ -35,7 +35,7 @@ const TYPE_OPTIONS: AdminNoticeType[] = ["일반", "중요", "공지"];
 
 const typeBadgeClass: Record<AdminNoticeType, string> = {
   일반: "bg-muted text-muted-foreground",
-  중요: "bg-amber-500/20 text-amber-300",
+  중요: "bg-amber-500/20 text-amber-700",
   공지: "bg-accent/20 text-accent",
 };
 
@@ -179,7 +179,7 @@ export function AdminNoticesPanel() {
       />
 
       {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       ) : null}
@@ -343,7 +343,7 @@ export function AdminNoticesPanel() {
             </div>
 
             {formError ? (
-              <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
                 {formError}
               </p>
             ) : null}

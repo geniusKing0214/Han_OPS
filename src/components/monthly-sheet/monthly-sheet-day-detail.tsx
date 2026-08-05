@@ -139,7 +139,7 @@ export function MonthlySheetDayDetail({
                     {row.override?.slotTime ?? row.slotTime}
                   </p>
                   {row.groupId && row.groupDates && row.groupDates.length > 1 ? (
-                    <span className="mt-0.5 inline-flex items-center rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-300 ring-1 ring-blue-500/25">
+                    <span className="mt-0.5 inline-flex items-center rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-500/25">
                       {(() => {
                         const sorted = [...row.groupDates].sort();
                         return `${sorted[0]} ~ ${sorted[sorted.length - 1]} (${sorted.length}일)`;
@@ -195,7 +195,7 @@ export function MonthlySheetDayDetail({
                             {EVENT_APPLY_WINDOW_LABEL[windowStatus]}
                           </span>
                           {ev.forceApplyOpen ? (
-                            <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-300">
+                            <span className="inline-flex items-center rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
                               상시신청
                             </span>
                           ) : null}
@@ -344,11 +344,11 @@ export function MonthlySheetDayDetail({
                           </Badge>
                           <span>{a.name}</span>
                           {a.packageDates && a.packageDates.length > 0 ? (
-                            <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-1 py-px text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/25 md:text-[11px]">
+                            <span className="inline-flex items-center rounded-md bg-emerald-500/15 px-1 py-px text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-500/25 md:text-[11px]">
                               {a.packageLabel ? `${a.packageLabel} ` : ""}{a.packageDates.length}일
                             </span>
                           ) : a.groupDates && a.groupDates.length > 1 ? (
-                            <span className="inline-flex items-center rounded-md bg-blue-500/15 px-1 py-px text-[10px] font-semibold text-blue-300 ring-1 ring-blue-500/25 md:text-[11px]">
+                            <span className="inline-flex items-center rounded-md bg-blue-500/15 px-1 py-px text-[10px] font-semibold text-blue-700 ring-1 ring-blue-500/25 md:text-[11px]">
                               {a.groupDates.length}일
                             </span>
                           ) : null}

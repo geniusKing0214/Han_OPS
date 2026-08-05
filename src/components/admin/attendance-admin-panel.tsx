@@ -306,7 +306,7 @@ export function AttendanceAdminPanel() {
       </Card>
 
       {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
           {error}
         </p>
       ) : null}
@@ -483,7 +483,7 @@ export function AttendanceAdminPanel() {
                 <p>확인: {REVIEW_STATUS_LABELS[detail.reviewStatus]}</p>
               </div>
               {isGpsSuspicious(detail) ? (
-                <div className="space-y-1 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                <div className="space-y-1 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
                   <p className="font-medium">GPS 위조 의심</p>
                   <ul className="list-disc space-y-0.5 pl-4">
                     {gpsSuspiciousReasons(detail).map((reason, i) => (
@@ -505,7 +505,7 @@ export function AttendanceAdminPanel() {
                   <>
                     <Button
                       variant="outline"
-                      className="border-red-500/40 text-red-300"
+                      className="border-red-500/40 text-red-700"
                       onClick={() => setRejectOpen(true)}
                     >
                       반려 / 재인증 요청
@@ -568,7 +568,7 @@ export function AttendanceAdminPanel() {
             </Button>
             <Button
               variant="outline"
-              className="border-red-500/40 text-red-300"
+              className="border-red-500/40 text-red-700"
               disabled={busy}
               onClick={() => void onReject()}
             >

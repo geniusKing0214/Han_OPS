@@ -33,7 +33,7 @@ export function WebPushSetup() {
 
   if (permission === "granted" && enabled) {
     return (
-      <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+      <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700">
         백그라운드 푸시 알림이 켜져 있습니다.
         {registeredTokenPreview ? ` (${registeredTokenPreview})` : ""}
       </p>
@@ -43,20 +43,20 @@ export function WebPushSetup() {
   return (
     <div className="space-y-2">
       {permission === "granted" && !enabled ? (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
           알림 권한은 허용됐지만 토큰 등록에 실패했습니다. 아래 버튼으로 다시
           시도하세요.
         </p>
       ) : null}
 
       {pushSuccessMessage ? (
-        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800">
           ✅ {pushSuccessMessage}
         </p>
       ) : null}
 
       {pushError ? (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-700">
           {pushError}
         </p>
       ) : null}

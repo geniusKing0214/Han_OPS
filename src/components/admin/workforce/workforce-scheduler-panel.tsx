@@ -137,15 +137,15 @@ type ApprovedApplicant = {
 /** 포지션 배지 색상: 딜러=기본 초록, 그 외(플로어/레지/칩스/커스텀 추가 포지션 등)는
  * 라벨 문자열 해시로 팔레트에서 안정적으로 골라 서로 다른 색을 부여한다. */
 const POSITION_BADGE_PALETTE = [
-  "bg-blue-500/25 text-blue-200",
+  "bg-blue-500/25 text-blue-800",
   "bg-amber-500/25 text-amber-100",
   "bg-purple-500/25 text-purple-200",
   "bg-pink-500/25 text-pink-200",
   "bg-cyan-500/25 text-cyan-200",
-  "bg-red-500/25 text-red-200",
+  "bg-red-500/25 text-red-800",
   "bg-lime-500/25 text-lime-200",
 ];
-const POSITION_BADGE_DEFAULT = "bg-emerald-500/25 text-emerald-200";
+const POSITION_BADGE_DEFAULT = "bg-emerald-500/25 text-emerald-800";
 
 function positionBadgeClass(label: string | undefined): string {
   if (!label || label === "딜러") return POSITION_BADGE_DEFAULT;
@@ -1082,7 +1082,7 @@ export function WorkforceSchedulerPanel({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 rounded-xl text-red-300 hover:text-red-200"
+            className="h-8 rounded-xl text-red-700 hover:text-red-800"
             disabled={busy}
             onClick={() =>
               void (async () => {
@@ -1120,7 +1120,7 @@ export function WorkforceSchedulerPanel({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 rounded-xl text-red-300 hover:text-red-200"
+            className="h-8 rounded-xl text-red-700 hover:text-red-800"
             disabled={busy}
             onClick={() =>
               void (async () => {
@@ -1156,7 +1156,7 @@ export function WorkforceSchedulerPanel({
       </div>
 
       {error ? (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       ) : null}
@@ -1370,7 +1370,7 @@ export function WorkforceSchedulerPanel({
                                     "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
                                     on
                                       ? "bg-accent/25 text-accent"
-                                      : "bg-red-500/20 text-red-300",
+                                      : "bg-red-500/20 text-red-700",
                                   )}
                                   title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
                                 >
@@ -1594,14 +1594,14 @@ export function WorkforceSchedulerPanel({
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[10px] font-medium",
                             dayAssigned >= dayRequired && dayRequired > 0
-                              ? "bg-emerald-500/15 text-emerald-300"
-                              : "bg-amber-500/15 text-amber-200",
+                              ? "bg-emerald-500/15 text-emerald-700"
+                              : "bg-amber-500/15 text-amber-800",
                           )}
                         >
                           배치 {dayAssigned}/{dayRequired || 0}
                         </span>
                         {hasShortage ? (
-                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                          <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium text-red-700">
                             부족 {shortage}
                           </span>
                         ) : null}
@@ -1978,7 +1978,7 @@ function SummaryStat({
       <p
         className={cn(
           "text-lg font-semibold tabular-nums",
-          danger && value > 0 && "text-red-300",
+          danger && value > 0 && "text-red-700",
         )}
       >
         {value}
@@ -2085,8 +2085,8 @@ function ScheduleCard({
               className={cn(
                 "mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
                 isClosed
-                  ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
-                  : "text-red-300/80 hover:text-red-300",
+                  ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25"
+                  : "text-red-700/80 hover:text-red-700",
               )}
               onClick={onToggleClosed}
             >
@@ -2110,7 +2110,7 @@ function ScheduleCard({
           </button>
           <button
             type="button"
-            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-red-300"
+            className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-red-700"
             onClick={onDelete}
             aria-label="삭제"
             title="삭제"
@@ -2148,8 +2148,8 @@ function ScheduleCard({
             className={cn(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium",
               full
-                ? "bg-emerald-500/15 text-emerald-300"
-                : "bg-amber-500/15 text-amber-200",
+                ? "bg-emerald-500/15 text-emerald-700"
+                : "bg-amber-500/15 text-amber-800",
             )}
           >
             {full ? "✓ " : ""}

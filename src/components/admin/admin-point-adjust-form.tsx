@@ -81,7 +81,7 @@ export function AdminPointAdjustForm({
           variant={mode === "subtract" ? "default" : "outline"}
           className={cn(
             mode === "subtract" &&
-              "border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20",
+              "border-red-500/40 bg-red-500/10 text-red-700 hover:bg-red-500/20",
           )}
           onClick={() => setMode("subtract")}
           disabled={saving}
@@ -115,7 +115,7 @@ export function AdminPointAdjustForm({
         />
       </div>
       {error ? (
-        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-300">
+        <p className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-xs text-red-700">
           {error}
         </p>
       ) : null}
