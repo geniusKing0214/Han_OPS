@@ -174,7 +174,7 @@ export function CreateScheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>스케줄 생성</DialogTitle>
           <DialogDescription>
@@ -183,19 +183,7 @@ export function CreateScheduleDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              표시 색상
-            </label>
-            <Input
-              type="color"
-              className="h-9 w-16 cursor-pointer p-1"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
                 이벤트명 *
@@ -231,6 +219,17 @@ export function CreateScheduleDialog({
                   onChange={(e) => setDate(e.target.value)}
                 />
               )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                표시 색상
+              </label>
+              <Input
+                type="color"
+                className="h-9 w-full cursor-pointer p-1"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
             </div>
           </div>
 
