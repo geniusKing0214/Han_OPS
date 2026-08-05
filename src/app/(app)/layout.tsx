@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileTopBar } from "@/components/layout/mobile-top-bar";
+import { PageWidthContainer } from "@/components/layout/page-width-container";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { PwaSetupBanner } from "@/components/pwa/pwa-setup-banner";
 import { MobilePushPrompt } from "@/components/pwa/mobile-push-prompt";
@@ -21,11 +22,11 @@ export default function AppLayout({
             <MobileTopBar />
             <AppHeader />
             <main className="flex-1 overflow-x-clip px-4 py-6 pb-[calc(3.5rem+env(safe-area-inset-bottom,0px)+1rem)] md:px-8 md:py-10 md:pb-10">
-              <div className="mx-auto w-full min-w-0 max-w-5xl">
+              <PageWidthContainer>
                 <PwaSetupBanner />
                 <MobilePushPrompt />
                 {children}
-              </div>
+              </PageWidthContainer>
             </main>
             <MobileBottomNav />
           </div>

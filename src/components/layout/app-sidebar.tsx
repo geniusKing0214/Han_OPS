@@ -53,7 +53,7 @@ const adminNavItem: SidebarLink = {
 };
 
 const approvalCalendarNavItem: SidebarLink = {
-  href: "/admin/approval-calendar",
+  href: "/approval-calendar",
   label: "승인 달력",
   icon: CalendarRange,
 };

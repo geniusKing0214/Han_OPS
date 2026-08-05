@@ -129,7 +129,7 @@ export function MobileBottomNav({ className }: { className?: string }) {
                 <>
                   <MoreLinkItem href="/admin/users" label="Admin" icon={Shield} />
                   <MoreLinkItem
-                    href="/admin/approval-calendar"
+                    href="/approval-calendar"
                     label="승인 달력"
                     icon={CalendarRange}
                   />
