@@ -14,7 +14,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatRelativeTime } from "@/lib/format-relative-time";
+import { formatAbsoluteTime } from "@/lib/format-relative-time";
 import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types/notification";
 import {
@@ -59,7 +59,7 @@ export function NotificationCard({
   onDelete?: () => void;
 }) {
   const Icon = iconForType(item.type);
-  const timeLabel = formatRelativeTime(item.createdAt);
+  const timeLabel = formatAbsoluteTime(item.createdAt);
 
   return (
     <div
