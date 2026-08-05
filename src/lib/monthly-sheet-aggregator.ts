@@ -40,7 +40,7 @@ export function datesInMonth(year: number, monthIndex: number): string[] {
   return out;
 }
 
-function applicantName(app: ApplicationItem): string {
+export function applicantName(app: ApplicationItem): string {
   const name = app.applicantDisplayName?.trim();
   if (name) return name;
   const email = app.applicantEmail?.trim();
