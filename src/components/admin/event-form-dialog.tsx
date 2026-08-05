@@ -2,17 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-import type { EventItem, EventPackage, PositionDef, Session } from "@/types/schedule";
-import {
-  TEAM_EXPOSURE_OPTIONS,
-  teamExposureToTeamIds,
-  type TeamExposure,
-} from "@/types/team";
-import {
-  DEFAULT_ATTENDANCE_SETTINGS,
-  type AttendanceSettings,
-} from "@/types/attendance";
-import { EventAttendanceSettingsFields } from "@/components/admin/event-attendance-settings-fields";
+import type { EventItem, Slot } from "@/types/schedule";
+import { DEFAULT_ATTENDANCE_SETTINGS } from "@/types/attendance";
+import { teamExposureToTeamIds } from "@/types/team";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,20 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
-
-type SessionDraft = { id: string; date: string; groupNum: string };
-
-function sessionYMD(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-type PackageDraft = { id: string; label: string; startDate: string; endDate: string };
-
-function emptyPackage(): PackageDraft {
-  return { id: crypto.randomUUID(), label: "", startDate: "", endDate: "" };
-}
 
 export type CreateScheduleDialogProps = {
   open: boolean;
@@ -49,6 +27,14 @@ export type CreateScheduleDialogProps = {
   defaultDate?: string;
 };
 
+function formatDateLabel(ymd: string): string {
+  const parts = ymd.split("-");
+  if (parts.length !== 3) return ymd;
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  const dow = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  return `${parts[0]}.${parts[1]}.${parts[2]}. (${dow})`;
+}
+
 export function CreateScheduleDialog({
   open,
   onOpenChange,
@@ -58,74 +44,22 @@ export function CreateScheduleDialog({
 }: CreateScheduleDialogProps) {
   const [title, setTitle] = useState("");
   const [venue, setVenue] = useState("");
-  const [notice, setNotice] = useState("");
+  const [date, setDate] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [capacity, setCapacity] = useState("1");
   const [color, setColor] = useState("#C8A96B");
-  const [attendance, setAttendance] = useState<AttendanceSettings>({
-    ...DEFAULT_ATTENDANCE_SETTINGS,
-  });
-  const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
-  const [sessions, setSessions] = useState<SessionDraft[]>([]);
-  const [rangeStart, setRangeStart] = useState("");
-  const [rangeEnd, setRangeEnd] = useState("");
-  const [positions, setPositions] = useState<PositionDef[]>([]);
-  const [packages, setPackages] = useState<PackageDraft[]>([]);
-  const [forceApplyOpen, setForceApplyOpen] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setTitle("");
     setVenue("");
-    setNotice("");
+    setDate(defaultDate ?? "");
+    setStartTime("09:00");
+    setCapacity("1");
     setColor("#C8A96B");
-    setAttendance({ ...DEFAULT_ATTENDANCE_SETTINGS });
-    setTeamExposure("team_1");
-    setSessions(
-      defaultDate
-        ? [{ id: crypto.randomUUID(), date: defaultDate, groupNum: "" }]
-        : [],
-    );
-    setRangeStart(defaultDate ?? "");
-    setRangeEnd(defaultDate ?? "");
-    setPositions([]);
-    setPackages([]);
-    setForceApplyOpen(false);
     setError("");
   }, [open, defaultDate]);
-
-  /** 시작~종료일 범위의 모든 날짜를 세션으로 생성 (기존 세션 교체) */
-  const applyDateRange = () => {
-    if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) return;
-    const result: SessionDraft[] = [];
-    const cur = new Date(rangeStart + "T00:00:00");
-    const end = new Date(rangeEnd + "T00:00:00");
-    while (cur <= end && result.length < 365) {
-      result.push({ id: crypto.randomUUID(), date: sessionYMD(cur), groupNum: "" });
-      cur.setDate(cur.getDate() + 1);
-    }
-    setSessions(result);
-  };
-
-  /** 날짜를 하나 더 추가 (직접 입력용, 빈 날짜로 시작) */
-  const addSession = () =>
-    setSessions((prev) => [...prev, { id: crypto.randomUUID(), date: "", groupNum: "" }]);
-
-  const removeSession = (sid: string) =>
-    setSessions((prev) => prev.filter((s) => s.id !== sid));
-
-  const updateSessionDate = (sid: string, date: string) =>
-    setSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, date } : s)));
-
-  const updateSessionGroupNum = (sid: string, groupNum: string) =>
-    setSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, groupNum } : s)));
-
-  /** 범위 날짜 수 미리보기 */
-  const rangeCount =
-    rangeStart && rangeEnd && rangeStart <= rangeEnd
-      ? Math.round(
-          (new Date(rangeEnd).getTime() - new Date(rangeStart).getTime()) / 86_400_000,
-        ) + 1
-      : null;
 
   const handleSubmit = async () => {
     setError("");
@@ -133,51 +67,33 @@ export function CreateScheduleDialog({
       setError("이벤트명과 장소는 필수입니다.");
       return;
     }
-    if (sessions.length === 0) {
-      setError("날짜를 최소 1개 입력하세요.");
+    if (!date) {
+      setError("날짜를 입력하세요.");
       return;
     }
-    for (const sess of sessions) {
-      if (!sess.date) {
-        setError("날짜가 비어있는 항목이 있습니다. 모든 날짜를 입력하세요.");
-        return;
-      }
+    if (!startTime) {
+      setError("시작 시간을 입력하세요.");
+      return;
     }
-    // 묶음 번호 → groupId UUID 변환
-    const groupNumToId = new Map<string, string>();
-    for (const sess of sessions) {
-      const num = sess.groupNum.trim();
-      if (num && !groupNumToId.has(num)) {
-        groupNumToId.set(num, crypto.randomUUID());
-      }
-    }
+    const cap = Math.max(1, Number.parseInt(capacity, 10) || 0);
 
-    const builtSessions: Session[] = sessions.map((sess) => {
-      const num = sess.groupNum.trim();
-      return {
-        id: sess.id,
-        date: sess.date,
-        slots: [],
-        ...(num ? { groupId: groupNumToId.get(num) } : {}),
-      };
-    });
-
-    const builtPackages: EventPackage[] = packages
-      .filter((p) => p.label.trim() && p.startDate && p.endDate)
-      .map((p) => ({ id: p.id, label: p.label.trim(), startDate: p.startDate, endDate: p.endDate }));
+    const slot: Slot = {
+      id: crypto.randomUUID(),
+      start_time: startTime,
+      capacity: cap,
+      applied_count: 0,
+    };
 
     const payload: Omit<EventItem, "id"> = {
       title: title.trim(),
       venue: venue.trim(),
-      team_ids: teamExposureToTeamIds(teamExposure),
-      sessions: builtSessions,
-      attendance,
-      usePositions: builtPackages.length === 0,
-      positions: builtPackages.length === 0 ? positions.filter((p) => p.label.trim()) : [],
-      forceApplyOpen,
-      ...(builtPackages.length > 0 ? { packages: builtPackages } : {}),
+      team_ids: teamExposureToTeamIds("team_1"),
+      sessions: [{ id: crypto.randomUUID(), date, slots: [slot] }],
+      attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
+      usePositions: false,
+      positions: [],
+      forceApplyOpen: false,
     };
-    if (notice.trim()) payload.notice = notice.trim();
     if (color.trim()) payload.color = color.trim();
 
     try {
@@ -190,66 +106,80 @@ export function CreateScheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>스케줄 생성</DialogTitle>
           <DialogDescription>
-            이벤트명, 장소, 날짜, 포지션별 시간·정원을 설정합니다.
+            이벤트명, 장소, 날짜, 시간, 정원을 입력합니다.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5 sm:col-span-2">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              이벤트명 *
+            </label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예: WDHL 인천지사"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              장소 *
+            </label>
+            <Input
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              placeholder="예: 인천"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
-                노출 팀 *
+                날짜 *
               </label>
-              <select
-                className="flex h-9 w-full rounded-md border border-border bg-muted px-3 text-sm"
-                value={teamExposure}
-                onChange={(e) => setTeamExposure(e.target.value as TeamExposure)}
-              >
-                {TEAM_EXPOSURE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              {teamExposure === "team_1" ? (
-                <p className="text-xs text-muted-foreground">
-                  1팀으로 등록하면 24시간 뒤 2팀도 자동으로 신청할 수 있습니다.
-                </p>
-              ) : null}
+              {defaultDate ? (
+                <div className="flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm">
+                  {formatDateLabel(defaultDate)}
+                </div>
+              ) : (
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              )}
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
-                이벤트명 *
+                시작 시간 *
               </label>
               <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="예: WDHL 인천지사"
+                type="time"
+                step={60}
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-2">
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
-                장소 *
+                필요 인원 *
               </label>
               <Input
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-                placeholder="예: 인천"
-              />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-xs font-medium text-muted-foreground">
-                특이사항
-              </label>
-              <Textarea
-                value={notice}
-                onChange={(e) => setNotice(e.target.value)}
-                placeholder="예: 검정 셔츠 착용"
-                className="min-h-[72px]"
+                type="text"
+                inputMode="numeric"
+                value={capacity}
+                onChange={(e) =>
+                  setCapacity(e.target.value.replace(/[^0-9]/g, ""))
+                }
+                placeholder="예: 5"
               />
             </div>
             <div className="space-y-1.5">
@@ -259,7 +189,7 @@ export function CreateScheduleDialog({
               <div className="flex gap-2">
                 <Input
                   type="color"
-                  className="h-9 w-14 cursor-pointer p-1"
+                  className="h-9 w-12 cursor-pointer p-1"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
                 />
@@ -272,402 +202,6 @@ export function CreateScheduleDialog({
               </div>
             </div>
           </div>
-
-          <EventAttendanceSettingsFields
-            value={attendance}
-            onChange={setAttendance}
-          />
-
-          <Separator />
-
-          {/* 포지션 설정 (Option B: 포지션 → 시간슬롯) */}
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium">포지션 사용</p>
-              <p className="text-xs text-muted-foreground">
-                포지션별·시간별로 신청을 받습니다
-              </p>
-            </div>
-
-            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-              {positions.map((pos, idx) => (
-                <div key={pos.id} className="rounded-md border border-border bg-muted/40 p-3 space-y-2">
-                  {/* 포지션 이름 행 */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground w-12 shrink-0">포지션</span>
-                    <Input
-                      className="flex-1 text-sm h-8"
-                      placeholder="예: 딜러"
-                      value={pos.label}
-                      onChange={(e) =>
-                        setPositions((prev) =>
-                          prev.map((p, i) =>
-                            i === idx ? { ...p, label: e.target.value } : p,
-                          ),
-                        )
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="shrink-0 text-muted-foreground hover:text-red-600 px-1"
-                      onClick={() =>
-                        setPositions((prev) => prev.filter((_, i) => i !== idx))
-                      }
-                    >
-                      ×
-                    </button>
-                  </div>
-                  {/* 시간슬롯 목록 */}
-                  <div className="space-y-1.5 pl-14">
-                    {(pos.slots ?? []).map((slot, si) => (
-                      <div key={slot.id} className="flex items-center gap-2">
-                        <Input
-                          type="time"
-                          step={60}
-                          className="w-28 h-8 text-sm tabular-nums"
-                          value={slot.time}
-                          onChange={(e) =>
-                            setPositions((prev) =>
-                              prev.map((p, i) =>
-                                i !== idx ? p : {
-                                  ...p,
-                                  slots: p.slots.map((s, j) =>
-                                    j === si ? { ...s, time: e.target.value } : s,
-                                  ),
-                                },
-                              ),
-                            )
-                          }
-                        />
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          className="w-20 h-8 text-sm"
-                          placeholder="정원"
-                          value={slot.capacity === 0 ? "" : String(slot.capacity)}
-                          onChange={(e) => {
-                            const raw = e.target.value.replace(/[^0-9]/g, "");
-                            const val = raw === "" ? 0 : Math.min(9999, Number.parseInt(raw, 10));
-                            setPositions((prev) =>
-                              prev.map((p, i) =>
-                                i !== idx ? p : {
-                                  ...p,
-                                  slots: p.slots.map((s, j) =>
-                                    j === si ? { ...s, capacity: val } : s,
-                                  ),
-                                },
-                              ),
-                            );
-                          }}
-                          onBlur={() => {
-                            if (slot.capacity < 1) {
-                              setPositions((prev) =>
-                                prev.map((p, i) =>
-                                  i !== idx ? p : {
-                                    ...p,
-                                    slots: p.slots.map((s, j) =>
-                                      j === si ? { ...s, capacity: 1 } : s,
-                                    ),
-                                  },
-                                ),
-                              );
-                            }
-                          }}
-                        />
-                        <span className="text-xs text-muted-foreground">명</span>
-                        <button
-                          type="button"
-                          className="text-muted-foreground hover:text-red-600"
-                          onClick={() =>
-                            setPositions((prev) =>
-                              prev.map((p, i) =>
-                                i !== idx ? p : { ...p, slots: p.slots.filter((_, j) => j !== si) },
-                              ),
-                            )
-                          }
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="text-xs text-accent hover:underline"
-                      onClick={() =>
-                        setPositions((prev) =>
-                          prev.map((p, i) =>
-                            i !== idx ? p : {
-                              ...p,
-                              slots: [
-                                ...p.slots,
-                                { id: crypto.randomUUID(), time: "09:00", capacity: 1, applied_count: 0 },
-                              ],
-                            },
-                          ),
-                        )
-                      }
-                    >
-                      + 시간 추가
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="w-full text-xs"
-                onClick={() =>
-                  setPositions((prev) => [
-                    ...prev,
-                    { id: crypto.randomUUID(), label: "", capacity: 0, slots: [] },
-                  ])
-                }
-              >
-                + 포지션 추가
-              </Button>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* 상시 신청 허용 설정 */}
-          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium">상시 신청 허용</p>
-              <p className="text-xs text-muted-foreground">
-                활성화하면 신청기간이 아니어도 항상 신청을 받습니다. 중요 일정에
-                긴급하게 신청을 받고 싶을 때 사용하세요. 언제든 꺼서 다시
-                신청기간 기준으로 되돌릴 수 있습니다.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={forceApplyOpen}
-              onClick={() => setForceApplyOpen((v) => !v)}
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-                forceApplyOpen ? "bg-violet-500" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                  forceApplyOpen ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-
-          <Separator />
-
-          {/* 기간 패키지 (선택) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">기간 패키지 (선택)</p>
-                <p className="text-xs text-muted-foreground">
-                  10일 이벤트에서 5일·7일·전체처럼 신청 기간을 나눌 때 사용합니다
-                </p>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setPackages((prev) => [...prev, emptyPackage()])}
-              >
-                + 패키지 추가
-              </Button>
-            </div>
-            {packages.length > 0 && (
-              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-                {packages.map((pkg) => (
-                  <div key={pkg.id} className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-card px-3 py-2.5">
-                    <div className="w-20 space-y-1 shrink-0">
-                      <label className="text-[10px] text-muted-foreground">라벨</label>
-                      <Input
-                        className="h-8 text-sm"
-                        placeholder="5일"
-                        value={pkg.label}
-                        onChange={(e) =>
-                          setPackages((prev) =>
-                            prev.map((p) => p.id === pkg.id ? { ...p, label: e.target.value } : p),
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="flex-1 min-w-[120px] space-y-1">
-                      <label className="text-[10px] text-muted-foreground">시작일</label>
-                      <Input
-                        type="date"
-                        className="h-8 text-sm"
-                        value={pkg.startDate}
-                        onChange={(e) =>
-                          setPackages((prev) =>
-                            prev.map((p) => p.id === pkg.id ? { ...p, startDate: e.target.value } : p),
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="flex-1 min-w-[120px] space-y-1">
-                      <label className="text-[10px] text-muted-foreground">종료일</label>
-                      <Input
-                        type="date"
-                        className="h-8 text-sm"
-                        value={pkg.endDate}
-                        onChange={(e) =>
-                          setPackages((prev) =>
-                            prev.map((p) => p.id === pkg.id ? { ...p, endDate: e.target.value } : p),
-                          )
-                        }
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-600 shrink-0 h-8"
-                      onClick={() => setPackages((prev) => prev.filter((p) => p.id !== pkg.id))}
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Separator />
-
-          <p className="text-sm font-medium">날짜 · 슬롯</p>
-
-          <>
-              {/* 기간 범위 입력 */}
-              <div className="space-y-2 rounded-lg border border-border bg-muted/30 px-4 py-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  기간으로 일괄 추가
-                </p>
-                <div className="flex flex-wrap items-end gap-2">
-                  <div className="flex-1 min-w-[120px] space-y-1">
-                    <label className="text-[10px] text-muted-foreground">시작일</label>
-                    <Input
-                      type="date"
-                      className="h-9"
-                      value={rangeStart}
-                      onChange={(e) => setRangeStart(e.target.value)}
-                    />
-                  </div>
-                  <span className="pb-1 text-sm text-muted-foreground">~</span>
-                  <div className="flex-1 min-w-[120px] space-y-1">
-                    <label className="text-[10px] text-muted-foreground">종료일</label>
-                    <Input
-                      type="date"
-                      className="h-9"
-                      value={rangeEnd}
-                      onChange={(e) => setRangeEnd(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="accent"
-                    className="shrink-0"
-                    disabled={!rangeStart || !rangeEnd || rangeStart > rangeEnd}
-                    onClick={applyDateRange}
-                  >
-                    적용
-                  </Button>
-                </div>
-                {rangeCount !== null ? (
-                  <p className="text-[11px] text-muted-foreground">
-                    총 <span className="font-semibold text-foreground">{rangeCount}일</span> 생성 예정
-                    {rangeCount > 90 ? " (최대 90일)" : ""}
-                  </p>
-                ) : null}
-              </div>
-
-              {/* 세션 목록 */}
-              <div className="space-y-1.5">
-                {sessions.length > 0 ? (
-                  <>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      날짜 목록 ({sessions.length}개)
-                    </p>
-                    <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-                      {sessions.map((sess) => {
-                        const parts = sess.date ? sess.date.split("-") : [];
-                        const dateObj =
-                          parts.length === 3
-                            ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
-                            : null;
-                        const dow = dateObj
-                          ? ["일", "월", "화", "수", "목", "금", "토"][dateObj.getDay()]
-                          : "";
-                        return (
-                          <div
-                            key={sess.id}
-                            className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2"
-                          >
-                            {dateObj ? (
-                              <span className="flex-1 text-sm font-medium tabular-nums">
-                                {parts[1]}/{parts[2]} ({dow})
-                              </span>
-                            ) : (
-                              <Input
-                                type="date"
-                                className="flex-1 h-8 text-sm"
-                                value={sess.date}
-                                onChange={(e) => updateSessionDate(sess.id, e.target.value)}
-                              />
-                            )}
-                            <div className="flex items-center gap-1 shrink-0">
-                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                묶음#
-                              </span>
-                              <Input
-                                type="text"
-                                inputMode="numeric"
-                                placeholder="—"
-                                className="h-7 w-12 text-center text-xs"
-                                value={sess.groupNum}
-                                onChange={(e) =>
-                                  updateSessionGroupNum(
-                                    sess.id,
-                                    e.target.value.replace(/[^0-9]/g, ""),
-                                  )
-                                }
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              className="shrink-0 text-muted-foreground/60 hover:text-red-600 text-base leading-none"
-                              onClick={() => removeSession(sess.id)}
-                              aria-label="날짜 삭제"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <p className="rounded-lg border border-dashed border-border px-4 py-4 text-center text-xs text-muted-foreground">
-                    위에서 기간을 지정하거나 아래 버튼으로 날짜를 직접 추가하세요
-                  </p>
-                )}
-
-                {/* 항상 표시되는 날짜 직접 추가 버튼 */}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  onClick={addSession}
-                >
-                  + 날짜 직접 추가
-                </Button>
-              </div>
-          </>
         </div>
 
         {error ? (
