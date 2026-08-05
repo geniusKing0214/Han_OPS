@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Loader2,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 
 import { ApprovalCalendarGrid } from "@/components/admin/approval-calendar/approval-calendar-grid";
 import { useEvents } from "@/hooks/use-events";
@@ -23,6 +30,10 @@ function addMonths(d: Date, n: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + n, 1);
 }
 
+const ZOOM_MIN = 0.4;
+const ZOOM_MAX = 1.3;
+const ZOOM_STEP = 0.1;
+
 export function ApprovalCalendarBoard() {
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -32,6 +43,7 @@ export function ApprovalCalendarBoard() {
   const [appsLoading, setAppsLoading] = useState(true);
   const [appsError, setAppsError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [zoom, setZoom] = useState(1);
 
   const { events, loading: eventsLoading } = useEvents();
   const monthKey = monthKeyFromDate(month);
@@ -86,6 +98,37 @@ export function ApprovalCalendarBoard() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-md border border-border px-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                disabled={zoom <= ZOOM_MIN}
+                onClick={() =>
+                  setZoom((z) => Math.max(ZOOM_MIN, Number((z - ZOOM_STEP).toFixed(2))))
+                }
+                aria-label="달력 축소"
+              >
+                <ZoomOut className="size-4" />
+              </Button>
+              <span className="min-w-[36px] text-center text-xs tabular-nums text-muted-foreground">
+                {Math.round(zoom * 100)}%
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                disabled={zoom >= ZOOM_MAX}
+                onClick={() =>
+                  setZoom((z) => Math.min(ZOOM_MAX, Number((z + ZOOM_STEP).toFixed(2))))
+                }
+                aria-label="달력 확대"
+              >
+                <ZoomIn className="size-4" />
+              </Button>
+            </div>
             <div className="flex items-center gap-1">
               <Button
                 type="button"
@@ -137,7 +180,9 @@ export function ApprovalCalendarBoard() {
               불러오는 중...
             </div>
           ) : (
-            <ApprovalCalendarGrid month={month} days={days} />
+            <div style={{ zoom }}>
+              <ApprovalCalendarGrid month={month} days={days} />
+            </div>
           )}
         </CardContent>
       </Card>
