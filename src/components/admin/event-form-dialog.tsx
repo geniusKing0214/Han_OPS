@@ -27,10 +27,10 @@ export type CreateScheduleDialogProps = {
   defaultDate?: string;
 };
 
-type PositionRow = { id: string; label: string; capacity: string };
+type PositionRow = { id: string; label: string; time: string; capacity: string };
 
-function emptyPositionRow(): PositionRow {
-  return { id: crypto.randomUUID(), label: "", capacity: "1" };
+function emptyPositionRow(time = "09:00"): PositionRow {
+  return { id: crypto.randomUUID(), label: "", time, capacity: "1" };
 }
 
 function formatDateLabel(ymd: string): string {
@@ -51,7 +51,6 @@ export function CreateScheduleDialog({
   const [title, setTitle] = useState("");
   const [venue, setVenue] = useState("");
   const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("09:00");
   const [positionRows, setPositionRows] = useState<PositionRow[]>([
     emptyPositionRow(),
   ]);
@@ -63,14 +62,16 @@ export function CreateScheduleDialog({
     setTitle("");
     setVenue("");
     setDate(defaultDate ?? "");
-    setStartTime("09:00");
     setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
     setError("");
   }, [open, defaultDate]);
 
   const addPositionRow = () =>
-    setPositionRows((prev) => [...prev, emptyPositionRow()]);
+    setPositionRows((prev) => [
+      ...prev,
+      emptyPositionRow(prev[prev.length - 1]?.time ?? "09:00"),
+    ]);
 
   const removePositionRow = (id: string) =>
     setPositionRows((prev) =>
@@ -80,6 +81,11 @@ export function CreateScheduleDialog({
   const updatePositionLabel = (id: string, label: string) =>
     setPositionRows((prev) =>
       prev.map((r) => (r.id === id ? { ...r, label } : r)),
+    );
+
+  const updatePositionTime = (id: string, time: string) =>
+    setPositionRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, time } : r)),
     );
 
   const updatePositionCapacity = (id: string, capacity: string) =>
@@ -95,10 +101,6 @@ export function CreateScheduleDialog({
     }
     if (!date) {
       setError("날짜를 입력하세요.");
-      return;
-    }
-    if (!startTime) {
-      setError("시작 시간을 입력하세요.");
       return;
     }
     const useMultiplePositions =
@@ -121,7 +123,7 @@ export function CreateScheduleDialog({
               slots: [
                 {
                   id: crypto.randomUUID(),
-                  time: startTime,
+                  time: row.time || "09:00",
                   capacity: rowCap,
                   applied_count: 0,
                 },
@@ -141,7 +143,7 @@ export function CreateScheduleDialog({
               slots: [
                 {
                   id: crypto.randomUUID(),
-                  start_time: startTime,
+                  start_time: positionRows[0]!.time || "09:00",
                   capacity: Math.max(
                     1,
                     Number.parseInt(positionRows[0]!.capacity, 10) || 0,
@@ -200,45 +202,32 @@ export function CreateScheduleDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                날짜 *
-              </label>
-              {defaultDate ? (
-                <div className="flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm">
-                  {formatDateLabel(defaultDate)}
-                </div>
-              ) : (
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                시작 시간 *
-              </label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              날짜 *
+            </label>
+            {defaultDate ? (
+              <div className="flex h-9 items-center rounded-md border border-border bg-muted px-3 text-sm">
+                {formatDateLabel(defaultDate)}
+              </div>
+            ) : (
               <Input
-                type="time"
-                step={60}
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
               />
-            </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              포지션 · 필요 인원
+              포지션 · 시간 · 인원
             </label>
             <div className="space-y-2">
               {positionRows.map((row) => (
                 <div key={row.id} className="flex items-center gap-2">
                   <Input
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                     value={row.label}
                     onChange={(e) =>
                       updatePositionLabel(row.id, e.target.value)
@@ -246,9 +235,18 @@ export function CreateScheduleDialog({
                     placeholder="예: 딜러 (선택)"
                   />
                   <Input
+                    type="time"
+                    step={60}
+                    className="w-[7.5rem] shrink-0 tabular-nums"
+                    value={row.time}
+                    onChange={(e) =>
+                      updatePositionTime(row.id, e.target.value)
+                    }
+                  />
+                  <Input
                     type="text"
                     inputMode="numeric"
-                    className="w-16"
+                    className="w-14 shrink-0"
                     value={row.capacity}
                     onChange={(e) =>
                       updatePositionCapacity(
