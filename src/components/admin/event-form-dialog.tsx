@@ -226,7 +226,7 @@ export function CreateScheduleDialog({
               </label>
               <Input
                 type="color"
-                className="h-9 w-full cursor-pointer p-1"
+                className="h-9 w-1/3 cursor-pointer p-1"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
               />
