@@ -62,7 +62,8 @@ function sessionsForDate(events: EventItem[], ymd: string) {
 
 /**
  * event.positions(포지션 정의는 이벤트 레벨 공유)에 이 세션(날짜)의 실제 정원
- * 카운트(session.positionSlotCounts)를 덮어써서 반환한다. 아직 이 세션이
+ * 카운트(session.positionSlotCounts)와 시간 오버라이드
+ * (session.positionSlotTimeOverrides)를 덮어써서 반환한다. 아직 이 세션이
  * 한 번도 승인/취소를 거치지 않아 카운트가 시드되지 않았다면, 예전 방식인
  * 이벤트 전체 공유 카운트(slot.applied_count)로 폴백한다 — 최소한 지금보다
  * 나빠지지는 않는다.
@@ -76,8 +77,13 @@ function sessionAwarePositions(
     ...pos,
     slots: pos.slots.map((slot) => {
       const key = positionSlotKey(pos.id, slot.id);
-      const seeded = session.positionSlotCounts?.[key];
-      return seeded === undefined ? slot : { ...slot, applied_count: seeded };
+      const seededCount = session.positionSlotCounts?.[key];
+      const timeOverride = session.positionSlotTimeOverrides?.[key];
+      return {
+        ...slot,
+        ...(seededCount === undefined ? {} : { applied_count: seededCount }),
+        ...(timeOverride ? { time: timeOverride } : {}),
+      };
     }),
   }));
 }
