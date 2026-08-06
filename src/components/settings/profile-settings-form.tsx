@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { updateOwnProfile } from "@/lib/firestore-users";
+import { formatPhoneInput } from "@/lib/phone-format";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +35,7 @@ export function ProfileSettingsForm() {
   useEffect(() => {
     if (!profile) return;
     setDisplayName(profile.displayName ?? "");
-    setPhone(profile.phone ?? "");
+    setPhone(formatPhoneInput(profile.phone ?? ""));
   }, [profile]);
 
   const handleSave = async () => {
@@ -119,7 +120,7 @@ export function ProfileSettingsForm() {
               <Input
                 id="profile-phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
                 placeholder="010-0000-0000"
                 disabled={disabled}
                 inputMode="tel"
