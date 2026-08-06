@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
-import { AttendanceStatusBlock } from "@/components/attendance/attendance-status-block";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMyAttendances } from "@/hooks/use-my-attendances";
-import { useEvents } from "@/hooks/use-events";
 import {
   cancelActionVerb,
   cancelApplicationHint,
@@ -43,12 +40,6 @@ export function MyApplicationRow({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
-  const { events } = useEvents();
-  const { items: attendances } = useMyAttendances();
-  const event = useMemo(
-    () => events.find((e) => e.id === app.eventId),
-    [events, app.eventId],
-  );
 
   const canCancel = canUserCancelApplication(app);
   const hint = cancelApplicationHint(app);
@@ -105,11 +96,6 @@ export function MyApplicationRow({
               거절 사유: {app.rejectionReason}
             </p>
           ) : null}
-          <AttendanceStatusBlock
-            app={app}
-            event={event}
-            attendances={attendances}
-          />
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">

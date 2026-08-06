@@ -54,15 +54,6 @@ export function notificationAppPath(item: NotificationItem): string {
   if (item.type === "notice_posted") {
     return "/notices/";
   }
-  if (item.type === "attendance_submitted") {
-    return "/admin/attendance/";
-  }
-  if (
-    item.type === "attendance_approved" ||
-    item.type === "attendance_rejected"
-  ) {
-    return "/applications/";
-  }
   if (
     item.type === "workforce_confirmed" ||
     item.type === "workforce_updated" ||
@@ -106,12 +97,6 @@ export function resolveNotificationOpenUrl(
   }
   if (type === "notice_posted") {
     return `${origin}${base}/notices/`;
-  }
-  if (type === "attendance_submitted") {
-    return `${origin}${base}/admin/attendance/`;
-  }
-  if (type === "attendance_approved" || type === "attendance_rejected") {
-    return `${origin}${base}/applications/`;
   }
   if (
     type === "workforce_confirmed" ||

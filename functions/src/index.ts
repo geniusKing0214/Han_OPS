@@ -1,26 +1,8 @@
-  import * as admin from "firebase-admin";
+import * as admin from "firebase-admin";
 import { logger } from "firebase-functions/v2";
-import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
-import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 
 admin.initializeApp();
-
-// ──────────────────────────────────────────────
-// 서버사이드 Haversine (클라이언트와 동일 공식)
-// ──────────────────────────────────────────────
-function haversineMeters(
-  lat1: number, lon1: number,
-  lat2: number, lon2: number,
-): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
-}
 
 const PUSH_NOTIFICATION_TYPES = new Set([
   "schedule_created",
@@ -29,9 +11,6 @@ const PUSH_NOTIFICATION_TYPES = new Set([
   "application_cancelled",
   "application_approved",
   "notice_posted",
-  "attendance_submitted",
-  "attendance_approved",
-  "attendance_rejected",
   "workforce_confirmed",
   "workforce_updated",
   "workforce_cancelled",
@@ -98,15 +77,6 @@ function resolveOpenUrl(data: NotificationDoc): string {
     return `${origin}${base}/notices/`;
   }
   if (
-    type === "attendance_submitted" ||
-    type === "attendance_approved" ||
-    type === "attendance_rejected"
-  ) {
-    return type === "attendance_submitted"
-      ? `${origin}${base}/admin/attendance/`
-      : `${origin}${base}/applications/`;
-  }
-  if (
     type === "workforce_confirmed" ||
     type === "workforce_updated" ||
     type === "workforce_cancelled"
@@ -115,81 +85,6 @@ function resolveOpenUrl(data: NotificationDoc): string {
   }
   return `${origin}${base}/dashboard/`;
 }
-
-// ──────────────────────────────────────────────
-// 서버사이드 GPS 검증
-// 출근 인증 제출 시 클라이언트가 보고한 좌표를
-// 서버에서 이벤트 장소 좌표와 재계산하여 검증
-// ──────────────────────────────────────────────
-export const verifyAttendanceGps = onDocumentCreated(
-  "attendances/{attendanceId}",
-  async (event) => {
-    const data = event.data?.data();
-    const attendanceId = event.params.attendanceId;
-
-    if (!data) return;
-
-    const clientLat = data.latitude as number | null;
-    const clientLon = data.longitude as number | null;
-    const clientDist = data.distanceFromVenueMeters as number | null;
-    const venueLat = data.venueLatitude as number | null;
-    const venueLon = data.venueLongitude as number | null;
-
-    // GPS를 사용하지 않은 경우 스킵
-    if (clientLat == null || clientLon == null || venueLat == null || venueLon == null) {
-      await event.data?.ref.update({ gpsVerified: true, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-      return;
-    }
-
-    const serverDist = Math.round(haversineMeters(clientLat, clientLon, venueLat, venueLon));
-    const suspiciousReasons: string[] = [];
-
-    // ① 클라이언트가 보고한 거리와 서버 계산 결과 차이가 100m 이상이면 의심
-    if (clientDist !== null && Math.abs(serverDist - clientDist) > 100) {
-      suspiciousReasons.push(
-        `거리 불일치: 클라이언트 ${clientDist}m vs 서버 ${serverDist}m`,
-      );
-    }
-
-    // ② 정확도가 비정상적으로 낮은데 반경 안에 있다고 주장하는 경우
-    const accuracy = data.accuracy as number | null;
-    const allowedRadius = data.distanceFromVenueMeters != null ? 150 : 0;
-    if (
-      accuracy != null &&
-      accuracy <= 3 &&
-      serverDist > allowedRadius
-    ) {
-      suspiciousReasons.push(`정확도 ${accuracy}m로 비정상적으로 낮음 (fake GPS 의심)`);
-    }
-
-    // ③ Mock Location 클라이언트 신호가 high 위험도였던 경우
-    if (data.mockLocationRiskLevel === "high") {
-      suspiciousReasons.push("클라이언트에서 high 위험 fake GPS 신호 감지됨");
-    }
-
-    const gpsSuspicious = suspiciousReasons.length > 0;
-
-    await event.data?.ref.update({
-      gpsVerified: true,
-      serverDistanceMeters: serverDist,
-      gpsSuspicious,
-      gpsSuspiciousReasons: gpsSuspicious ? suspiciousReasons : null,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    if (gpsSuspicious) {
-      logger.warn("GPS suspicious attendance detected", {
-        attendanceId,
-        userId: data.userId,
-        serverDist,
-        clientDist,
-        reasons: suspiciousReasons,
-      });
-    } else {
-      logger.info("GPS verified OK", { attendanceId, serverDist });
-    }
-  },
-);
 
 export const sendPushOnNotification = onDocumentCreated(
   "notifications/{notificationId}",
@@ -283,95 +178,3 @@ export const sendPushOnNotification = onDocumentCreated(
       });
   },
 );
-
-/** 관리자 확인/반려 시 서버 시각으로 photoDeleteAt(+24h) 설정 */
-export const onAttendanceReviewed = onDocumentUpdated(
-  "attendances/{attendanceId}",
-  async (event) => {
-    const before = event.data?.before.data();
-    const after = event.data?.after.data();
-    if (!before || !after) return;
-
-    const becameReviewed =
-      before.reviewStatus !== after.reviewStatus &&
-      (after.reviewStatus === "approved" || after.reviewStatus === "rejected");
-
-    if (!becameReviewed) return;
-
-    const hintMs =
-      typeof after.photoDeleteAtHintMs === "number"
-        ? after.photoDeleteAtHintMs
-        : 24 * 60 * 60 * 1000;
-    const deleteAt = admin.firestore.Timestamp.fromMillis(Date.now() + hintMs);
-
-    await event.data?.after.ref.update({
-      photoDeleteAt: deleteAt,
-      reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
-      photoStatus:
-        typeof after.storagePath === "string" && after.storagePath
-          ? "scheduled_for_deletion"
-          : "none",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    logger.info("attendance review timestamps set", {
-      attendanceId: event.params.attendanceId,
-      reviewStatus: after.reviewStatus,
-    });
-  },
-);
-
-/** 1시간마다 삭제 예정 사진만 제거 (메타데이터·출근 기록 유지) */
-export const cleanupAttendancePhotos = onSchedule("every 60 minutes", async () => {
-  const db = admin.firestore();
-  const now = admin.firestore.Timestamp.now();
-  const snap = await db
-    .collection("attendances")
-    .where("photoStatus", "in", ["scheduled_for_deletion", "deletion_failed"])
-    .where("photoDeleteAt", "<=", now)
-    .limit(50)
-    .get();
-
-  if (snap.empty) {
-    logger.info("cleanupAttendancePhotos: nothing to delete");
-    return;
-  }
-
-  const bucket = admin.storage().bucket();
-
-  for (const docSnap of snap.docs) {
-    const data = docSnap.data();
-    const storagePath =
-      typeof data.storagePath === "string" ? data.storagePath : "";
-    try {
-      if (storagePath) {
-        await bucket.file(storagePath).delete({ ignoreNotFound: true });
-      }
-      await docSnap.ref.update({
-        photoUrl: null,
-        storagePath: null,
-        photoStatus: "deleted",
-        photoDeletedAt: admin.firestore.FieldValue.serverTimestamp(),
-        photoDeletionError: null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      logger.info("attendance photo deleted", { id: docSnap.id, storagePath });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const retry =
-        typeof data.photoDeletionRetryCount === "number"
-          ? data.photoDeletionRetryCount + 1
-          : 1;
-      await docSnap.ref.update({
-        photoStatus: "deletion_failed",
-        photoDeletionError: message.slice(0, 500),
-        photoDeletionRetryCount: retry,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      logger.error("attendance photo delete failed", {
-        id: docSnap.id,
-        message,
-      });
-    }
-  }
-});

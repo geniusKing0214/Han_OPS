@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { updateOwnProfile } from "@/lib/firestore-users";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +19,8 @@ import { Input } from "@/components/ui/input";
 
 export function ProfileSettingsForm() {
   const { user, profile, loading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
@@ -24,6 +28,8 @@ export function ProfileSettingsForm() {
     kind: "ok" | "err";
     text: string;
   } | null>(null);
+
+  const phoneRequired = searchParams.get("require") === "phone";
 
   useEffect(() => {
     if (!profile) return;
@@ -33,10 +39,18 @@ export function ProfileSettingsForm() {
 
   const handleSave = async () => {
     if (!user) return;
+    if (!phone.trim()) {
+      setFeedback({ kind: "err", text: "연락처는 필수 입력 항목입니다." });
+      return;
+    }
     setSaving(true);
     setFeedback(null);
     try {
       await updateOwnProfile(user.uid, { displayName, phone });
+      if (phoneRequired) {
+        router.replace("/dashboard");
+        return;
+      }
       setFeedback({ kind: "ok", text: "저장했습니다." });
     } catch (err) {
       setFeedback({
@@ -56,14 +70,29 @@ export function ProfileSettingsForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">프로필</CardTitle>
-        <CardDescription>표시 이름 및 연락처</CardDescription>
+        <CardTitle className="text-base">개인정보</CardTitle>
+        <CardDescription>이메일 · 표시 이름 · 연락처</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">불러오는 중...</p>
         ) : (
           <>
+            {phoneRequired && !profile?.phone ? (
+              <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                서비스 이용을 위해 연락처를 등록해 주세요.
+              </p>
+            ) : null}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">
+                이메일
+              </label>
+              <Input
+                value={user?.email ?? profile?.email ?? ""}
+                disabled
+                readOnly
+              />
+            </div>
             <div className="space-y-2">
               <label
                 htmlFor="profile-display-name"
@@ -85,7 +114,7 @@ export function ProfileSettingsForm() {
                 htmlFor="profile-phone"
                 className="text-xs font-medium text-muted-foreground"
               >
-                연락처
+                연락처 <span className="text-red-600">*</span>
               </label>
               <Input
                 id="profile-phone"
@@ -95,6 +124,7 @@ export function ProfileSettingsForm() {
                 disabled={disabled}
                 inputMode="tel"
                 autoComplete="tel"
+                required
               />
             </div>
           </>
@@ -111,7 +141,8 @@ export function ProfileSettingsForm() {
           </p>
         ) : null}
       </CardContent>
-      <CardFooter className="justify-end border-t border-border pt-4">
+      <CardFooter className="flex items-center justify-between border-t border-border pt-4">
+        <LogoutButton />
         <Button
           type="button"
           variant="accent"

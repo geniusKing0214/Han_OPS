@@ -14,12 +14,6 @@ const items = [
       p === "/admin/availability" || p.startsWith("/admin/availability/"),
   },
   {
-    href: "/admin/attendance",
-    label: "출근 인증 관리",
-    isActive: (p: string) =>
-      p === "/admin/attendance" || p.startsWith("/admin/attendance/"),
-  },
-  {
     href: "/admin/registrations",
     label: "가입 승인",
     isActive: (p: string) =>
@@ -30,6 +24,12 @@ const items = [
     label: "사용자 관리",
     isActive: (p: string) =>
       p === "/admin/users" || p.startsWith("/admin/users/"),
+  },
+  {
+    href: "/admin/members",
+    label: "회원관리",
+    isActive: (p: string) =>
+      p === "/admin/members" || p.startsWith("/admin/members/"),
   },
   {
     href: "/admin/applications",

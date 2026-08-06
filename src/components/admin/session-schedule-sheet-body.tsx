@@ -6,18 +6,12 @@ import { Trash2 } from "lucide-react";
 import type { EventItem, PositionDef } from "@/types/schedule";
 import { DEFAULT_POSITIONS } from "@/types/schedule";
 import {
-  DEFAULT_ATTENDANCE_SETTINGS,
-  type AttendanceSettings,
-} from "@/types/attendance";
-import { parseAttendanceSettings } from "@/lib/attendance-settings";
-import {
   addSession,
   removeSession,
   setSessionDate,
   updateEventDetails,
 } from "@/lib/schedule-mutations";
 import { toggleEventForceApplyOpen } from "@/lib/firestore-events";
-import { EventAttendanceSettingsFields } from "@/components/admin/event-attendance-settings-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,9 +51,6 @@ export function SessionScheduleSheetBody({
   const [metaVenue, setMetaVenue] = useState("");
   const [metaNotice, setMetaNotice] = useState("");
   const [metaColor, setMetaColor] = useState("#C8A96B");
-  const [metaAttendance, setMetaAttendance] = useState<AttendanceSettings>({
-    ...DEFAULT_ATTENDANCE_SETTINGS,
-  });
   const [metaUsePositions, setMetaUsePositions] = useState(false);
   const [metaPositions, setMetaPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [saveError, setSaveError] = useState("");
@@ -74,7 +65,6 @@ export function SessionScheduleSheetBody({
     setMetaVenue(live.venue);
     setMetaNotice(live.notice ?? "");
     setMetaColor(live.color ?? "#C8A96B");
-    setMetaAttendance(parseAttendanceSettings(live.attendance));
     setMetaUsePositions(live.usePositions ?? false);
     setMetaPositions(live.positions?.length ? live.positions : DEFAULT_POSITIONS);
     setSaveError("");
@@ -102,7 +92,6 @@ export function SessionScheduleSheetBody({
           venue: metaVenue.trim(),
           notice: metaNotice.trim() || undefined,
           color: metaColor.trim() || undefined,
-          attendance: metaAttendance,
           usePositions: metaUsePositions,
           positions: metaUsePositions
             ? metaPositions.filter((p) => p.label.trim())
@@ -217,10 +206,6 @@ export function SessionScheduleSheetBody({
               />
             </div>
           </div>
-          <EventAttendanceSettingsFields
-            value={metaAttendance}
-            onChange={setMetaAttendance}
-          />
 
           {/* 포지션 설정 */}
           <div className="space-y-2">

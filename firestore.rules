@@ -164,22 +164,6 @@ service cloud.firestore {
         )
         ||
         (
-          request.resource.data.type == 'attendance_submitted'
-          && request.resource.data.createdByUserId == request.auth.uid
-          && request.resource.data.targetRole == 'admin'
-          && request.resource.data.targetUserId is string
-        )
-        ||
-        (
-          isAdmin()
-          && (request.resource.data.type == 'attendance_approved'
-            || request.resource.data.type == 'attendance_rejected')
-          && request.resource.data.targetRole == 'member'
-          && request.resource.data.targetUserId is string
-          && request.resource.data.createdByUserId == request.auth.uid
-        )
-        ||
-        (
           isAdmin()
           && (request.resource.data.type == 'workforce_confirmed'
             || request.resource.data.type == 'workforce_updated'
@@ -265,45 +249,6 @@ service cloud.firestore {
       );
 
       allow create, update, delete: if isAdmin();
-    }
-
-    match /attendances/{attendanceId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || resource.data.userId == request.auth.uid
-      );
-
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.applicationId is string
-        && request.resource.data.eventId is string
-        && request.resource.data.workDate is string
-        && request.resource.data.reviewStatus == 'pending'
-        && request.resource.data.reviewedBy == null;
-
-      // 본인: 반려 후 재인증 시 새 문서 생성만 허용 (기존 문서 수정 금지)
-      // 관리자: 확인/반려/메모
-      allow update: if isAdmin();
-
-      allow delete: if false;
-    }
-
-    match /attendance_locks/{lockId} {
-      allow read: if isSignedIn() && (
-        isAdmin()
-        || !exists(/databases/$(database)/documents/attendance_locks/$(lockId))
-        || resource.data.userId == request.auth.uid
-      );
-
-      allow create: if isSignedIn()
-        && request.resource.data.userId == request.auth.uid;
-
-      allow update: if isAdmin() || (
-        isSignedIn()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-      );
-
-      allow delete: if false;
     }
 
     // 인력 배정 스케줄러 (기존 events/applications 와 분리)

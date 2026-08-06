@@ -1,4 +1,3 @@
-import type { AttendanceSettings } from "@/types/attendance";
 import type { TeamId } from "@/types/team";
 
 /** 포지션 내 시간 슬롯 (Option B) */
@@ -74,8 +73,6 @@ export type EventItem = {
   notice?: string;
   /** UI 강조용 hex 등 (선택) */
   color?: string;
-  /** 이벤트별 출근 인증 설정 (기본: 비활성) */
-  attendance?: AttendanceSettings;
   sessions: Session[];
   /** 포지션 사용 여부 (어드민이 이벤트 생성 시 활성화) */
   usePositions?: boolean;

@@ -1,20 +1,32 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 
+const SETTINGS_PATH = "/settings";
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, authReady, canAccessApp, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const onSettingsPage =
+    pathname === SETTINGS_PATH || pathname.startsWith(`${SETTINGS_PATH}/`);
+  const phoneMissing = canAccessApp && !profile?.phone?.trim();
 
   useEffect(() => {
     if (authReady && !loading && !user) {
       router.replace("/login");
     }
   }, [authReady, loading, router, user]);
+
+  useEffect(() => {
+    if (phoneMissing && !onSettingsPage) {
+      router.replace("/settings?require=phone");
+    }
+  }, [phoneMissing, onSettingsPage, router]);
 
   if (!authReady || loading) {
     return (
@@ -54,6 +66,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         <Button type="button" variant="outline" size="sm" onClick={() => void logout()}>
           로그아웃
         </Button>
+      </div>
+    );
+  }
+
+  if (phoneMissing && !onSettingsPage) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center gap-2 text-sm text-muted-foreground">
+        <span className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-accent" />
+        연락처 등록 페이지로 이동 중...
       </div>
     );
   }

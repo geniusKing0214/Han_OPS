@@ -12,10 +12,6 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
-import {
-  parseAttendanceSettings,
-  serializeAttendanceSettings,
-} from "@/lib/attendance-settings";
 import { computeTeam2ApplyOpensAt } from "@/lib/application-window";
 import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
 import { normalizeTeamIds } from "@/types/team";
@@ -58,7 +54,6 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     noticeRaw && noticeRaw.trim() !== "" ? noticeRaw.trim() : undefined;
   const color =
     colorRaw && colorRaw.trim() !== "" ? colorRaw.trim() : undefined;
-  const attendance = parseAttendanceSettings(data.attendance);
   const createdAt = timestampToIso(data.createdAt);
   const team2ApplyOpensAt = timestampToIso(data.team2ApplyOpensAt);
   const usePositions = data.usePositions === true;
@@ -101,7 +96,6 @@ function docToEvent(id: string, data: Record<string, unknown>): EventItem | null
     ...(team2ApplyOpensAt !== undefined ? { team2ApplyOpensAt } : {}),
     ...(notice !== undefined ? { notice } : {}),
     ...(color !== undefined ? { color } : {}),
-    attendance,
     sessions: sessions as EventItem["sessions"],
     usePositions,
     positions,
@@ -157,9 +151,6 @@ export async function saveEvent(event: EventItem): Promise<void> {
     sessions: event.sessions,
     notice: event.notice?.trim() ?? "",
     color: event.color?.trim() ?? "",
-    attendance: serializeAttendanceSettings(
-      parseAttendanceSettings(event.attendance),
-    ),
     usePositions: event.usePositions ?? false,
     positions: event.positions ?? [],
     locked: event.locked ?? false,
@@ -226,9 +217,6 @@ export async function createScheduleEvent(
       sessions: withMeta.sessions,
       notice: withMeta.notice?.trim() ?? "",
       color: withMeta.color?.trim() ?? "",
-      attendance: serializeAttendanceSettings(
-        parseAttendanceSettings(withMeta.attendance),
-      ),
       usePositions: withMeta.usePositions ?? false,
       positions: withMeta.positions ?? [],
       locked: withMeta.locked ?? false,

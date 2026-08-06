@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import type { EventItem, PositionDef, Slot } from "@/types/schedule";
 import { positionSlotKey } from "@/types/schedule";
-import { DEFAULT_ATTENDANCE_SETTINGS } from "@/types/attendance";
 import { teamExposureToTeamIds } from "@/types/team";
 import { Button } from "@/components/ui/button";
 import {
@@ -286,7 +285,6 @@ export function CreateScheduleDialog({
                   : {}),
               };
             }),
-            attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
             usePositions: true,
             positions: built.map((b) => b.def),
             forceApplyOpen: false,
@@ -311,7 +309,6 @@ export function CreateScheduleDialog({
               } satisfies Slot,
             ],
           })),
-          attendance: { ...DEFAULT_ATTENDANCE_SETTINGS },
           usePositions: false,
           positions: [],
           forceApplyOpen: false,
