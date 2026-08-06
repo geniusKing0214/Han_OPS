@@ -70,7 +70,12 @@ export async function listUsersForAdmin(): Promise<ListedUserRow[]> {
     uid: d.id,
     ...(d.data() as UserProfileDoc),
   }));
-  return rows.sort((a, b) => a.email.localeCompare(b.email, "ko"));
+  return rows.sort((a, b) =>
+    (a.displayName?.trim() || a.email).localeCompare(
+      b.displayName?.trim() || b.email,
+      "ko",
+    ),
+  );
 }
 
 export async function setUserRole(uid: string, role: UserRole) {

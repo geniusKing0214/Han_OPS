@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 
 import { TeamFilter } from "@/components/team/team-filter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,24 +37,6 @@ import {
   type TeamId,
 } from "@/types/team";
 import type { UserApprovalStatus, UserRole } from "@/types/user";
-
-const roleLabel: Record<UserRole, string> = {
-  admin: "관리자",
-  member: "일반",
-};
-
-const approvalLabel: Record<UserApprovalStatus, string> = {
-  pending: "승인 대기",
-  approved: "승인됨",
-  rejected: "거절됨",
-};
-
-function approvalBadgeVariant(status: UserApprovalStatus | undefined) {
-  if (status === "approved") return "success" as const;
-  if (status === "pending") return "warning" as const;
-  if (status === "rejected") return "destructive" as const;
-  return "outline" as const;
-}
 
 export function FirestoreUsersPanel() {
   const { user } = useAuth();
@@ -230,27 +211,13 @@ export function FirestoreUsersPanel() {
               return (
                 <div
                   key={row.uid}
-                  className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 lg:flex-row lg:items-center lg:justify-between"
+                  className="flex flex-nowrap items-center gap-2 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-2"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {row.displayName?.trim() || row.email}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {row.email}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <Badge variant="outline">{TEAM_LABELS[teamId]}</Badge>
-                      <Badge variant={role === "admin" ? "accent" : "outline"}>
-                        {roleLabel[role]}
-                      </Badge>
-                      <Badge variant={approvalBadgeVariant(accountStatus)}>
-                        {approvalLabel[accountStatus]}
-                      </Badge>
-                    </div>
-                  </div>
+                  <p className="min-w-0 flex-1 shrink-0 truncate text-sm font-medium">
+                    {row.displayName?.trim() || row.email}
+                  </p>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex shrink-0 flex-nowrap items-center gap-2">
                     <select
                       className="h-9 rounded-md border border-border bg-muted px-2 text-sm"
                       value={teamId}
