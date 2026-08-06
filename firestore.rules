@@ -235,7 +235,15 @@ service cloud.firestore {
         && request.resource.data.team_id is string
         && request.resource.data.team_id in ['team_1', 'team_2'];
 
-      allow update: if isAdmin();
+      // 일반 회원: 본인의 승인된 신청에 취소 요청만 걸 수 있다 (cancelRequestedAt 필드만 추가 가능).
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && resource.data.status == 'approved'
+        && !('cancelRequestedAt' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cancelRequestedAt'])
+        && request.resource.data.cancelRequestedAt != null
+      );
       allow delete: if isAdmin() || (
         isSignedIn() && resource.data.userId == request.auth.uid
       );

@@ -39,7 +39,7 @@ import {
   shiftWeek,
 } from "@/lib/workforce-dates";
 import { cn } from "@/lib/utils";
-import { normalizeTeamId, TEAM_LABELS } from "@/types/team";
+import { normalizeTeamId, TEAM_IDS, TEAM_LABELS, type TeamId } from "@/types/team";
 import type { WorkforceAvailability } from "@/types/workforce";
 
 /** 표시 중인 주 안에서 사유 메모가 달린 불가 날짜 목록 */
@@ -56,6 +56,7 @@ export function AdminAvailabilityPanel() {
   const nextWeekStart = useMemo(() => getNextWeekStart(), []);
   const [weekStart, setWeekStart] = useState(nextWeekStart);
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+  const [teamFilter, setTeamFilter] = useState<TeamId>("team_1");
   const [reasonMember, setReasonMember] = useState<ListedUserRow | null>(null);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [notSubmittedOpen, setNotSubmittedOpen] = useState(false);
@@ -87,9 +88,11 @@ export function AdminAvailabilityPanel() {
   const trackedMembers = useMemo(
     () =>
       users.filter(
-        (u) => u.accountStatus === "approved" || u.role === "admin",
+        (u) =>
+          (u.accountStatus === "approved" || u.role === "admin") &&
+          normalizeTeamId(u.team_id) === teamFilter,
       ),
-    [users],
+    [users, teamFilter],
   );
 
   const submitted = useMemo(
@@ -127,7 +130,7 @@ export function AdminAvailabilityPanel() {
 
   useEffect(() => {
     setExpandedDate(null);
-  }, [weekStart]);
+  }, [weekStart, teamFilter]);
 
   const isNextWeek = weekStart === nextWeekStart;
   const expandedBucket = dayBuckets.find((b) => b.date === expandedDate) ?? null;
@@ -144,6 +147,24 @@ export function AdminAvailabilityPanel() {
           {error}
         </p>
       ) : null}
+
+      <div className="flex gap-2">
+        {TEAM_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTeamFilter(id)}
+            className={cn(
+              "flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-colors",
+              teamFilter === id
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border bg-muted/20 text-muted-foreground hover:border-accent/40",
+            )}
+          >
+            {TEAM_LABELS[id]}
+          </button>
+        ))}
+      </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-center gap-2 py-3">
