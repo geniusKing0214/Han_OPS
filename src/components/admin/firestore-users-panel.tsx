@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Trash2 } from "lucide-react";
+
 import { TeamFilter } from "@/components/team/team-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  deleteUserData,
   listUsersForAdmin,
   setUserApprovalStatus,
   setUserRole,
@@ -55,6 +64,10 @@ export function FirestoreUsersPanel() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // 삭제 확인 다이얼로그
+  const [deleteTarget, setDeleteTarget] = useState<ListedUserRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -133,6 +146,22 @@ export function FirestoreUsersPanel() {
       setError(
         err instanceof Error ? err.message : "승인 상태 변경에 실패했습니다.",
       );
+    }
+  };
+
+  const onDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteUserData(deleteTarget.uid);
+      setDeleteTarget(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -265,7 +294,18 @@ export function FirestoreUsersPanel() {
                     </select>
                     {isSelf ? (
                       <span className="text-xs text-muted-foreground">본인</span>
-                    ) : null}
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-9 shrink-0 text-muted-foreground hover:bg-red-500/10 hover:text-red-400"
+                        onClick={() => setDeleteTarget(row)}
+                        aria-label="유저 삭제"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
@@ -274,6 +314,52 @@ export function FirestoreUsersPanel() {
         )}
       </CardContent>
     </Card>
+
+    {/* 삭제 확인 다이얼로그 */}
+    <Dialog
+      open={!!deleteTarget}
+      onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}
+    >
+      <DialogContent className="sm:max-w-sm sm:rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>유저 데이터 삭제</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {deleteTarget?.displayName?.trim() || deleteTarget?.email}
+            </span>
+            의 Firestore 데이터를 삭제합니다.
+          </p>
+          <div className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            삭제되는 항목: 프로필, 근무 가능일 데이터
+            <br />
+            복구 불가 · Firebase Auth 계정은 별도 삭제 필요
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting}
+            >
+              취소
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="flex-1 gap-2"
+              onClick={() => void onDeleteConfirm()}
+              disabled={deleting}
+            >
+              <Trash2 className="size-4" />
+              {deleting ? "삭제 중…" : "삭제 확인"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
