@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { subscribeAllAvailability } from "@/lib/firestore-workforce";
 import {
-  subscribeAllUsersForAdmin,
+  subscribeAllUsersForWorkforce,
   type ListedUserRow,
 } from "@/lib/firestore-users";
 import { isUserAvailableOnDate, resolveAvailability } from "@/lib/workforce-logic";
@@ -69,7 +69,7 @@ export function AdminAvailabilityPanel() {
 
   useEffect(
     () =>
-      subscribeAllUsersForAdmin(
+      subscribeAllUsersForWorkforce(
         (rows) => setUsers(rows),
         (e) => setError(e.message),
       ),
