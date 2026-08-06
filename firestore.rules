@@ -50,6 +50,8 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmTokens'])
         )
       );
+
+      allow delete: if isAdmin();
     }
 
     match /events/{eventId} {

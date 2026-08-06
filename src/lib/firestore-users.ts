@@ -281,16 +281,15 @@ export async function removeFcmToken(uid: string, token: string) {
 
 /**
  * 유저 데이터 삭제 (Firestore only).
- * 삭제 대상: users/{uid}, workforce_availability/{uid}
+ * 삭제 대상: users/{uid}, workforceAvailability/{uid}
  * ※ Firebase Auth 계정은 클라이언트에서 삭제 불가 — Admin SDK 필요.
  */
 export async function deleteUserData(uid: string): Promise<void> {
-  await Promise.all([
-    deleteDoc(doc(db, USERS_COLLECTION, uid)),
-    deleteDoc(doc(db, "workforce_availability", uid)).catch(() => {
-      // availability 문서가 없을 수도 있으므로 무시
-    }),
-  ]);
+  await assertAdmin();
+  await deleteDoc(doc(db, "workforceAvailability", uid)).catch(() => {
+    // availability 문서가 없을 수도 있으므로 무시
+  });
+  await deleteDoc(doc(db, USERS_COLLECTION, uid));
 }
 
 /** Workforce scheduler: subscribe all users including admins */
