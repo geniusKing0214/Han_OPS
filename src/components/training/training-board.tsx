@@ -14,6 +14,7 @@ import {
   cancelTrainingApplication,
   closeTraining,
   createTraining,
+  deleteTraining,
   reopenTraining,
   subscribeTrainings,
 } from "@/lib/firestore-training";
@@ -177,6 +178,20 @@ export function TrainingBoard() {
       await reopenTraining(training.id, user.uid, isAdmin);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "처리에 실패했습니다.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (training: TrainingItem) => {
+    if (!user) return;
+    if (!confirm(`"${training.title}" 교육을 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    setActionError("");
+    setBusyId(training.id);
+    try {
+      await deleteTraining(training.id, user.uid, isAdmin);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
     } finally {
       setBusyId(null);
     }
@@ -371,27 +386,39 @@ export function TrainingBoard() {
                       </Button>
                     )}
                     {isOwner ? (
-                      t.status === "open" ? (
+                      <>
+                        {t.status === "open" ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => void handleClose(t)}
+                          >
+                            마감하기
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => void handleReopen(t)}
+                          >
+                            다시 열기
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
+                          className="text-red-600 hover:bg-red-500/10"
                           disabled={busy}
-                          onClick={() => void handleClose(t)}
+                          onClick={() => void handleDelete(t)}
                         >
-                          마감하기
+                          삭제하기
                         </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => void handleReopen(t)}
-                        >
-                          다시 열기
-                        </Button>
-                      )
+                      </>
                     ) : null}
                   </div>
                 </div>

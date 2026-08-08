@@ -2,6 +2,7 @@ import {
   type FirestoreError,
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -209,4 +210,20 @@ export async function reopenTraining(
     closeReason: null,
     updatedAt: serverTimestamp(),
   });
+}
+
+/** 생성자 또는 관리자가 교육을 완전히 삭제 */
+export async function deleteTraining(
+  trainingId: string,
+  actorUid: string,
+  isAdmin: boolean,
+): Promise<void> {
+  const ref = doc(db, TRAININGS_COLLECTION, trainingId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const data = snap.data();
+  if (data.createdBy !== actorUid && !isAdmin) {
+    throw new Error("삭제 권한이 없습니다.");
+  }
+  await deleteDoc(ref);
 }
