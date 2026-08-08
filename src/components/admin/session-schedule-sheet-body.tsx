@@ -117,41 +117,39 @@ export function SessionScheduleSheetBody({
         ) : null}
 
         <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-medium text-muted-foreground">이벤트 기본 정보</p>
-            <div className="flex items-center gap-4">
-              <div
-                className="flex items-center gap-2"
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">이벤트 정보</p>
+            <div className="grid w-fit grid-cols-2 gap-x-5 gap-y-1.5">
+              <span
+                className="text-[11px] text-muted-foreground"
                 title="켜면 신청기간이 아니어도 이 일정은 항상 신청을 받습니다. 신청전 기간에 만든 급한 일정도 바로 신청중으로 바꿀 수 있습니다. 언제든 다시 꺼서 원래 신청기간 기준으로 되돌릴 수 있습니다."
               >
-                <span className="text-[11px] text-muted-foreground">상시 허용</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={!!live.forceApplyOpen}
-                  onClick={() =>
-                    void toggleEventForceApplyOpen(live.id, !live.forceApplyOpen)
-                  }
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-                    live.forceApplyOpen ? "bg-violet-500" : "bg-muted-foreground/30"
+                상시 허용
+              </span>
+              <span className="text-[11px] text-muted-foreground">색상</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!live.forceApplyOpen}
+                onClick={() =>
+                  void toggleEventForceApplyOpen(live.id, !live.forceApplyOpen)
+                }
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                  live.forceApplyOpen ? "bg-violet-500" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    live.forceApplyOpen ? "translate-x-6" : "translate-x-1"
                   }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                      live.forceApplyOpen ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">색상</span>
-                <Input
-                  type="color"
-                  className="h-8 w-12 shrink-0 cursor-pointer p-1"
-                  value={metaColor}
-                  onChange={(e) => setMetaColor(e.target.value)}
                 />
-              </div>
+              </button>
+              <Input
+                type="color"
+                className="h-8 w-12 shrink-0 cursor-pointer p-1"
+                value={metaColor}
+                onChange={(e) => setMetaColor(e.target.value)}
+              />
             </div>
           </div>
           <div className="space-y-2">
