@@ -26,6 +26,7 @@ import {
   notifyAdminsOnApplicationCancelled,
   notifyMemberOnApplicationApproved,
 } from "@/lib/firestore-notifications";
+import { writeActivityLog } from "@/lib/firestore-activity-log";
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
 import type { WorkStatus } from "@/types/points";
 import type { EventItem, Session } from "@/types/schedule";
@@ -663,7 +664,7 @@ export async function decideApplication(
   status: "approved" | "rejected",
   options?: { rejectionReason?: string },
 ) {
-  await assertAdmin();
+  const actorUid = await assertAdmin();
   const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
   const appSnap = await getDoc(appRef);
   if (!appSnap.exists()) {
@@ -805,6 +806,26 @@ export async function decideApplication(
     tx.update(appRef, { status: nextStatus });
   });
 
+  try {
+    await writeActivityLog({
+      action: status === "approved" ? "application_approved" : "application_rejected",
+      actorUserId: actorUid,
+      targetUserId: typeof appData.userId === "string" ? appData.userId : undefined,
+      targetUserName:
+        typeof appData.applicantDisplayName === "string"
+          ? appData.applicantDisplayName
+          : undefined,
+      eventTitle:
+        typeof appData.eventTitle === "string" ? appData.eventTitle : undefined,
+      detail:
+        status === "rejected" && options?.rejectionReason?.trim()
+          ? options.rejectionReason.trim()
+          : undefined,
+    });
+  } catch {
+    // 로그 실패는 승인/거절 자체를 막지 않는다.
+  }
+
   if (status === "approved") {
     const userId = typeof appData.userId === "string" ? appData.userId : "";
     if (userId) {
@@ -913,7 +934,7 @@ export async function cancelMyApplication(applicationId: string, uid: string) {
 
 /** 관리자: 취소 요청 승인 — 정원 반환 + 신청 삭제 (배정 해제와 동일 로직) */
 export async function adminApproveCancelRequest(applicationId: string) {
-  await assertAdmin();
+  const actorUid = await assertAdmin();
   const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
   const appSnap = await getDoc(appRef);
   if (!appSnap.exists()) {
@@ -924,11 +945,26 @@ export async function adminApproveCancelRequest(applicationId: string) {
     throw new Error("취소 요청 상태가 아닙니다.");
   }
   await adminRemoveApprovedApplicant(applicationId);
+  try {
+    await writeActivityLog({
+      action: "application_cancel_approved",
+      actorUserId: actorUid,
+      targetUserId: typeof appData.userId === "string" ? appData.userId : undefined,
+      targetUserName:
+        typeof appData.applicantDisplayName === "string"
+          ? appData.applicantDisplayName
+          : undefined,
+      eventTitle:
+        typeof appData.eventTitle === "string" ? appData.eventTitle : undefined,
+    });
+  } catch {
+    // 로그 실패는 처리 자체를 막지 않는다.
+  }
 }
 
 /** 관리자: 취소 요청 거절 — 취소 요청만 취소하고 승인 상태를 유지한다 */
 export async function adminRejectCancelRequest(applicationId: string) {
-  await assertAdmin();
+  const actorUid = await assertAdmin();
   const appRef = doc(db, APPLICATIONS_COLLECTION, applicationId);
   const appSnap = await getDoc(appRef);
   if (!appSnap.exists()) {
@@ -939,6 +975,21 @@ export async function adminRejectCancelRequest(applicationId: string) {
     throw new Error("취소 요청 상태가 아닙니다.");
   }
   await updateDoc(appRef, { cancelRequestedAt: deleteField() });
+  try {
+    await writeActivityLog({
+      action: "application_cancel_rejected",
+      actorUserId: actorUid,
+      targetUserId: typeof appData.userId === "string" ? appData.userId : undefined,
+      targetUserName:
+        typeof appData.applicantDisplayName === "string"
+          ? appData.applicantDisplayName
+          : undefined,
+      eventTitle:
+        typeof appData.eventTitle === "string" ? appData.eventTitle : undefined,
+    });
+  } catch {
+    // 로그 실패는 처리 자체를 막지 않는다.
+  }
 }
 
 /** 관리자: 승인된 신청자 배정 해제 (슬롯 정원 복구 후 신청 삭제) */

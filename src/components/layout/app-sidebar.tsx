@@ -7,6 +7,7 @@ import {
   Bell,
   CalendarRange,
   ClipboardList,
+  History,
   LayoutDashboard,
   MessageSquareText,
   Settings,
@@ -56,6 +57,12 @@ const approvalCalendarNavItem: SidebarLink = {
   href: "/approval-calendar",
   label: "승인 달력",
   icon: CalendarRange,
+};
+
+const activityLogNavItem: SidebarLink = {
+  href: "/logs",
+  label: "활동 로그",
+  icon: History,
 };
 
 const settingsNavItem: SidebarLink = {
@@ -160,6 +167,12 @@ export function AppSidebar({ className }: { className?: string }) {
               <NavLink
                 {...approvalCalendarNavItem}
                 active={isLinkActive(pathname, approvalCalendarNavItem)}
+              />
+            ) : null}
+            {isAdmin ? (
+              <NavLink
+                {...activityLogNavItem}
+                active={isLinkActive(pathname, activityLogNavItem)}
               />
             ) : null}
             <NavLink

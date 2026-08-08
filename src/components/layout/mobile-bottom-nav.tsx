@@ -8,6 +8,7 @@ import {
   CalendarCheck2,
   CalendarRange,
   ClipboardList,
+  History,
   LayoutDashboard,
   MessageSquareText,
   MoreHorizontal,
@@ -133,6 +134,7 @@ export function MobileBottomNav({ className }: { className?: string }) {
                     label="승인 달력"
                     icon={CalendarRange}
                   />
+                  <MoreLinkItem href="/logs" label="활동 로그" icon={History} />
                 </>
               ) : (
                 <p className="rounded-lg border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">

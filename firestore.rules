@@ -285,6 +285,12 @@ service cloud.firestore {
       );
     }
 
+    // 관리자 승인/거절/취소 처리, 스케줄 등록/삭제 감사 로그 — 관리자 전용.
+    match /activityLogs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     match /workforceMonthlyExports/{exportId} {
       allow read, create, update, delete: if isAdmin();
     }

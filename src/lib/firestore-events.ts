@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/firebase";
 import { computeTeam2ApplyOpensAt } from "@/lib/application-window";
 import { notifyTeamMembersOnScheduleCreated, notifyTeamMembersOnScheduleCancelled } from "@/lib/firestore-notifications";
+import { writeActivityLog } from "@/lib/firestore-activity-log";
 import { normalizeTeamIds } from "@/types/team";
 import type { EventItem, EventPackage, PositionDef, PositionSlot } from "@/types/schedule";
 
@@ -241,6 +242,17 @@ export async function createScheduleEvent(
   } catch {
     // 알림 실패해도 스케줄 저장은 유지
   }
+
+  try {
+    await writeActivityLog({
+      action: "schedule_created",
+      actorUserId: createdByUserId,
+      eventTitle: withMeta.title,
+      detail: withMeta.venue,
+    });
+  } catch {
+    // 로그 실패는 스케줄 저장을 막지 않는다.
+  }
 }
 
 export async function deleteEvent(
@@ -262,6 +274,17 @@ export async function deleteEvent(
       });
     } catch {
       // 알림 실패해도 삭제는 진행
+    }
+
+    try {
+      await writeActivityLog({
+        action: "schedule_deleted",
+        actorUserId: options.cancelledByUserId,
+        eventTitle: options.event.title,
+        detail: options.event.venue,
+      });
+    } catch {
+      // 로그 실패는 삭제를 막지 않는다.
     }
   }
 
