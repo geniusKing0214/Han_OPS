@@ -274,7 +274,15 @@ service cloud.firestore {
     }
 
     match /workforceLogs/{logId} {
-      allow read, create, update, delete: if isAdmin();
+      allow read, update, delete: if isAdmin();
+
+      // 본인 근무 가능일 신청 기록은 본인이 직접 남길 수 있다 (감사 로그용).
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.resource.data.action == 'member_submit_availability'
+        && request.resource.data.actorUserId == request.auth.uid
+        && request.resource.data.targetUserId == request.auth.uid
+      );
     }
 
     match /workforceMonthlyExports/{exportId} {

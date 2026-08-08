@@ -288,14 +288,9 @@ export function MyAvailabilityForm({
         </div>
       ) : null}
 
-      {error ? (
+      {error && locked ? (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">
           {error}
-        </p>
-      ) : null}
-      {saved && !dirty ? (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
-          저장되었습니다. 금요일 이후에는 관리자에게 수정 요청해 주세요.
         </p>
       ) : null}
 
@@ -401,6 +396,16 @@ export function MyAvailabilityForm({
           )}
         >
           <div className={cn(!compact && "mx-auto max-w-lg md:pt-2")}>
+            {error ? (
+              <p className="mb-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-700">
+                저장 실패: {error}
+              </p>
+            ) : null}
+            {saved && !dirty ? (
+              <p className="mb-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
+                저장되었습니다. 금요일 이후에는 관리자에게 수정 요청해 주세요.
+              </p>
+            ) : null}
             <Button
               type="button"
               variant="accent"

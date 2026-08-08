@@ -148,6 +148,7 @@ export type WorkforceLogAction =
   | "save_draft"
   | "export_monthly"
   | "update_availability"
+  | "member_submit_availability"
   | "import_events";
 
 export type WorkforceAssignmentLog = {

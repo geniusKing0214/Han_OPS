@@ -775,6 +775,19 @@ export async function upsertMyAvailability(input: {
     },
     { merge: true },
   );
+
+  try {
+    await writeAssignmentLog({
+      weekStart: allowedWeek,
+      actorUserId: uid,
+      actorName: "",
+      action: "member_submit_availability",
+      targetUserId: uid,
+      detail: `가능 ${Object.values(input.dateExceptions).filter((v) => v === "available").length}/7일`,
+    });
+  } catch {
+    // 감사 로그 실패는 신청 자체를 막지 않는다.
+  }
 }
 
 export function subscribeMyAvailability(
