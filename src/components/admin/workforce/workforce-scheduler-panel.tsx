@@ -222,7 +222,8 @@ export function WorkforceSchedulerPanel({
     "all",
   );
   const [dayFilter, setDayFilter] = useState<WeekdayKey | "all">("all");
-  const [roleFilter, setRoleFilter] = useState<"admin" | "worker">("admin");
+  // 기본값을 "전체"로 두어 근무 가능일 현황과 동일한 합계가 먼저 보이게 한다.
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "worker">("all");
   const [members, setMembers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
     () => new Map(),
@@ -429,9 +430,9 @@ export function WorkforceSchedulerPanel({
         if (m.role === "admin") admin += 1;
         else worker += 1;
       }
-      return { admin, worker };
+      return { admin, worker, all: admin + worker };
     };
-    const map = new Map<string, { admin: number; worker: number }>();
+    const map = new Map<string, { admin: number; worker: number; all: number }>();
     map.set("all", compute(null));
     WEEKDAY_KEYS.forEach((k, i) => {
       map.set(k, compute(chipWeekDates[i] ?? null));
@@ -1224,6 +1225,21 @@ export function WorkforceSchedulerPanel({
             </select>
 
             <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRoleFilter("all")}
+                className={cn(
+                  "flex h-10 flex-1 items-center justify-center gap-1 rounded-lg text-sm font-semibold transition-colors",
+                  roleFilter === "all"
+                    ? "bg-accent text-accent-foreground"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted",
+                )}
+              >
+                전체
+                <span className="text-xs opacity-80">
+                  ({(dayAvailabilityCounts.get(dayFilter) ?? dayAvailabilityCounts.get("all"))?.all ?? 0})
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => setRoleFilter("admin")}
