@@ -295,6 +295,32 @@ service cloud.firestore {
       allow read, create, update, delete: if isAdmin();
     }
 
+    // 교육 신청 — 아무 승인 회원이나 개설·신청 가능. 마감은 개설자/관리자만.
+    match /trainings/{trainingId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.location is string
+        && request.resource.data.startAt is string
+        && request.resource.data.content is string
+        && request.resource.data.capacity is int
+        && request.resource.data.capacity > 0
+        && request.resource.data.status == 'open'
+        && request.resource.data.applicants.size() == 0;
+
+      allow update: if isSignedIn() && (
+        isAdmin()
+        || resource.data.createdBy == request.auth.uid
+        || request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['applicants', 'status', 'closeReason', 'updatedAt'])
+      );
+
+      allow delete: if isAdmin() || resource.data.createdBy == request.auth.uid;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

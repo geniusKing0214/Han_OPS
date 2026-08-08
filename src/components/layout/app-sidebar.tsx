@@ -7,6 +7,7 @@ import {
   Bell,
   CalendarRange,
   ClipboardList,
+  GraduationCap,
   History,
   LayoutDashboard,
   MessageSquareText,
@@ -36,6 +37,7 @@ type SidebarGroup = {
 const overviewGroup: SidebarLink[] = [
   { href: "/dashboard", label: "마이페이지", icon: LayoutDashboard },
   { href: "/monthly-sheet", label: "월간 취합표", icon: Table2 },
+  { href: "/training", label: "교육신청", icon: GraduationCap },
   { href: "/notices", label: "Notices", icon: Bell },
   { href: "/bamboo-forest", label: "한대나무숲", icon: MessageSquareText },
 ];

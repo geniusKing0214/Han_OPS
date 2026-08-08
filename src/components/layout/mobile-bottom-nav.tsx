@@ -8,6 +8,7 @@ import {
   CalendarCheck2,
   CalendarRange,
   ClipboardList,
+  GraduationCap,
   History,
   LayoutDashboard,
   MessageSquareText,
@@ -46,6 +47,7 @@ const primary = [
 
 const moreLinks: MoreLink[] = [
   { href: "/my-assignments", label: "내 주간 배정표", icon: CalendarCheck2 },
+  { href: "/training", label: "교육신청", icon: GraduationCap },
   { href: "/bamboo-forest", label: "한대나무숲", icon: MessageSquareText },
 ];
 
