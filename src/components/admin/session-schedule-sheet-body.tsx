@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 
 import type { EventItem, PositionDef } from "@/types/schedule";
 import { DEFAULT_POSITIONS } from "@/types/schedule";
-import {
-  addSession,
-  removeSession,
-  setSessionDate,
-  updateEventDetails,
-} from "@/lib/schedule-mutations";
+import { updateEventDetails } from "@/lib/schedule-mutations";
 import { toggleEventForceApplyOpen } from "@/lib/firestore-events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,10 +49,6 @@ export function SessionScheduleSheetBody({
   const [metaUsePositions, setMetaUsePositions] = useState(false);
   const [metaPositions, setMetaPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
   const [saveError, setSaveError] = useState("");
-  const [addSessionDatePick, setAddSessionDatePick] = useState("");
-  const [sessionDateDraft, setSessionDateDraft] = useState("");
-  const sessionDateDraftRef = useRef(sessionDateDraft);
-  sessionDateDraftRef.current = sessionDateDraft;
 
   useEffect(() => {
     if (!live) return;
@@ -69,17 +60,6 @@ export function SessionScheduleSheetBody({
     setMetaPositions(live.positions?.length ? live.positions : DEFAULT_POSITIONS);
     setSaveError("");
   }, [resetKey, live?.id]);
-
-  const sessionDateSyncKey = live && session ? `${sessionId}:${session.date}` : "";
-
-  useEffect(() => {
-    if (!sessionDateSyncKey) return;
-    const sn = events
-      .find((e) => e.id === eventId)
-      ?.sessions.find((s) => s.id === sessionId);
-    if (!sn?.date) return;
-    setSessionDateDraft(sn.date);
-  }, [resetKey, sessionDateSyncKey, eventId, sessionId]);
 
   const handleSaveMeta = async () => {
     if (!live) return false;
@@ -136,38 +116,44 @@ export function SessionScheduleSheetBody({
           </p>
         ) : null}
 
-        <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">상시 신청 허용</p>
-              <p className="text-xs text-muted-foreground">
-                켜면 신청기간이 아니어도 이 일정은 항상 신청을 받습니다. 신청전
-                기간에 만든 급한 일정도 바로 신청중으로 바꿀 수 있습니다. 언제든
-                다시 꺼서 원래 신청기간 기준으로 되돌릴 수 있습니다.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={!!live.forceApplyOpen}
-              onClick={() =>
-                void toggleEventForceApplyOpen(live.id, !live.forceApplyOpen)
-              }
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-                live.forceApplyOpen ? "bg-violet-500" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                  live.forceApplyOpen ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
         <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">이벤트 기본 정보</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-medium text-muted-foreground">이벤트 기본 정보</p>
+            <div className="flex items-center gap-4">
+              <div
+                className="flex items-center gap-2"
+                title="켜면 신청기간이 아니어도 이 일정은 항상 신청을 받습니다. 신청전 기간에 만든 급한 일정도 바로 신청중으로 바꿀 수 있습니다. 언제든 다시 꺼서 원래 신청기간 기준으로 되돌릴 수 있습니다."
+              >
+                <span className="text-[11px] text-muted-foreground">상시 허용</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!live.forceApplyOpen}
+                  onClick={() =>
+                    void toggleEventForceApplyOpen(live.id, !live.forceApplyOpen)
+                  }
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                    live.forceApplyOpen ? "bg-violet-500" : "bg-muted-foreground/30"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      live.forceApplyOpen ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">색상</span>
+                <Input
+                  type="color"
+                  className="h-8 w-12 shrink-0 cursor-pointer p-1"
+                  value={metaColor}
+                  onChange={(e) => setMetaColor(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
           <div className="space-y-2">
             <label className="text-[11px] text-muted-foreground">이벤트명</label>
             <Input
@@ -189,22 +175,6 @@ export function SessionScheduleSheetBody({
               onChange={(e) => setMetaNotice(e.target.value)}
               className="min-h-[72px]"
             />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[11px] text-muted-foreground">표시 색상</label>
-            <div className="flex gap-2">
-              <Input
-                type="color"
-                className="h-9 w-14 cursor-pointer p-1"
-                value={metaColor}
-                onChange={(e) => setMetaColor(e.target.value)}
-              />
-              <Input
-                value={metaColor}
-                onChange={(e) => setMetaColor(e.target.value)}
-                className="flex-1 font-mono text-xs"
-              />
-            </div>
           </div>
 
           {/* 포지션 설정 */}
@@ -356,7 +326,7 @@ export function SessionScheduleSheetBody({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="grid grid-cols-2 gap-2 pt-1">
             <Button
               type="button"
               size="sm"
@@ -364,107 +334,20 @@ export function SessionScheduleSheetBody({
               disabled={saving || !metaTitle.trim() || !metaVenue.trim()}
               onClick={() => void handleSaveMeta()}
             >
-              기본 정보 저장
+              저장
             </Button>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-medium text-muted-foreground">이 날짜 세션</p>
             <Button
               type="button"
               size="sm"
-              variant="ghost"
-              className="text-red-600 hover:text-red-700"
+              variant="outline"
+              className="gap-1 text-red-600 hover:bg-red-500/10 hover:text-red-700"
               disabled={saving}
-              onClick={() => {
-                if (!confirm(`${session.date} 세션과 포함된 슬롯을 삭제할까요?`))
-                  return;
-                void (async () => {
-                  await onPersist(removeSession(live, sessionId));
-                  onClose();
-                })();
-              }}
+              onClick={() => void onDeleteEvent()}
             >
-              이 세션만 삭제
+              <Trash2 className="size-3.5" />
+              삭제
             </Button>
           </div>
-          <div className="space-y-1">
-            <label className="text-[11px] text-muted-foreground">세션 날짜</label>
-            <Input
-              type="date"
-              className="min-h-11 w-full max-w-full sm:max-w-[220px]"
-              value={sessionDateDraft || session.date}
-              onChange={(e) => setSessionDateDraft(e.target.value)}
-              onInput={(e) =>
-                setSessionDateDraft((e.target as HTMLInputElement).value)
-              }
-              onBlur={() => {
-                const next = sessionDateDraftRef.current;
-                const ln = events.find((e) => e.id === eventId);
-                const sn = ln?.sessions.find((s) => s.id === sessionId);
-                if (!ln || !sn || !next) return;
-                if (next === sn.date) return;
-                void onPersist(setSessionDate(ln, sessionId, next));
-              }}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              날짜를 바꾼 뒤 다른 칸을 탭하거나 바깥을 누르면 저장됩니다. 같은 화면에서
-              아래「다른 날짜 세션 추가」도 사용할 수 있습니다.
-            </p>
-          </div>
-
-        </div>
-
-        <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            이 이벤트에 다른 날짜 세션 추가
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-            <Input
-              type="date"
-              className="min-h-11 w-full min-w-0 sm:max-w-[220px]"
-              value={addSessionDatePick}
-              onChange={(e) => setAddSessionDatePick(e.target.value)}
-              onInput={(e) =>
-                setAddSessionDatePick((e.target as HTMLInputElement).value)
-              }
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="default"
-              className="w-full shrink-0 sm:w-auto"
-              disabled={!addSessionDatePick.trim()}
-              onClick={() => {
-                const d = addSessionDatePick.trim();
-                if (!d) return;
-                const ln = events.find((e) => e.id === eventId);
-                if (!ln) return;
-                void (async () => {
-                  await onPersist(addSession(ln, d));
-                  setAddSessionDatePick("");
-                })();
-              }}
-            >
-              날짜(세션) 추가
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="gap-1 text-red-600 hover:bg-red-500/10 hover:text-red-700"
-            disabled={saving}
-            onClick={() => void onDeleteEvent()}
-          >
-            <Trash2 className="size-3.5" />
-            일정 전체 삭제
-          </Button>
         </div>
       </div>
     </>
