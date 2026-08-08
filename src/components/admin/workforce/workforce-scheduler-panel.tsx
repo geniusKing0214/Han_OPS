@@ -138,12 +138,12 @@ type ApprovedApplicant = {
  * 라벨 문자열 해시로 팔레트에서 안정적으로 골라 서로 다른 색을 부여한다. */
 const POSITION_BADGE_PALETTE = [
   "bg-blue-500/25 text-blue-800",
-  "bg-amber-500/25 text-amber-100",
-  "bg-purple-500/25 text-purple-200",
-  "bg-pink-500/25 text-pink-200",
-  "bg-cyan-500/25 text-cyan-200",
+  "bg-amber-500/25 text-amber-800",
+  "bg-purple-500/25 text-purple-800",
+  "bg-pink-500/25 text-pink-800",
+  "bg-cyan-500/25 text-cyan-800",
   "bg-red-500/25 text-red-800",
-  "bg-lime-500/25 text-lime-200",
+  "bg-lime-500/25 text-lime-800",
 ];
 const POSITION_BADGE_DEFAULT = "bg-emerald-500/25 text-emerald-800";
 
@@ -2408,7 +2408,7 @@ function AvailabilityDialog({
           </DialogDescription>
         </DialogHeader>
         {memberLocked ? (
-          <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
             <p>
               멤버가 이 주 가능일을 신청해 잠긴 상태입니다. 관리자는 아래에서
               바로 수정할 수 있고, 잠금을 해제하면 멤버가 다시 신청할 수

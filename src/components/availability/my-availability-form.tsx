@@ -249,7 +249,7 @@ export function MyAvailabilityForm({
 
       {/* 화~목 신청 기간 중 이미 제출한 경우: 수정 가능 안내 */}
       {windowOpen && submitted ? (
-        <div className="flex items-start gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-100">
+        <div className="flex items-start gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-800">
           <Pencil className="mt-0.5 size-4 shrink-0" />
           <p>
             신청 완료 상태입니다.{" "}
@@ -259,7 +259,7 @@ export function MyAvailabilityForm({
         </div>
       ) : !windowOpen && submitted ? (
         /* 신청 기간 외 + 제출 완료: 잠금 */
-        <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-100">
+        <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-800">
           <Lock className="mt-0.5 size-4 shrink-0" />
           <p>
             익주 가능일 신청이 완료되었습니다. 내용을 바꾸려면 관리자에게

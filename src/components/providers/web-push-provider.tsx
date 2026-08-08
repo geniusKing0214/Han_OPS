@@ -242,6 +242,15 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
     if (!configured || !supported || getNotificationPermission() !== "granted") return;
 
     const unsub = subscribeForegroundMessages((payload) => {
+      const notificationId = payload.data?.notificationId
+        ? String(payload.data.notificationId)
+        : "";
+      // Firestore 실시간 구독 쪽(아래 effect)과 같은 알림을 중복으로 띄우지
+      // 않도록 동일한 seen 집합을 공유한다.
+      if (notificationId && seenNotificationIds.current.has(notificationId)) {
+        return;
+      }
+
       const type = payload.data?.type ?? "";
       if (
         type !== "schedule_created" &&
@@ -292,7 +301,8 @@ export function WebPushProvider({ children }: { children: ReactNode }) {
               ? String(payload.data.applicationId)
               : undefined,
           });
-      showBrowserNotification(title, { body, url });
+      if (notificationId) seenNotificationIds.current.add(notificationId);
+      showBrowserNotification(title, { body, url, tag: notificationId || undefined });
     });
 
     return unsub;
