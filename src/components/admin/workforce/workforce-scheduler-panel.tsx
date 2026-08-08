@@ -73,6 +73,7 @@ import {
   buildCalendarWeeks,
   formatDayHeader,
   formatRangeLabel,
+  getNextWeekStart,
   getRangeDates,
   getWeekDates,
   getWeekStartMonday,
@@ -188,7 +189,9 @@ export function WorkforceSchedulerPanel({
   const { user, isAdmin } = useAuth();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const { events, loading: eventsLoading } = useEvents();
-  const [cursor, setCursor] = useState(() => getWeekStartMonday());
+  // 기본값을 "익주"로 맞춰 근무 가능일 신청 화면과 같은 주를 보여준다
+  // (근무 가능일은 항상 익주 기준으로만 신청되므로).
+  const [cursor, setCursor] = useState(() => getNextWeekStart());
   const [rangeSpan, setRangeSpan] = useState<WorkforceRangeSpan>("1w");
   const [boardLayout, setBoardLayout] = useState<"columns" | "calendar">(
     "columns",

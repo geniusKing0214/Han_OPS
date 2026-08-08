@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 
 import type { EventItem, PositionDef, Slot } from "@/types/schedule";
 import { positionSlotKey } from "@/types/schedule";
-import { teamExposureToTeamIds } from "@/types/team";
+import {
+  TEAM_EXPOSURE_OPTIONS,
+  teamExposureToTeamIds,
+  type TeamExposure,
+} from "@/types/team";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -104,6 +108,7 @@ export function CreateScheduleDialog({
   ]);
   const [color, setColor] = useState("#C8A96B");
   const [notice, setNotice] = useState("");
+  const [teamExposure, setTeamExposure] = useState<TeamExposure>("team_1");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -117,6 +122,7 @@ export function CreateScheduleDialog({
     setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
     setNotice("");
+    setTeamExposure("team_1");
     setError("");
   }, [open, defaultDate]);
 
@@ -267,7 +273,7 @@ export function CreateScheduleDialog({
           return {
             title: title.trim(),
             venue: venue.trim(),
-            team_ids: teamExposureToTeamIds("team_1"),
+            team_ids: teamExposureToTeamIds(teamExposure),
             sessions: dates.map((d) => {
               const overrides: Record<string, string> = {};
               for (const { row, posId, slotId, def } of built) {
@@ -293,7 +299,7 @@ export function CreateScheduleDialog({
       : {
           title: title.trim(),
           venue: venue.trim(),
-          team_ids: teamExposureToTeamIds("team_1"),
+          team_ids: teamExposureToTeamIds(teamExposure),
           sessions: dates.map((d) => ({
             id: crypto.randomUUID(),
             date: d,
@@ -366,6 +372,29 @@ export function CreateScheduleDialog({
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
               />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">
+              노출 팀 *
+            </label>
+            <div className="flex gap-1.5">
+              {TEAM_EXPOSURE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setTeamExposure(opt.value)}
+                  className={cn(
+                    "flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                    teamExposure === opt.value
+                      ? "border-accent bg-accent/10 text-accent"
+                      : "border-border bg-muted text-muted-foreground hover:border-accent/40",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
