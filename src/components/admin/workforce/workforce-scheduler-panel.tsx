@@ -384,8 +384,6 @@ export function WorkforceSchedulerPanel({
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, chipWeekDates, count);
         if (statusFilter !== "all" && status !== statusFilter) return false;
-        if (dayFilterDate && !isUserAvailableOnDate(avail, dayFilterDate))
-          return false;
         return true;
       })
       .map((m) => {
@@ -395,6 +393,13 @@ export function WorkforceSchedulerPanel({
         return { member: m, avail, count, status };
       })
       .sort((a, b) => {
+        // 특정 요일을 선택했으면 그날 근무 가능한 사람을 먼저 보여주고,
+        // 불가능한 사람은 숨기지 않고 아래로 내린다 (그래도 배정은 가능해야 하므로).
+        if (dayFilterDate) {
+          const aOn = isUserAvailableOnDate(a.avail, dayFilterDate) ? 0 : 1;
+          const bOn = isUserAvailableOnDate(b.avail, dayFilterDate) ? 0 : 1;
+          if (aOn !== bOn) return aOn - bOn;
+        }
         const nameA = (a.member.displayName || a.member.email || "").trim();
         const nameB = (b.member.displayName || b.member.email || "").trim();
         return nameA.localeCompare(nameB, "ko", { sensitivity: "base" });
@@ -411,7 +416,9 @@ export function WorkforceSchedulerPanel({
     dayFilterDate,
   ]);
 
-  /** 요일 탭·요약에 쓰일 요일별 관리자/근무자 가능 인원 수 (검색·팀·상태 필터만 반영, 역할·요일 필터는 미반영) */
+  /** 요일 탭·요약에 쓰일 요일별 관리자/근무자 가능 인원 수 (검색·팀·상태 필터만 반영, 역할·요일 필터는 미반영)
+   * 근무 가능일 현황과 같은 기준으로 맞추기 위해, 이 주에 아직 신청하지 않은
+   * 멤버는 (기본값=가능 취급하지 않고) 가능/불가 집계에서 아예 제외한다. */
   const dayAvailabilityCounts = useMemo(() => {
     const compute = (date: string | null) => {
       let admin = 0;
@@ -423,6 +430,7 @@ export function WorkforceSchedulerPanel({
         if (search.trim() && !name.includes(search.trim().toLowerCase()))
           continue;
         const avail = resolveAvailability(availMap, m.uid);
+        if (!avail.memberSubmittedWeeks.includes(primaryWeekStart)) continue;
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, chipWeekDates, count);
         if (statusFilter !== "all" && status !== statusFilter) continue;
@@ -446,6 +454,7 @@ export function WorkforceSchedulerPanel({
     availMap,
     displaySchedules,
     chipWeekDates,
+    primaryWeekStart,
   ]);
 
   /** 스케줄 연동 카드에 표시할 승인·완료 신청자 (이미 배정된 유저 제외) */
