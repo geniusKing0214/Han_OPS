@@ -1347,6 +1347,9 @@ export function WorkforceSchedulerPanel({
                   </p>
                   {group.items.map(({ member, avail, count, status }) => {
                     const selected = selectedWorkerIds.includes(member.uid);
+                    const dayOn = dayFilterDate
+                      ? isUserAvailableOnDate(avail, dayFilterDate)
+                      : null;
                     return (
                       <div
                         key={member.uid}
@@ -1356,6 +1359,7 @@ export function WorkforceSchedulerPanel({
                         className={cn(
                           "rounded-xl border border-border/80 bg-background/50 p-2.5 transition-colors",
                           selected && "border-accent/50 bg-accent/10",
+                          dayOn === false && "opacity-50",
                           isDesktop && "cursor-grab active:cursor-grabbing",
                         )}
                         onClick={() => {
@@ -1366,52 +1370,56 @@ export function WorkforceSchedulerPanel({
                           );
                         }}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "size-2 shrink-0 rounded-full",
+                                STATUS_DOT[status],
+                              )}
+                              title={WORKFORCE_WORKER_STATUS_LABELS[status]}
+                            />
                             <p className="truncate text-sm font-medium">
                               {nameByUid.get(member.uid)}
                             </p>
-                            <p className="truncate text-[11px] text-muted-foreground">
-                              {member.email}
-                            </p>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              이번주 {count}/{avail.weeklyMaxAssignments}회
-                            </p>
                           </div>
-                          <span
-                            className={cn(
-                              "mt-1 size-2 shrink-0 rounded-full",
-                              STATUS_DOT[status],
-                            )}
-                            title={WORKFORCE_WORKER_STATUS_LABELS[status]}
-                          />
-                        </div>
-                        <div className="mt-2 flex gap-1">
                           {dayFilter === "all" ? (
-                            WEEKDAY_KEYS.map((k, i) => {
-                              const date = chipWeekDates[i]!;
-                              const on = isUserAvailableOnDate(avail, date);
-                              return (
-                                <span
-                                  key={k}
-                                  className={cn(
-                                    "flex h-6 flex-1 items-center justify-center rounded-md text-[10px] font-semibold",
-                                    on
-                                      ? "bg-accent/25 text-accent"
-                                      : "bg-red-500/20 text-red-700",
-                                  )}
-                                  title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
-                                >
-                                  {WEEKDAY_LABELS[k]}
-                                </span>
-                              );
-                            })
+                            <div className="flex shrink-0 gap-1">
+                              {WEEKDAY_KEYS.map((k, i) => {
+                                const date = chipWeekDates[i]!;
+                                const on = isUserAvailableOnDate(avail, date);
+                                return (
+                                  <span
+                                    key={k}
+                                    className={cn(
+                                      "flex h-5 w-5 items-center justify-center rounded text-[9px] font-semibold",
+                                      on
+                                        ? "bg-accent/25 text-accent"
+                                        : "bg-red-500/15 text-red-700/70",
+                                    )}
+                                    title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
+                                  >
+                                    {WEEKDAY_LABELS[k]}
+                                  </span>
+                                );
+                              })}
+                            </div>
                           ) : (
-                            <span className="flex h-6 flex-1 items-center justify-center rounded-md bg-accent/25 text-[11px] font-semibold text-accent">
-                              {WEEKDAY_LABELS[dayFilter]}요일 근무 가능
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                                dayOn
+                                  ? "bg-accent/25 text-accent"
+                                  : "bg-red-500/20 text-red-700",
+                              )}
+                            >
+                              {WEEKDAY_LABELS[dayFilter]}요일 {dayOn ? "가능" : "불가"}
                             </span>
                           )}
                         </div>
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          이번주 {count}/{avail.weeklyMaxAssignments}회
+                        </p>
                         <div className="mt-1.5 flex gap-2">
                           <button
                             type="button"
