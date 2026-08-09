@@ -390,9 +390,12 @@ export function WorkforceSchedulerPanel({
         const avail = resolveAvailability(availMap, m.uid);
         const count = countAssignmentsInWeek(displaySchedules, m.uid);
         const status = computeWorkerStatus(avail, chipWeekDates, count);
-        return { member: m, avail, count, status };
+        const submitted = avail.memberSubmittedWeeks.includes(primaryWeekStart);
+        return { member: m, avail, count, status, submitted };
       })
       .sort((a, b) => {
+        // 이번 주 근무 가능일을 신청한 사람을 먼저 보여주고, 미신청자는 아래로 내린다.
+        if (a.submitted !== b.submitted) return a.submitted ? -1 : 1;
         // 특정 요일을 선택했으면 그날 근무 가능한 사람을 먼저 보여주고,
         // 불가능한 사람은 숨기지 않고 아래로 내린다 (그래도 배정은 가능해야 하므로).
         if (dayFilterDate) {
@@ -414,6 +417,7 @@ export function WorkforceSchedulerPanel({
     displaySchedules,
     chipWeekDates,
     dayFilterDate,
+    primaryWeekStart,
   ]);
 
   /** 요일 탭·요약에 쓰일 요일별 관리자/근무자 가능 인원 수 (검색·팀·상태 필터만 반영, 역할·요일 필터는 미반영)
@@ -544,20 +548,118 @@ export function WorkforceSchedulerPanel({
       statusFilter !== "all"
         ? ` · ${WORKFORCE_WORKER_STATUS_LABELS[statusFilter]}`
         : "";
+    const toGroup = (key: string, label: string, items: typeof workers) => ({
+      key,
+      label: `${label}${statusSuffix}`,
+      items,
+      submittedItems: items.filter((w) => w.submitted),
+      unsubmittedItems: items.filter((w) => !w.submitted),
+    });
     const adminItems = workers.filter((w) => w.member.role === "admin");
-    const groups: Array<{ key: string; label: string; items: typeof workers }> =
-      TEAM_IDS.map((teamId) => ({
-        key: teamId as string,
-        label: `${TEAM_LABELS[teamId]}${statusSuffix}`,
-        items: workers.filter(
+    const groups = TEAM_IDS.map((teamId) =>
+      toGroup(
+        teamId as string,
+        TEAM_LABELS[teamId],
+        workers.filter(
           (w) => w.member.role !== "admin" && normalizeTeamId(w.member.team_id) === teamId,
         ),
-      })).filter((g) => g.items.length > 0);
+      ),
+    ).filter((g) => g.items.length > 0);
     if (adminItems.length > 0) {
-      groups.unshift({ key: "admin", label: `관리자${statusSuffix}`, items: adminItems });
+      groups.unshift(toGroup("admin", "관리자", adminItems));
     }
     return groups;
   }, [workers, statusFilter]);
+
+  const renderWorkerCard = (
+    item: (typeof workers)[number],
+    opts?: { muted?: boolean },
+  ) => {
+    const { member, avail, count, status } = item;
+    const selected = selectedWorkerIds.includes(member.uid);
+    const dayOn = dayFilterDate
+      ? isUserAvailableOnDate(avail, dayFilterDate)
+      : null;
+    return (
+      <div
+        key={member.uid}
+        draggable={isDesktop}
+        onDragStart={() => setDragUserId(member.uid)}
+        onDragEnd={() => setDragUserId(null)}
+        className={cn(
+          "rounded-xl border border-border/80 bg-background/50 p-2.5 transition-colors",
+          selected && "border-accent/50 bg-accent/10",
+          (dayOn === false || opts?.muted) && "opacity-50",
+          isDesktop && "cursor-grab active:cursor-grabbing",
+        )}
+        onClick={() => {
+          setSelectedWorkerIds((prev) =>
+            prev.includes(member.uid)
+              ? prev.filter((id) => id !== member.uid)
+              : [...prev, member.uid],
+          );
+        }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[status])}
+              title={WORKFORCE_WORKER_STATUS_LABELS[status]}
+            />
+            <p className="truncate text-sm font-medium">
+              {nameByUid.get(member.uid)}
+            </p>
+          </div>
+          {dayFilter === "all" ? (
+            <div className="flex shrink-0 gap-1">
+              {WEEKDAY_KEYS.map((k, i) => {
+                const date = chipWeekDates[i]!;
+                const on = isUserAvailableOnDate(avail, date);
+                return (
+                  <span
+                    key={k}
+                    className={cn(
+                      "flex h-5 w-5 items-center justify-center rounded text-[9px] font-semibold",
+                      on
+                        ? "bg-accent/25 text-accent"
+                        : "bg-red-500/15 text-red-700/70",
+                    )}
+                    title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
+                  >
+                    {WEEKDAY_LABELS[k]}
+                  </span>
+                );
+              })}
+            </div>
+          ) : (
+            <span
+              className={cn(
+                "shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                dayOn ? "bg-accent/25 text-accent" : "bg-red-500/20 text-red-700",
+              )}
+            >
+              {WEEKDAY_LABELS[dayFilter]}요일 {dayOn ? "가능" : "불가"}
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          이번주 {count}/{avail.weeklyMaxAssignments}회
+        </p>
+        <div className="mt-1.5 flex gap-2">
+          <button
+            type="button"
+            className="text-[11px] text-accent hover:underline"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAvailEditUser(member);
+            }}
+          >
+            수정
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   const patchScheduleFields = async (
     schedule: WorkforceSchedule,
@@ -1342,99 +1444,25 @@ export function WorkforceSchedulerPanel({
                   <p className="sticky top-0 z-[1] -mx-1 border-b border-border/60 bg-card/95 px-1.5 py-1 text-[11px] font-semibold tracking-wide text-foreground backdrop-blur-sm">
                     {group.label}
                     <span className="ml-1 font-normal text-muted-foreground">
-                      ({group.items.length})
+                      (신청 {group.submittedItems.length} · 전체 {group.items.length})
                     </span>
                   </p>
-                  {group.items.map(({ member, avail, count, status }) => {
-                    const selected = selectedWorkerIds.includes(member.uid);
-                    const dayOn = dayFilterDate
-                      ? isUserAvailableOnDate(avail, dayFilterDate)
-                      : null;
-                    return (
-                      <div
-                        key={member.uid}
-                        draggable={isDesktop}
-                        onDragStart={() => setDragUserId(member.uid)}
-                        onDragEnd={() => setDragUserId(null)}
-                        className={cn(
-                          "rounded-xl border border-border/80 bg-background/50 p-2.5 transition-colors",
-                          selected && "border-accent/50 bg-accent/10",
-                          dayOn === false && "opacity-50",
-                          isDesktop && "cursor-grab active:cursor-grabbing",
-                        )}
-                        onClick={() => {
-                          setSelectedWorkerIds((prev) =>
-                            prev.includes(member.uid)
-                              ? prev.filter((id) => id !== member.uid)
-                              : [...prev, member.uid],
-                          );
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <span
-                              className={cn(
-                                "size-2 shrink-0 rounded-full",
-                                STATUS_DOT[status],
-                              )}
-                              title={WORKFORCE_WORKER_STATUS_LABELS[status]}
-                            />
-                            <p className="truncate text-sm font-medium">
-                              {nameByUid.get(member.uid)}
-                            </p>
-                          </div>
-                          {dayFilter === "all" ? (
-                            <div className="flex shrink-0 gap-1">
-                              {WEEKDAY_KEYS.map((k, i) => {
-                                const date = chipWeekDates[i]!;
-                                const on = isUserAvailableOnDate(avail, date);
-                                return (
-                                  <span
-                                    key={k}
-                                    className={cn(
-                                      "flex h-5 w-5 items-center justify-center rounded text-[9px] font-semibold",
-                                      on
-                                        ? "bg-accent/25 text-accent"
-                                        : "bg-red-500/15 text-red-700/70",
-                                    )}
-                                    title={`${WEEKDAY_LABELS[k]} ${date} · ${on ? "가능" : "불가"}`}
-                                  >
-                                    {WEEKDAY_LABELS[k]}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <span
-                              className={cn(
-                                "shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold",
-                                dayOn
-                                  ? "bg-accent/25 text-accent"
-                                  : "bg-red-500/20 text-red-700",
-                              )}
-                            >
-                              {WEEKDAY_LABELS[dayFilter]}요일 {dayOn ? "가능" : "불가"}
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          이번주 {count}/{avail.weeklyMaxAssignments}회
-                        </p>
-                        <div className="mt-1.5 flex gap-2">
-                          <button
-                            type="button"
-                            className="text-[11px] text-accent hover:underline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setAvailEditUser(member);
-                            }}
-                          >
-                            수정
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {group.submittedItems.length > 0 && group.unsubmittedItems.length > 0 ? (
+                    <p className="px-1 text-[10px] font-semibold text-muted-foreground">
+                      이번주 신청함
+                    </p>
+                  ) : null}
+                  {group.submittedItems.map((item) => renderWorkerCard(item))}
+                  {group.unsubmittedItems.length > 0 ? (
+                    <>
+                      <p className="px-1 pt-1 text-[10px] font-semibold text-muted-foreground">
+                        미신청 ({group.unsubmittedItems.length})
+                      </p>
+                      {group.unsubmittedItems.map((item) =>
+                        renderWorkerCard(item, { muted: true }),
+                      )}
+                    </>
+                  ) : null}
                 </div>
               ))}
               </>
