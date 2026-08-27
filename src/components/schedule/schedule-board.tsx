@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import type { EventItem, EventPackage, PositionDef, Session } from "@/types/schedule";
-import { positionSlotKey } from "@/types/schedule";
+import { formatSlotTime, positionSlotKey } from "@/types/schedule";
 import type { TeamId } from "@/types/team";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
@@ -380,7 +380,7 @@ export function ScheduleBoard({
                                           return (
                                             <div key={slot.id} className="flex items-center gap-1.5">
                                               <span className="text-xs tabular-nums text-muted-foreground">
-                                                {slot.time}
+                                                {formatSlotTime(slot.time, slot.timeUndetermined)}
                                                 <span className="ml-1 opacity-70">
                                                   {full ? "마감" : `잔여${slotRemaining}/${slot.capacity}`}
                                                 </span>
@@ -450,7 +450,9 @@ export function ScheduleBoard({
                                   className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2.5"
                                 >
                                   <div className="text-sm tabular-nums">
-                                    <span className="font-medium text-foreground">{slot.start_time}</span>
+                                    <span className="font-medium text-foreground">
+                                      {formatSlotTime(slot.start_time, slot.timeUndetermined)}
+                                    </span>
                                     <span className="ml-2 text-muted-foreground">
                                       정원 {slot.applied_count}/{slot.capacity}
                                     </span>
@@ -472,6 +474,7 @@ export function ScheduleBoard({
                                         venue: event.venue,
                                         date: primarySession.date,
                                         slotStart: slot.start_time,
+                                        slotTimeUndetermined: slot.timeUndetermined,
                                         capacity: slot.capacity,
                                         applied: slot.applied_count,
                                         usePositions: event.usePositions,

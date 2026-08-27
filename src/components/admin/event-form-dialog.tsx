@@ -41,10 +41,19 @@ type PositionRow = {
   time: string;
   /** 날짜별 시간 오버라이드. key: YYYY-MM-DD */
   timeByDate: Record<string, string>;
+  /** true면 시간을 정하지 않고 "시간 미정"으로 두고 인원만 확정 */
+  timeUndetermined: boolean;
 };
 
 function emptyPositionRow(time = "09:00"): PositionRow {
-  return { id: crypto.randomUUID(), label: "", capacity: "1", time, timeByDate: {} };
+  return {
+    id: crypto.randomUUID(),
+    label: "",
+    capacity: "1",
+    time,
+    timeByDate: {},
+    timeUndetermined: false,
+  };
 }
 
 function formatDateLabel(ymd: string): string {
@@ -231,6 +240,11 @@ export function CreateScheduleDialog({
       prev.map((r) => (r.id === id ? { ...r, capacity } : r)),
     );
 
+  const updatePositionTimeUndetermined = (id: string, timeUndetermined: boolean) =>
+    setPositionRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, timeUndetermined } : r)),
+    );
+
   const timeForRow = (row: PositionRow) =>
     (activeDates.length > 0 ? row.timeByDate[activeDates[0]!] : undefined) ??
     row.time;
@@ -261,9 +275,10 @@ export function CreateScheduleDialog({
               slots: [
                 {
                   id: slotId,
-                  time: row.time || "09:00",
+                  time: row.timeUndetermined ? "" : row.time || "09:00",
                   capacity: rowCap,
                   applied_count: 0,
+                  ...(row.timeUndetermined ? { timeUndetermined: true } : {}),
                 },
               ],
             };
@@ -277,6 +292,7 @@ export function CreateScheduleDialog({
             sessions: dates.map((d) => {
               const overrides: Record<string, string> = {};
               for (const { row, posId, slotId, def } of built) {
+                if (row.timeUndetermined) continue;
                 const override = row.timeByDate[d];
                 if (override && override !== def.slots[0]!.time) {
                   overrides[positionSlotKey(posId, slotId)] = override;
@@ -306,12 +322,17 @@ export function CreateScheduleDialog({
             slots: [
               {
                 id: crypto.randomUUID(),
-                start_time: timeForRow(positionRows[0]!) || "09:00",
+                start_time: positionRows[0]!.timeUndetermined
+                  ? ""
+                  : timeForRow(positionRows[0]!) || "09:00",
                 capacity: Math.max(
                   1,
                   Number.parseInt(positionRows[0]!.capacity, 10) || 0,
                 ),
                 applied_count: 0,
+                ...(positionRows[0]!.timeUndetermined
+                  ? { timeUndetermined: true }
+                  : {}),
               } satisfies Slot,
             ],
           })),
@@ -508,15 +529,31 @@ export function CreateScheduleDialog({
                       }
                       placeholder="예: 딜러 (선택)"
                     />
-                    <Input
-                      type="time"
-                      step={60}
-                      className="tabular-nums"
-                      value={timeForRow(row)}
-                      onChange={(e) =>
-                        updatePositionTime(row.id, e.target.value)
-                      }
-                    />
+                    <div className="min-w-0 space-y-1">
+                      <Input
+                        type="time"
+                        step={60}
+                        className="tabular-nums"
+                        value={timeForRow(row)}
+                        disabled={row.timeUndetermined}
+                        onChange={(e) =>
+                          updatePositionTime(row.id, e.target.value)
+                        }
+                      />
+                      <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={row.timeUndetermined}
+                          onChange={(e) =>
+                            updatePositionTimeUndetermined(
+                              row.id,
+                              e.target.checked,
+                            )
+                          }
+                        />
+                        시간 미정
+                      </label>
+                    </div>
                     <Input
                       type="text"
                       inputMode="numeric"

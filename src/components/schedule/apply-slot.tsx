@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { createApplication } from "@/lib/firestore-applications";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { PositionDef, PositionSlot } from "@/types/schedule";
+import { formatSlotTime, type PositionDef, type PositionSlot } from "@/types/schedule";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +33,7 @@ export type ApplySlotContext = {
   // 일반 슬롯 (usePositions=false)
   slotId?: string;
   slotStart?: string;
+  slotTimeUndetermined?: boolean;
   capacity?: number;
   applied?: number;
   // 포지션 기반 (usePositions=true)
@@ -111,7 +112,8 @@ export function ApplySlotSurface({
           {ctx.venue}
         </p>
         <p className="tabular-nums">
-          {ctx.date} · {ctx.slotStart} 시작
+          {ctx.date} · {formatSlotTime(ctx.slotStart, ctx.slotTimeUndetermined)}
+          {ctx.slotTimeUndetermined ? "" : " 시작"}
         </p>
         <p>
           정원 {ctx.applied ?? 0}/{uncapped ? "∞" : ctx.capacity}
@@ -331,7 +333,9 @@ export function ApplySlotSurface({
                                 : "border-border bg-muted text-muted-foreground hover:border-accent/50 hover:text-foreground"
                           }`}
                         >
-                          <span className="tabular-nums">{slot.time}</span>
+                          <span className="tabular-nums">
+                            {formatSlotTime(slot.time, slot.timeUndetermined)}
+                          </span>
                           <span className="ml-1.5 text-xs opacity-70">
                             {full ? "마감" : `잔여 ${slotRemaining}/${slot.capacity}`}
                           </span>
@@ -348,7 +352,8 @@ export function ApplySlotSurface({
         </div>
         {selectedCombo && (
           <p className="text-xs text-accent mt-1">
-            선택: {selectedCombo.position.label} · {selectedCombo.slot.time}
+            선택: {selectedCombo.position.label} ·{" "}
+            {formatSlotTime(selectedCombo.slot.time, selectedCombo.slot.timeUndetermined)}
           </p>
         )}
       </div>

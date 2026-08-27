@@ -1035,32 +1035,47 @@ export function listEventSessionsInWeek(
                 0,
               )
             : 0;
-        const allTimes = (event.positions ?? [])
-          .flatMap((p) => p.slots?.map((s) => s.time) ?? [])
+        const allPositionSlots = (event.positions ?? []).flatMap(
+          (p) => p.slots ?? [],
+        );
+        const allTimes = allPositionSlots
+          .filter((s) => !s.timeUndetermined)
+          .map((s) => s.time)
           .filter(Boolean)
           .sort();
-        const startTime = allTimes[0] ?? "10:00";
+        const startTime =
+          allTimes[0] ??
+          (allPositionSlots.length > 0 &&
+          allPositionSlots.every((s) => s.timeUndetermined)
+            ? "시간 미정"
+            : "10:00");
         out.push({
           event,
           sessionId: session.id,
           date,
-          startTime: startTime || "10:00",
+          startTime,
           requiredCount: Math.max(1, totalCapacity),
         });
         continue;
       }
 
-      // 같은 start_time 슬롯은 정원만 합산 (중복 카드 방지)
+      // 같은 start_time 슬롯은 정원만 합산 (중복 카드 방지) — 시간 미정 슬롯은 따로 합산
       const byTime = new Map<string, number>();
+      let undeterminedCount = 0;
       for (const slot of slots) {
+        if (slot.timeUndetermined) {
+          undeterminedCount += Math.max(0, slot.capacity || 0);
+          continue;
+        }
         const t = (slot.start_time || "10:00").trim() || "10:00";
         byTime.set(t, (byTime.get(t) ?? 0) + Math.max(0, slot.capacity || 0));
       }
 
-      // 세션당 카드 1개: 가장 이른 시간 + 전체 정원 합
+      // 세션당 카드 1개: 가장 이른 시간 + 전체 정원 합 (전부 미정이면 "시간 미정")
       const times = [...byTime.keys()].sort();
-      const startTime = times[0] ?? "10:00";
-      const requiredCount = [...byTime.values()].reduce((a, b) => a + b, 0);
+      const startTime = times[0] ?? (undeterminedCount > 0 ? "시간 미정" : "10:00");
+      const requiredCount =
+        [...byTime.values()].reduce((a, b) => a + b, 0) + undeterminedCount;
 
       out.push({
         event,
