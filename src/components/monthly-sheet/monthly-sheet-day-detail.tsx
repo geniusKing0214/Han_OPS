@@ -420,17 +420,17 @@ export function MonthlySheetDayDetail({
 
                   {/* 메모 */}
                   {row.override?.displayMemo ? (
-                    <p className="mt-2 text-xs text-foreground/90 md:text-sm">
+                    <p className="mt-2 whitespace-pre-wrap text-xs text-foreground/90 md:text-sm">
                       {row.override.displayMemo}
                     </p>
                   ) : null}
                   {row.override?.extraMemo ? (
-                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+                    <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground md:text-sm">
                       {row.override.extraMemo}
                     </p>
                   ) : null}
                   {row.eventNotice ? (
-                    <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+                    <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground md:text-sm">
                       [일정] {row.eventNotice}
                     </p>
                   ) : null}

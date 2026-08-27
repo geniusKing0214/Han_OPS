@@ -302,7 +302,7 @@ export function AdminConsole({
                       </div>
                     ) : null}
                     {a.note ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
                         메모: {a.note}
                       </p>
                     ) : null}
