@@ -13,7 +13,7 @@ import {
 } from "@/lib/firestore-applications";
 import { subscribeMonthlySheet } from "@/lib/firestore-monthly-sheets";
 import { subscribeWorkforceSchedulesMulti } from "@/lib/firestore-workforce";
-import { subscribeAllUsersForAdmin } from "@/lib/firestore-users";
+import { subscribeAllUsersForWorkforce } from "@/lib/firestore-users";
 import { getWeekStartMonday } from "@/lib/workforce-dates";
 import { filterEventsByTeamFilter, filterEventsForMember } from "@/lib/team-utils";
 import type { ApplicationItem } from "@/types/application";
@@ -96,7 +96,7 @@ export function useMonthlySheetData(input: {
         finishIfReady();
       },
     );
-    const unsubscribeUsers = subscribeAllUsersForAdmin(
+    const unsubscribeUsers = subscribeAllUsersForWorkforce(
       (rows) => {
         setWorkforceUsers(
           rows.map((row) => ({
