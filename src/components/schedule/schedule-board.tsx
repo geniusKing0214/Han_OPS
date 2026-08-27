@@ -250,7 +250,7 @@ export function ScheduleBoard({
                             </p>
                           ) : null}
                           {event.notice ? (
-                            <p className="mt-2 text-xs text-muted-foreground">
+                            <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">
                               {event.notice}
                             </p>
                           ) : null}
