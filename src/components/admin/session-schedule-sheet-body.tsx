@@ -228,13 +228,13 @@ export function SessionScheduleSheetBody({
                       </button>
                     </div>
                     {/* 시간슬롯 */}
-                    <div className="space-y-1.5 pl-12">
+                    <div className="space-y-1.5 pl-8 sm:pl-12">
                       {(pos.slots ?? []).map((slot, si) => (
-                        <div key={slot.id} className="flex items-center gap-2">
+                        <div key={slot.id} className="flex flex-wrap items-center gap-2">
                           <Input
                             type="time"
                             step={60}
-                            className="w-28 h-8 text-sm tabular-nums"
+                            className="h-8 w-24 min-w-0 text-sm tabular-nums sm:w-28"
                             value={slot.time}
                             onChange={(e) =>
                               setMetaPositions((prev) =>
@@ -252,7 +252,7 @@ export function SessionScheduleSheetBody({
                           <Input
                             type="number"
                             min={1}
-                            className="w-16 h-8 text-sm"
+                            className="h-8 w-14 min-w-0 text-sm"
                             placeholder="정원"
                             value={slot.capacity}
                             onChange={(e) =>
