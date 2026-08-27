@@ -312,6 +312,7 @@ function buildWorkforceRow(
   schedule: WorkforceSchedule,
   teamId: TeamId,
   usersById: ReadonlyMap<string, WorkforceUserSummary>,
+  applications: ApplicationItem[],
   entryOverride?: SheetEntryOverride,
 ): SheetSlotRow | null {
   const assignedUsers = schedule.assignedUserIds
@@ -327,13 +328,42 @@ function buildWorkforceRow(
     return user ? user.teamId === teamId : schedule.teamIds.includes(teamId);
   }).length;
 
-  if (assignedCount === 0 && !entryOverride) return null;
+  // 스케줄러에 아직 배정으로 옮기지 않은, 원래 신청서로 승인된 인원도
+  // 합쳐서 보여준다 — 그렇지 않으면 스케줄러에서 처음 배정하는 순간
+  // 이 행이 신청서 기반 행을 대체하면서 기존 승인 인원이 화면에서
+  // 사라져 보인다 (인력 배치 스케줄러 화면은 이미 이렇게 합산해서 보여줌).
+  const assignedUidSet = new Set(schedule.assignedUserIds);
+  const seenApplicantKeys = new Set<string>();
+  const unassignedApprovedApplicants =
+    schedule.sourceEventId && schedule.sourceSessionId
+      ? applications.filter((a) => {
+          if (a.status !== "approved" && a.status !== "completed") return false;
+          if (a.eventId !== schedule.sourceEventId) return false;
+          if (a.sessionId !== schedule.sourceSessionId) return false;
+          if (normalizeAppTeam(a) !== teamId) return false;
+          if (a.userId && assignedUidSet.has(a.userId)) return false;
+          const dedupeKey = a.userId || applicantName(a);
+          if (seenApplicantKeys.has(dedupeKey)) return false;
+          seenApplicantKeys.add(dedupeKey);
+          return true;
+        })
+      : [];
 
-  const applicants = assignedUsers.map((user) => ({
-    name: user.name,
-    status: "approved" as const,
-    positionLabel: schedule.assigneePositions?.[user.uid],
-  }));
+  const totalCount = assignedCount + unassignedApprovedApplicants.length;
+  if (totalCount === 0 && !entryOverride) return null;
+
+  const applicants = [
+    ...assignedUsers.map((user) => ({
+      name: user.name,
+      status: "approved" as const,
+      positionLabel: schedule.assigneePositions?.[user.uid],
+    })),
+    ...unassignedApprovedApplicants.map((a) => ({
+      name: applicantName(a),
+      status: "approved" as const,
+      positionLabel: a.positionLabel,
+    })),
+  ];
   const base = {
     entryKey: `workforce:${schedule.id}:${teamId}`,
     workforceScheduleId: schedule.id,
@@ -346,7 +376,7 @@ function buildWorkforceRow(
     venue: schedule.venue,
     slotTime: schedule.startTime.trim() || "—",
     capacity: schedule.requiredCount,
-    headcount: assignedCount,
+    headcount: totalCount,
     applicants,
     eventNotice: schedule.note || undefined,
     eventColor: schedule.color,
@@ -354,14 +384,14 @@ function buildWorkforceRow(
   const row = applyEntryOverride(base, entryOverride);
   return {
     ...row,
-    statusLabel: `배정 ${assignedCount}명 · 필요 ${schedule.requiredCount}명`,
+    statusLabel: `배정 ${totalCount}명 · 필요 ${schedule.requiredCount}명`,
     displayLines: [
       row.eventTitle,
       row.venue,
       applicants.length > 0
         ? applicants.map((applicant) => applicant.name).join(", ")
-        : `배정 ${assignedCount}명`,
-      `${row.slotTime} · ${assignedCount}/${schedule.requiredCount}명`,
+        : `배정 ${totalCount}명`,
+      `${row.slotTime} · ${totalCount}/${schedule.requiredCount}명`,
     ],
   };
 }
@@ -462,6 +492,7 @@ function buildDayBundle(
         schedule,
         teamId,
         workforceUsersById,
+        applications,
         entryOverride,
       );
       if (!row) continue;
