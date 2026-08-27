@@ -252,6 +252,12 @@ export function CreateScheduleDialog({
     (activeDates.length > 0 ? row.timeByDate[activeDates[0]!] : undefined) ??
     row.time;
 
+  /** 특정 날짜의 최종 시간 — 그 날짜만의 오버라이드가 있으면 그걸, 없으면 기본 시간.
+   * (timeForRow는 "지금 편집 중인 칩" 기준이라 제출 시 날짜별로 순회할 때 쓰면
+   * 모든 날짜에 같은 값이 적용되는 버그가 생기므로 별도로 둔다.) */
+  const timeForDate = (row: PositionRow, date: string) =>
+    row.timeByDate[date] ?? row.time;
+
   const handleSubmit = async () => {
     setError("");
     if (!title.trim() || !venue.trim()) {
@@ -338,7 +344,7 @@ export function CreateScheduleDialog({
                 id: crypto.randomUUID(),
                 start_time: positionRows[0]!.timeUndetermined
                   ? ""
-                  : timeForRow(positionRows[0]!) || "09:00",
+                  : timeForDate(positionRows[0]!, d) || "09:00",
                 capacity: Math.max(
                   1,
                   Number.parseInt(positionRows[0]!.capacity, 10) || 0,
