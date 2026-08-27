@@ -264,6 +264,15 @@ export function CreateScheduleDialog({
     const useMultiplePositions =
       positionRows.length > 1 || positionRows[0]!.label.trim() !== "";
 
+    // 연속된 날짜끼리는 같은 groupId로 묶어서, 신청 한 번으로 연일 전체에
+    // 적용되게 한다 (연속이 아닌 날짜는 그룹 없이 각자 별도 신청).
+    const dateGroupId = new Map<string, string>();
+    for (const group of groupConsecutiveDates(dates)) {
+      if (group.length <= 1) continue;
+      const gid = crypto.randomUUID();
+      for (const d of group) dateGroupId.set(d, gid);
+    }
+
     const payload: Omit<EventItem, "id"> = useMultiplePositions
       ? (() => {
           const built = positionRows.map((row, idx) => {
@@ -304,6 +313,7 @@ export function CreateScheduleDialog({
                 id: crypto.randomUUID(),
                 date: d,
                 slots: [],
+                ...(dateGroupId.has(d) ? { groupId: dateGroupId.get(d)! } : {}),
                 ...(Object.keys(overrides).length > 0
                   ? { positionSlotTimeOverrides: overrides }
                   : {}),
@@ -321,6 +331,7 @@ export function CreateScheduleDialog({
           sessions: dates.map((d) => ({
             id: crypto.randomUUID(),
             date: d,
+            ...(dateGroupId.has(d) ? { groupId: dateGroupId.get(d)! } : {}),
             slots: [
               {
                 id: crypto.randomUUID(),
