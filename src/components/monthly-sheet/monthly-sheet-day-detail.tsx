@@ -148,7 +148,7 @@ export function MonthlySheetDayDetail({
         </p>
       ) : null}
       {bundle.dayOverride?.customMemo ? (
-        <p className="px-1 pb-1 text-xs text-muted-foreground md:text-sm">
+        <p className="whitespace-pre-wrap px-1 pb-1 text-xs text-muted-foreground md:text-sm">
           {bundle.dayOverride.customMemo}
         </p>
       ) : null}
