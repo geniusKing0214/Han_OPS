@@ -406,7 +406,7 @@ export function PointsDashboard() {
                         {log.points}P
                       </span>
                     </div>
-                    <p className="leading-snug text-foreground">{log.reason}</p>
+                    <p className="whitespace-pre-wrap leading-snug text-foreground">{log.reason}</p>
                     <p className="text-[10px] text-muted-foreground tabular-nums">
                       {formatLogDate(log.created_at)}
                     </p>
