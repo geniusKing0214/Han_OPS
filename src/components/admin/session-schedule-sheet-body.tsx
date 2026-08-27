@@ -236,6 +236,7 @@ export function SessionScheduleSheetBody({
                             step={60}
                             className="h-8 w-24 min-w-0 text-sm tabular-nums sm:w-28"
                             value={slot.time}
+                            disabled={slot.timeUndetermined}
                             onChange={(e) =>
                               setMetaPositions((prev) =>
                                 prev.map((p, i) =>
@@ -249,6 +250,27 @@ export function SessionScheduleSheetBody({
                               )
                             }
                           />
+                          <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              checked={!!slot.timeUndetermined}
+                              onChange={(e) =>
+                                setMetaPositions((prev) =>
+                                  prev.map((p, i) =>
+                                    i !== idx ? p : {
+                                      ...p,
+                                      slots: p.slots.map((s, j) =>
+                                        j === si
+                                          ? { ...s, timeUndetermined: e.target.checked }
+                                          : s,
+                                      ),
+                                    },
+                                  ),
+                                )
+                              }
+                            />
+                            미정
+                          </label>
                           <Input
                             type="number"
                             min={1}

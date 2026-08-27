@@ -1,5 +1,5 @@
 import type { ApplicationItem, ApplicationStatus } from "@/types/application";
-import type { EventItem, Session, Slot } from "@/types/schedule";
+import { formatSlotTime, type EventItem, type Session, type Slot } from "@/types/schedule";
 
 export type SlotStatusCounts = {
   total: number;
@@ -83,7 +83,7 @@ export function slotKey(eventId: string, sessionId: string, slotId: string) {
 }
 
 export function formatSlotTimeLabel(slot: Slot): string {
-  return slot.start_time.trim() || "—";
+  return formatSlotTime(slot.start_time, slot.timeUndetermined);
 }
 
 export function statusBadgeVariant(

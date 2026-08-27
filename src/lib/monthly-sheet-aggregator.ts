@@ -17,7 +17,7 @@ import {
   type TeamFilterValue,
   type TeamId,
 } from "@/types/team";
-import type { EventItem, Session, Slot } from "@/types/schedule";
+import { formatSlotTime, type EventItem, type Session, type Slot } from "@/types/schedule";
 import type { WorkforceSchedule } from "@/types/workforce";
 
 export type WorkforceUserSummary = {
@@ -163,12 +163,18 @@ function buildPositionSessionRow(
       0,
     ) ?? 0;
 
-  // 가장 이른 시간 슬롯 시간
-  const allTimes = (event.positions ?? [])
-    .flatMap((p) => p.slots?.map((s) => s.time) ?? [])
+  // 가장 이른 시간 슬롯 시간 (시간 미정 슬롯은 제외하고 계산 — 전부 미정이면 "시간 미정")
+  const allSlots = (event.positions ?? []).flatMap((p) => p.slots ?? []);
+  const allTimes = allSlots
+    .filter((s) => !s.timeUndetermined)
+    .map((s) => s.time)
     .filter(Boolean)
     .sort();
-  const slotTime = allTimes[0] ?? "—";
+  const slotTime =
+    allTimes[0] ??
+    (allSlots.length > 0 && allSlots.every((s) => s.timeUndetermined)
+      ? "시간 미정"
+      : "—");
 
   const applicants = visibleApps.map((a) => ({
     name: applicantName(a),
@@ -285,7 +291,7 @@ function buildSlotRow(
     teamId,
     eventTitle: event.title,
     venue: event.venue,
-    slotTime: slot.start_time.trim() || "—",
+    slotTime: formatSlotTime(slot.start_time, slot.timeUndetermined),
     capacity: slot.capacity,
     // slot.applied_count는 팀 구분 없이 전체 합산된 값이라 팀별 화면에 쓰면
     // 상대 팀 인원이 새어 보일 수 있어 폴백에서 제외 (approvedCount/applicants는

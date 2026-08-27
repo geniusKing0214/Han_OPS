@@ -6,6 +6,8 @@ export type PositionSlot = {
   time: string;          // e.g. "09:00"
   capacity: number;
   applied_count: number;
+  /** true면 time을 비워두고 "시간 미정"으로 표시 — 인원만 확정하고 시간은 나중에 정할 때 사용 */
+  timeUndetermined?: boolean;
 };
 
 /** 포지션 정의 (어드민이 이벤트별로 커스터마이즈) */
@@ -28,7 +30,18 @@ export type Slot = {
   start_time: string;
   capacity: number;
   applied_count: number;
+  /** true면 start_time을 비워두고 "시간 미정"으로 표시 — 인원만 확정하고 시간은 나중에 정할 때 사용 */
+  timeUndetermined?: boolean;
 };
+
+/** 시간 문자열 표시용 — timeUndetermined면 "시간 미정", 아니면 원래 시간(없으면 대시) */
+export function formatSlotTime(
+  time: string | undefined,
+  timeUndetermined?: boolean,
+): string {
+  if (timeUndetermined) return "시간 미정";
+  return time?.trim() || "—";
+}
 
 export type Session = {
   id: string;
