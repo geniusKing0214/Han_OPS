@@ -125,7 +125,9 @@ export function CreateScheduleDialog({
     setTitle("");
     setVenue("");
     setDates(defaultDate ? [defaultDate] : []);
-    setRangeStart("");
+    // defaultDate가 있으면 날짜 선택칸의 시작값도 그 달로 맞춰서, 달력을
+    // 열었을 때 오늘 날짜가 속한 달이 아니라 작업 중인 달이 바로 보이게 한다.
+    setRangeStart(defaultDate ?? "");
     setRangeEnd("");
     setActiveDates([]);
     setPositionRows([emptyPositionRow()]);
