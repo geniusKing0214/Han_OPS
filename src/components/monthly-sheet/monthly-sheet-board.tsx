@@ -516,7 +516,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
         >
           <SheetContent
             side="right"
-            className="w-1/2 overflow-y-auto sm:max-w-[18rem]"
+            className="w-[92vw] overflow-y-auto sm:max-w-lg"
           >
             {!scheduleContext ? (
               <SheetHeader>
