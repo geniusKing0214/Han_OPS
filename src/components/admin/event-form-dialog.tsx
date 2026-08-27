@@ -125,10 +125,11 @@ export function CreateScheduleDialog({
     setTitle("");
     setVenue("");
     setDates(defaultDate ? [defaultDate] : []);
-    // defaultDate가 있으면 날짜 선택칸의 시작값도 그 달로 맞춰서, 달력을
+    // defaultDate가 있으면 시작·종료 선택칸 값을 그 달로 맞춰서, 달력을
     // 열었을 때 오늘 날짜가 속한 달이 아니라 작업 중인 달이 바로 보이게 한다.
+    // 종료일을 시작일과 같은 값으로 채워도 "추가" 시 하루만 추가되는 동작은 그대로다.
     setRangeStart(defaultDate ?? "");
-    setRangeEnd("");
+    setRangeEnd(defaultDate ?? "");
     setActiveDates([]);
     setPositionRows([emptyPositionRow()]);
     setColor("#C8A96B");
