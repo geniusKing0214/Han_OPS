@@ -464,7 +464,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
                   ) : adminMemo ? (
                     <div className="rounded-xl border border-border bg-card p-5">
                       <h3 className="text-base font-semibold">월간 메모</h3>
-                      <p className="mt-3 text-sm text-muted-foreground">
+                      <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
                         {adminMemo}
                       </p>
                     </div>
