@@ -2326,7 +2326,7 @@ function ScheduleCard({
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  {/* 포지션(신청 없음 포함)별로 묶어서 뱃지는 한 번만, 이름은 3열 그리드로 */}
+                  {/* 포지션(신청 없음 포함)별로 묶어서 뱃지는 한 번만, 이름은 2열 그리드로 */}
                   {groupApprovedApplicantsByPosition(approvedApplicants).map(
                     (group) => (
                       <div key={group.label} className="space-y-1">
@@ -2339,14 +2339,14 @@ function ScheduleCard({
                         >
                           {group.label}
                         </span>
-                        <div className="grid grid-cols-3 gap-1">
+                        <div className="grid grid-cols-2 gap-1">
                           {group.items.map((a, i) => (
                             <span
                               key={a.applicationId || a.uid || `${a.name}:${i}`}
                               className="inline-flex min-w-0 items-center gap-1 rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
                               title="이벤트 신청 승인"
                             >
-                              <span className="truncate">{a.name}</span>
+                              <span className="min-w-0 truncate">{a.name}</span>
                               {a.completed ? null : (
                                 <button
                                   type="button"
