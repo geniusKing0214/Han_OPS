@@ -6,7 +6,7 @@ import { Trash2 } from "lucide-react";
 import type { EventItem, PositionDef } from "@/types/schedule";
 import { DEFAULT_POSITIONS } from "@/types/schedule";
 import { updateEventDetails } from "@/lib/schedule-mutations";
-import { toggleEventForceApplyOpen } from "@/lib/firestore-events";
+import { toggleEventClosed, toggleEventForceApplyOpen } from "@/lib/firestore-events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -119,12 +119,18 @@ export function SessionScheduleSheetBody({
         <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">이벤트 정보</p>
-            <div className="grid w-fit grid-cols-2 gap-x-5 gap-y-1.5">
+            <div className="grid w-fit grid-cols-3 gap-x-5 gap-y-1.5">
               <span
                 className="text-[11px] text-muted-foreground"
                 title="켜면 신청기간이 아니어도 이 일정은 항상 신청을 받습니다. 신청전 기간에 만든 급한 일정도 바로 신청중으로 바꿀 수 있습니다. 언제든 다시 꺼서 원래 신청기간 기준으로 되돌릴 수 있습니다."
               >
                 상시 허용
+              </span>
+              <span
+                className="text-[11px] text-muted-foreground"
+                title="켜면 모집인원이 다 차지 않았어도 이 일정의 신청을 바로 마감합니다. 이미 승인된 인원은 그대로 유지되고, 언제든 다시 꺼서 신청을 재개할 수 있습니다."
+              >
+                마감
               </span>
               <span className="text-[11px] text-muted-foreground">색상</span>
               <button
@@ -141,6 +147,21 @@ export function SessionScheduleSheetBody({
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
                     live.forceApplyOpen ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!live.closed}
+                onClick={() => void toggleEventClosed(live.id, !live.closed)}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                  live.closed ? "bg-red-500" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    live.closed ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>

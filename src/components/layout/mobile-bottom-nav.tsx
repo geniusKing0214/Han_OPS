@@ -76,7 +76,7 @@ export function MobileBottomNav({ className }: { className?: string }) {
   return (
     <nav
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden",
+        "fixed inset-x-0 bottom-0 z-40 transform-gpu border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur will-change-transform md:hidden",
         className,
       )}
     >
