@@ -70,8 +70,10 @@ function nextYmd(ymd: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 연속된 날짜끼리 묶어서 칩 하나로 표시하기 위한 그룹핑 */
-function groupConsecutiveDates(dates: string[]): string[][] {
+/** 같은 그룹(배열) 안에서만 연속 구간으로 재정렬 — 그룹 경계는 넘지 않는다.
+ * 즉 "따로 추가"한 날짜는 달력상 이웃해 있어도 합쳐지지 않고, 한 번의
+ * 범위(시작~종료) 추가로 들어온 날짜만 하나의 연속 구간으로 유지된다. */
+function splitIntoConsecutiveRuns(dates: string[]): string[][] {
   const sorted = [...dates].sort();
   const groups: string[][] = [];
   for (const d of sorted) {
@@ -105,7 +107,11 @@ export function CreateScheduleDialog({
 }: CreateScheduleDialogProps) {
   const [title, setTitle] = useState("");
   const [venue, setVenue] = useState("");
-  const [dates, setDates] = useState<string[]>([]);
+  /** 칩 하나 = 한 번의 "+추가" 동작. 따로 추가한 날짜는 서로 다른 그룹으로
+   * 남고, 시작~종료를 채워 범위로 추가했을 때만 하나의 연속 구간 그룹이
+   * 된다 — 달력상 이웃한 날짜라도 그룹이 다르면 합치지 않는다. */
+  const [dateGroups, setDateGroups] = useState<string[][]>([]);
+  const dates = dateGroups.flat().sort();
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   /** 비어있으면 "기본 시간" 편집 중. 칩을 탭하면 그 날짜(또는 연속 구간
@@ -124,7 +130,7 @@ export function CreateScheduleDialog({
     if (!open) return;
     setTitle("");
     setVenue("");
-    setDates(defaultDate ? [defaultDate] : []);
+    setDateGroups(defaultDate ? [[defaultDate]] : []);
     // defaultDate가 있으면 시작·종료 선택칸 값을 그 달로 맞춰서, 달력을
     // 열었을 때 오늘 날짜가 속한 달이 아니라 작업 중인 달이 바로 보이게 한다.
     // 종료일을 시작일과 같은 값으로 채워도 "추가" 시 하루만 추가되는 동작은 그대로다.
@@ -143,16 +149,20 @@ export function CreateScheduleDialog({
    * 기본 시간 편집으로 되돌린다. */
   useEffect(() => {
     if (activeDates.length === 0) return;
-    const stillValid = groupConsecutiveDates(dates).some(
+    const stillValid = dateGroups.some(
       (g) =>
         g.length === activeDates.length &&
         g.every((d, i) => d === activeDates[i]),
     );
     if (!stillValid) setActiveDates([]);
-  }, [dates, activeDates]);
+  }, [dateGroups, activeDates]);
 
-  /** 시작일~종료일 범위의 모든 날짜를 추가 (연속 날짜) — 종료일이 비어있으면
-   * 시작일 하루만 추가한다 (다른 날에 같은 일정을 하나씩 추가하는 용도). */
+  /** 시작일~종료일 범위의 모든 날짜를 한 그룹(칩 하나)으로 추가한다.
+   * 종료일이 비어있으면 시작일 하루만 추가 — 이 경우 무조건 다른 날짜와
+   * 별개인 그룹(칩)으로 남는다. 종료일까지 채워 "익일부터"의 실제 범위를
+   * 지정했을 때만 그 구간 전체가 하나의 연속(연일) 그룹으로 합쳐진다.
+   * 이미 존재하는 날짜와 겹치면 기존 그룹에서 그 날짜만 빼고(구간이
+   * 끊기면 남은 부분끼리 재분리), 새로 추가하는 그룹으로 옮긴다. */
   const addDateRange = () => {
     if (!rangeStart) return;
     const end = rangeEnd || rangeStart;
@@ -165,7 +175,13 @@ export function CreateScheduleDialog({
       added.push(ymd);
       cur.setDate(cur.getDate() + 1);
     }
-    setDates((prev) => Array.from(new Set([...prev, ...added])).sort());
+    const addedSet = new Set(added);
+    setDateGroups((prev) => [
+      ...prev.flatMap((g) =>
+        splitIntoConsecutiveRuns(g.filter((d) => !addedSet.has(d))),
+      ),
+      added,
+    ]);
     setRangeStart("");
     setRangeEnd("");
   };
@@ -173,7 +189,11 @@ export function CreateScheduleDialog({
   /** 날짜 하나 또는 연속 구간(그룹) 전체를 한 번에 제거 */
   const removeDates = (ymds: string[]) => {
     const toRemove = new Set(ymds);
-    setDates((prev) => prev.filter((d) => !toRemove.has(d)));
+    setDateGroups((prev) =>
+      prev.flatMap((g) =>
+        splitIntoConsecutiveRuns(g.filter((d) => !toRemove.has(d))),
+      ),
+    );
     setPositionRows((prev) =>
       prev.map((r) => {
         const nextTimeByDate = { ...r.timeByDate };
@@ -271,10 +291,11 @@ export function CreateScheduleDialog({
     const useMultiplePositions =
       positionRows.length > 1 || positionRows[0]!.label.trim() !== "";
 
-    // 연속된 날짜끼리는 같은 groupId로 묶어서, 신청 한 번으로 연일 전체에
-    // 적용되게 한다 (연속이 아닌 날짜는 그룹 없이 각자 별도 신청).
+    // 명시적으로 범위(시작~종료)로 함께 추가한 날짜끼리만 같은 groupId로
+    // 묶어서, 신청 한 번으로 연일 전체에 적용되게 한다 (따로 추가한 날짜는
+    // 달력상 이웃해 있어도 그룹 없이 각자 별도 신청).
     const dateGroupId = new Map<string, string>();
-    for (const group of groupConsecutiveDates(dates)) {
+    for (const group of dateGroups) {
       if (group.length <= 1) continue;
       const gid = crypto.randomUUID();
       for (const d of group) dateGroupId.set(d, gid);
@@ -471,7 +492,9 @@ export function CreateScheduleDialog({
             </div>
             {dates.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {groupConsecutiveDates(dates).map((group) => {
+                {[...dateGroups]
+                  .sort((a, b) => a[0]!.localeCompare(b[0]!))
+                  .map((group) => {
                   const key = group.join(",");
                   const isActive =
                     activeDates.length === group.length &&
