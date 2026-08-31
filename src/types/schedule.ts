@@ -69,6 +69,38 @@ export function positionSlotKey(positionId: string, positionSlotId: string): str
   return `${positionId}::${positionSlotId}`;
 }
 
+/**
+ * event.positions(포지션 정의는 이벤트 레벨 공유)에 이 세션(날짜)의 실제 정원
+ * 카운트(session.positionSlotCounts)와 시간 오버라이드
+ * (session.positionSlotTimeOverrides)를 덮어써서 반환한다. 아직 이 세션이
+ * 한 번도 승인/취소를 거치지 않아 카운트가 시드되지 않았다면, 예전 방식인
+ * 이벤트 전체 공유 카운트(slot.applied_count)로 폴백한다 — 최소한 지금보다
+ * 나빠지지는 않는다.
+ *
+ * 정원 마감 여부를 판단하는 모든 화면은 반드시 이 함수를 거친 PositionDef를
+ * 써야 한다 — event.positions를 그대로 쓰면 slot.applied_count가 세션별로
+ * 갱신되지 않아 항상 0으로 보여 마감된 슬롯도 계속 신청을 받게 된다.
+ */
+export function sessionAwarePositions(
+  positions: PositionDef[] | undefined,
+  session: Session,
+): PositionDef[] {
+  if (!positions?.length) return positions ?? [];
+  return positions.map((pos) => ({
+    ...pos,
+    slots: pos.slots.map((slot) => {
+      const key = positionSlotKey(pos.id, slot.id);
+      const seededCount = session.positionSlotCounts?.[key];
+      const timeOverride = session.positionSlotTimeOverrides?.[key];
+      return {
+        ...slot,
+        ...(seededCount === undefined ? {} : { applied_count: seededCount }),
+        ...(timeOverride ? { time: timeOverride } : {}),
+      };
+    }),
+  }));
+}
+
 export type EventItem = {
   id: string;
   title: string;

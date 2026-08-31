@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { SheetApplicant, SheetDayBundle, SheetSlotRow } from "@/types/monthly-sheet";
 import type { EventItem } from "@/types/schedule";
+import { sessionAwarePositions } from "@/types/schedule";
 import { TEAM_LABELS } from "@/types/team";
 import type { WorkforceAvailability } from "@/types/workforce";
 import type { ApplySlotContext } from "@/components/schedule/apply-slot";
@@ -223,9 +224,29 @@ export function MonthlySheetDayDetail({
                   {(() => {
                     const ev = events?.find((e) => e.id === row.eventId);
                     const alreadyApplied = myAppliedEventIds?.has(row.eventId);
+                    // 포지션 슬롯(Option B)의 정원 카운트는 세션(날짜)별로
+                    // event.sessions[].positionSlotCounts에 저장되므로, 그대로
+                    // event.positions를 쓰면 slot.applied_count가 항상 0으로
+                    // 보여 정원이 다 찬 뒤에도 계속 신청을 받는 문제가 있었다.
+                    // 그룹(연속) 신청은 그룹의 첫 세션 카운트를 기준으로 본다.
+                    const primarySession =
+                      row.groupId && row.groupSessionIds && row.groupSessionIds.length > 0
+                        ? ev?.sessions
+                            .filter((s) => row.groupSessionIds!.includes(s.id))
+                            .sort((a, b) => a.date.localeCompare(b.date))[0]
+                        : ev?.sessions.find((s) => s.id === row.sessionId);
+                    const sessionPositions =
+                      ev && primarySession
+                        ? sessionAwarePositions(ev.positions, primarySession)
+                        : (ev?.positions ?? []);
                     const hasPositions =
                       ev?.usePositions &&
-                      ev.positions?.some((p) => p.slots && p.slots.length > 0);
+                      sessionPositions.some((p) => p.slots && p.slots.length > 0);
+                    const positionsFull =
+                      !!hasPositions &&
+                      !sessionPositions.some((p) =>
+                        p.slots.some((s) => s.applied_count < s.capacity),
+                      );
                     if (onApply && ev) {
                       const windowStatus = resolveEventApplyStatus(
                         row.date,
@@ -250,6 +271,10 @@ export function MonthlySheetDayDetail({
                           {alreadyApplied ? (
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
                               신청 완료
+                            </Button>
+                          ) : positionsFull ? (
+                            <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
+                              정원 마감
                             </Button>
                           ) : ev?.closed || windowStatus === "closed" ? (
                             <Button size="sm" variant="outline" disabled className="w-full md:w-auto">
@@ -285,7 +310,7 @@ export function MonthlySheetDayDetail({
                                     venue: row.venue,
                                     date: row.date,
                                     usePositions: true,
-                                    positions: ev.positions,
+                                    positions: sessionPositions,
                                     ...groupCtx,
                                   });
                                 } else {
@@ -300,7 +325,7 @@ export function MonthlySheetDayDetail({
                                     capacity: row.capacity,
                                     applied: row.headcount,
                                     usePositions: ev.usePositions,
-                                    positions: ev.positions,
+                                    positions: sessionPositions,
                                     ...groupCtx,
                                   });
                                 }

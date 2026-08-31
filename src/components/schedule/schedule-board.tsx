@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-import type { EventItem, EventPackage, PositionDef, Session } from "@/types/schedule";
-import { formatSlotTime, positionSlotKey } from "@/types/schedule";
+import type { EventItem, EventPackage, Session } from "@/types/schedule";
+import { formatSlotTime, sessionAwarePositions } from "@/types/schedule";
 import type { TeamId } from "@/types/team";
 import { MiniCalendar, toYMD } from "@/components/schedule/mini-calendar";
 import { buildSessionDateMarkers } from "@/lib/schedule-calendar-markers";
@@ -58,34 +58,6 @@ function sessionsForDate(events: EventItem[], ymd: string) {
     }
   }
   return out;
-}
-
-/**
- * event.positions(포지션 정의는 이벤트 레벨 공유)에 이 세션(날짜)의 실제 정원
- * 카운트(session.positionSlotCounts)와 시간 오버라이드
- * (session.positionSlotTimeOverrides)를 덮어써서 반환한다. 아직 이 세션이
- * 한 번도 승인/취소를 거치지 않아 카운트가 시드되지 않았다면, 예전 방식인
- * 이벤트 전체 공유 카운트(slot.applied_count)로 폴백한다 — 최소한 지금보다
- * 나빠지지는 않는다.
- */
-function sessionAwarePositions(
-  event: EventItem,
-  session: Session,
-): PositionDef[] {
-  if (!event.positions?.length) return event.positions ?? [];
-  return event.positions.map((pos) => ({
-    ...pos,
-    slots: pos.slots.map((slot) => {
-      const key = positionSlotKey(pos.id, slot.id);
-      const seededCount = session.positionSlotCounts?.[key];
-      const timeOverride = session.positionSlotTimeOverrides?.[key];
-      return {
-        ...slot,
-        ...(seededCount === undefined ? {} : { applied_count: seededCount }),
-        ...(timeOverride ? { time: timeOverride } : {}),
-      };
-    }),
-  }));
 }
 
 /** 같은 이벤트 내에서 동일 groupId를 가진 모든 세션 (날짜순 정렬) */
@@ -362,7 +334,7 @@ export function ScheduleBoard({
                         ) : null}
                         {/* Option B: 포지션 기반 표시 (패키지 없는 경우에만) */}
                         {!event.packages?.length && event.usePositions && event.positions && event.positions.length > 0 ? (() => {
-                          const sessionPositions = sessionAwarePositions(event, primarySession);
+                          const sessionPositions = sessionAwarePositions(event.positions, primarySession);
                           return (
                           <div className="space-y-2">
                             {sessionPositions.map((pos) => {
