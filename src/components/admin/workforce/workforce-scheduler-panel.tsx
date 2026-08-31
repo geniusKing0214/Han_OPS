@@ -157,6 +157,25 @@ function positionBadgeClass(label: string | undefined): string {
   return POSITION_BADGE_PALETTE[hash % POSITION_BADGE_PALETTE.length]!;
 }
 
+/** 이벤트 신청 승인자를 포지션(없으면 "신청")별로 묶어 뱃지를 한 번만 보여준다 */
+function groupApprovedApplicantsByPosition(
+  applicants: ApprovedApplicant[],
+): { label: string; rawLabel: string | undefined; items: ApprovedApplicant[] }[] {
+  const groups: { label: string; rawLabel: string | undefined; items: ApprovedApplicant[] }[] = [];
+  const indexByLabel = new Map<string, number>();
+  for (const a of applicants) {
+    const label = a.positionLabel ?? "신청";
+    let idx = indexByLabel.get(label);
+    if (idx === undefined) {
+      idx = groups.length;
+      indexByLabel.set(label, idx);
+      groups.push({ label, rawLabel: a.positionLabel, items: [] });
+    }
+    groups[idx]!.items.push(a);
+  }
+  return groups;
+}
+
 type ScheduleFormState = {
   title: string;
   date: string;
@@ -2306,35 +2325,48 @@ function ScheduleCard({
                   배정된 근무자 없음
                 </p>
               ) : (
-                <div className="flex flex-wrap gap-1">
-                  {approvedApplicants.map((a, i) => (
-                    <span
-                      key={a.applicationId || a.uid || `${a.name}:${i}`}
-                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
-                      title="이벤트 신청 승인"
-                    >
-                      <span
-                        className={cn(
-                          "rounded-sm px-1 text-[9px] leading-4",
-                          positionBadgeClass(a.positionLabel),
-                        )}
-                      >
-                        {a.positionLabel ?? "신청"}
-                      </span>
-                      <span className="truncate">{a.name}</span>
-                      {a.completed ? null : (
-                        <button
-                          type="button"
-                          className="shrink-0 opacity-70 hover:opacity-100"
-                          onClick={() => onRemoveApprovedApplicant(a.applicationId)}
-                          aria-label="배정 해제"
-                          title="배정 해제"
+                <div className="space-y-1.5">
+                  {/* 포지션(신청 없음 포함)별로 묶어서 뱃지는 한 번만, 이름은 3열 그리드로 */}
+                  {groupApprovedApplicantsByPosition(approvedApplicants).map(
+                    (group) => (
+                      <div key={group.label} className="space-y-1">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-sm px-1 text-[9px] leading-4",
+                            positionBadgeClass(group.rawLabel),
+                          )}
+                          title="이벤트 신청 승인"
                         >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))}
+                          {group.label}
+                        </span>
+                        <div className="grid grid-cols-3 gap-1">
+                          {group.items.map((a, i) => (
+                            <span
+                              key={a.applicationId || a.uid || `${a.name}:${i}`}
+                              className="inline-flex min-w-0 items-center gap-1 rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
+                              title="이벤트 신청 승인"
+                            >
+                              <span className="truncate">{a.name}</span>
+                              {a.completed ? null : (
+                                <button
+                                  type="button"
+                                  className="shrink-0 opacity-70 hover:opacity-100"
+                                  onClick={() =>
+                                    onRemoveApprovedApplicant(a.applicationId)
+                                  }
+                                  aria-label="배정 해제"
+                                  title="배정 해제"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                  )}
+                <div className="flex flex-wrap gap-1">
                   {schedule.assignedUserIds.map((uid) => {
                     const posLabel = schedule.assigneePositions?.[uid];
                     const workerApp = schedule.sourceEventId
@@ -2389,6 +2421,7 @@ function ScheduleCard({
                     </span>
                   );
                   })}
+                </div>
                 </div>
               )}
             </div>
