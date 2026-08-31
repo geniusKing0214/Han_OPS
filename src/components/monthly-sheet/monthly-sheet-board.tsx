@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Download,
   Loader2,
-  Pencil,
   Plus,
 } from "lucide-react";
 
@@ -14,7 +13,6 @@ import { CreateScheduleDialog } from "@/components/admin/event-form-dialog";
 import { SessionScheduleSheetBody } from "@/components/admin/session-schedule-sheet-body";
 import { MonthlySheetCalendarGrid, toYmd } from "@/components/monthly-sheet/monthly-sheet-calendar-grid";
 import { MonthlySheetDayDetail } from "@/components/monthly-sheet/monthly-sheet-day-detail";
-import { MonthlySheetDayEditor } from "@/components/monthly-sheet/monthly-sheet-day-editor";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   ApplySlotSurface,
@@ -35,7 +33,7 @@ import { saveMonthlySheetAdminMemo } from "@/lib/firestore-monthly-sheets";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { monthLabelFromDate } from "@/types/monthly-sheet";
 import type { EventItem } from "@/types/schedule";
-import { DEFAULT_TEAM_ID, type TeamFilterValue, type TeamId } from "@/types/team";
+import { DEFAULT_TEAM_ID, type TeamFilterValue } from "@/types/team";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -80,7 +78,6 @@ export function MonthlySheetBoard(_props: Props = {}) {
     isAdmin ? "team_1" : DEFAULT_TEAM_ID,
   );
   const [includePending, setIncludePending] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
   const [scheduleEditorKey, setScheduleEditorKey] = useState(0);
@@ -130,8 +127,6 @@ export function MonthlySheetBoard(_props: Props = {}) {
 
   const selectedYmd = toYmd(selected);
   const selectedBundle = days.get(selectedYmd) ?? null;
-  const editTeamId: TeamId =
-    effectiveTeamFilter === "all" ? "team_1" : effectiveTeamFilter;
 
   const monthLabel = monthLabelFromDate(month);
   const loading = eventsLoading || appsLoading;
@@ -344,8 +339,8 @@ export function MonthlySheetBoard(_props: Props = {}) {
 
           {canEdit && teamFilter === "all" ? (
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 md:text-sm">
-              「전체」에서는 실제 일정 수정만 가능합니다. 취합표 표시 수정과 엑셀
-              다운로드는 1팀/2팀 탭에서 선택하세요.
+              「전체」에서는 실제 일정 수정만 가능합니다. 엑셀 다운로드는 1팀/2팀
+              탭에서 선택하세요.
             </p>
           ) : null}
 
@@ -361,23 +356,9 @@ export function MonthlySheetBoard(_props: Props = {}) {
 
                 {isMobile ? (
                   <div className="rounded-lg border border-border bg-card p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold">
-                        {formatDateLabel(selected)} 상세
-                      </h3>
-                      {canEdit && effectiveTeamFilter !== "all" ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          onClick={() => setEditorOpen(true)}
-                        >
-                          <Pencil className="size-3.5" />
-                          표시 수정
-                        </Button>
-                      ) : null}
-                    </div>
+                    <h3 className="mb-3 text-sm font-semibold">
+                      {formatDateLabel(selected)} 상세
+                    </h3>
                     <MonthlySheetDayDetail
                       key={selectedYmd}
                       bundle={selectedBundle}
@@ -404,21 +385,7 @@ export function MonthlySheetBoard(_props: Props = {}) {
               {!isMobile ? (
                 <div className="space-y-4">
                   <div className="rounded-xl border border-border bg-card p-5">
-                    <div className="mb-4 flex items-center justify-between gap-2">
-                      <h3 className="text-base font-semibold">날짜 상세</h3>
-                      {canEdit && effectiveTeamFilter !== "all" ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          onClick={() => setEditorOpen(true)}
-                        >
-                          <Pencil className="size-3.5" />
-                          표시 수정
-                        </Button>
-                      ) : null}
-                    </div>
+                    <h3 className="mb-4 text-base font-semibold">날짜 상세</h3>
                     <MonthlySheetDayDetail
                       key={selectedYmd}
                       bundle={selectedBundle}
@@ -475,19 +442,6 @@ export function MonthlySheetBoard(_props: Props = {}) {
           ) : null}
         </CardContent>
       </Card>
-
-      {canEdit && effectiveTeamFilter !== "all" ? (
-        <MonthlySheetDayEditor
-          open={editorOpen}
-          onOpenChange={setEditorOpen}
-          date={selectedYmd}
-          dateLabel={formatDateLabel(selected)}
-          teamId={editTeamId}
-          bundle={selectedBundle}
-          year={month.getFullYear()}
-          month={month.getMonth() + 1}
-        />
-      ) : null}
 
       {canEdit ? (
         <CreateScheduleDialog

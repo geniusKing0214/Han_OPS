@@ -79,45 +79,6 @@ export async function saveMonthlySheetAdminMemo(
   );
 }
 
-export async function saveMonthlySheetDayOverride(
-  year: number,
-  month: number,
-  teamId: TeamId,
-  date: string,
-  override: SheetDayOverride | null,
-) {
-  await assertAdmin();
-  const id = monthlySheetDocId(year, month, teamId);
-  const ref = doc(db, MONTHLY_SHEETS_COLLECTION, id);
-
-  if (override === null) {
-    await setDoc(
-      ref,
-      {
-        year,
-        month,
-        teamId,
-        [`dayOverrides.${date}`]: deleteField(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    return;
-  }
-
-  await setDoc(
-    ref,
-    {
-      year,
-      month,
-      teamId,
-      [`dayOverrides.${date}`]: override,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
-}
-
 export async function clearMonthlySheetEntryOverride(
   year: number,
   month: number,
