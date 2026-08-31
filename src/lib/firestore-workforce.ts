@@ -693,7 +693,7 @@ export async function upsertAvailability(
   });
 }
 
-/** 멤버 본인 — 익주 가능일만 신청. 신청 기간(화·수·목) 외에는 수정 불가. */
+/** 멤버 본인 — 익주 가능일만 신청. 신청 기간(화·수·목·금) 외에는 수정 불가. */
 export async function upsertMyAvailability(input: {
   weekStart: string;
   dateExceptions: Record<string, "available" | "unavailable">;
@@ -705,7 +705,7 @@ export async function upsertMyAvailability(input: {
 
   if (!isAvailabilityWindowOpen()) {
     throw new Error(
-      "신청 기간이 아닙니다. 근무 가능일은 이번 주 화·수·목요일에만 신청할 수 있습니다.",
+      "신청 기간이 아닙니다. 근무 가능일은 이번 주 화·수·목·금요일에만 신청할 수 있습니다.",
     );
   }
 
@@ -732,8 +732,8 @@ export async function upsertMyAvailability(input: {
     ? docToAvailability(uid, snap.data() as Record<string, unknown>)
     : defaultAvailability(uid);
 
-  // 화~목 신청 기간 중에는 이미 제출했어도 재저장 허용
-  // (금요일 이후 잠금은 isAvailabilityWindowOpen() 체크가 위에서 처리)
+  // 화~금 신청 기간 중에는 이미 제출했어도 재저장 허용
+  // (토요일 이후 잠금은 isAvailabilityWindowOpen() 체크가 위에서 처리)
 
   const nextExceptions = {
     ...prev.dateExceptions,

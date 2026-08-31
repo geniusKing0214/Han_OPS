@@ -118,8 +118,8 @@ export function MyAvailabilityForm({
 
   const submitted = !!avail?.memberSubmittedWeeks.includes(nextWeekStart);
   const windowOpen = windowStatus === "open";
-  // 화~목(신청 기간 중)에는 제출 여부 관계없이 수정 가능
-  // 금요일 00:00 이후(closed) 또는 신청 기간 전(before)에는 잠금
+  // 화~금(신청 기간 중)에는 제출 여부 관계없이 수정 가능
+  // 토요일 00:00 이후(closed) 또는 신청 기간 전(before)에는 잠금
   const locked = !windowOpen;
 
   useEffect(() => {
@@ -247,14 +247,14 @@ export function MyAvailabilityForm({
         </p>
       </div>
 
-      {/* 화~목 신청 기간 중 이미 제출한 경우: 수정 가능 안내 */}
+      {/* 화~금 신청 기간 중 이미 제출한 경우: 수정 가능 안내 */}
       {windowOpen && submitted ? (
         <div className="flex items-start gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-800">
           <Pencil className="mt-0.5 size-4 shrink-0" />
           <p>
             신청 완료 상태입니다.{" "}
-            <span className="font-medium">화·수·목요일</span>에는 직접 수정할 수 있습니다.
-            금요일 00:00 이후에는 관리자에게 수정 요청해 주세요.
+            <span className="font-medium">화·수·목·금요일</span>에는 직접 수정할 수 있습니다.
+            토요일 00:00 이후에는 관리자에게 수정 요청해 주세요.
           </p>
         </div>
       ) : !windowOpen && submitted ? (
@@ -272,7 +272,7 @@ export function MyAvailabilityForm({
           <p>
             신청 기간이 아직 시작되지 않았습니다. 근무 가능일은{" "}
             <span className="font-medium text-foreground">
-              이번 주 화·수·목요일
+              이번 주 화·수·목·금요일
             </span>
             에 신청할 수 있습니다.
           </p>
@@ -282,7 +282,7 @@ export function MyAvailabilityForm({
           <Lock className="mt-0.5 size-4 shrink-0" />
           <p>
             신청 기간이 종료되었습니다. 근무 가능일은{" "}
-            <span className="font-medium">이번 주 화·수·목요일</span>에만
+            <span className="font-medium">이번 주 화·수·목·금요일</span>에만
             수정할 수 있습니다.
           </p>
         </div>
@@ -403,7 +403,7 @@ export function MyAvailabilityForm({
             ) : null}
             {saved && !dirty ? (
               <p className="mb-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
-                저장되었습니다. 금요일 이후에는 관리자에게 수정 요청해 주세요.
+                저장되었습니다. 토요일 이후에는 관리자에게 수정 요청해 주세요.
               </p>
             ) : null}
             <Button

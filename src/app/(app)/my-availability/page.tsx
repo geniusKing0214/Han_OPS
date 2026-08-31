@@ -11,7 +11,7 @@ export default function MyAvailabilityPage() {
         description={
           <>
             <span className="font-medium text-accent">익주</span>만 신청할 수
-            있습니다. 신청 기간(이번 주 화·수·목요일)이 지나면 관리자만
+            있습니다. 신청 기간(이번 주 화·수·목·금요일)이 지나면 관리자만
             변경할 수 있습니다.
           </>
         }
