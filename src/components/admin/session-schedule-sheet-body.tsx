@@ -5,7 +5,11 @@ import { Trash2 } from "lucide-react";
 
 import type { EventItem, PositionDef } from "@/types/schedule";
 import { DEFAULT_POSITIONS } from "@/types/schedule";
-import { updateEventDetails } from "@/lib/schedule-mutations";
+import {
+  addSessionLikeExisting,
+  removeSession,
+  updateEventDetails,
+} from "@/lib/schedule-mutations";
 import { toggleEventClosed, toggleEventForceApplyOpen } from "@/lib/firestore-events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +20,14 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
+
+function formatDateChipLabel(ymd: string): string {
+  const parts = ymd.split("-");
+  if (parts.length !== 3) return ymd;
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  const dow = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  return `${parts[1]}.${parts[2]} (${dow})`;
+}
 
 export type SessionScheduleSheetBodyProps = {
   /** 증가 시 메타 입력란을 현재 Firestore 값으로 초기화 */
@@ -48,6 +60,12 @@ export function SessionScheduleSheetBody({
   const [metaColor, setMetaColor] = useState("#C8A96B");
   const [metaUsePositions, setMetaUsePositions] = useState(false);
   const [metaPositions, setMetaPositions] = useState<PositionDef[]>(DEFAULT_POSITIONS);
+  /** 유지할 기존 세션 id 집합 — 여기서 빠지면 저장 시 삭제된다 */
+  const [keptSessionIds, setKeptSessionIds] = useState<Set<string>>(new Set());
+  /** 이번 편집에서 새로 추가한 날짜(아직 저장 전) */
+  const [addedDates, setAddedDates] = useState<string[]>([]);
+  const [dateRangeStart, setDateRangeStart] = useState("");
+  const [dateRangeEnd, setDateRangeEnd] = useState("");
   const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
@@ -58,26 +76,75 @@ export function SessionScheduleSheetBody({
     setMetaColor(live.color ?? "#C8A96B");
     setMetaUsePositions(live.usePositions ?? false);
     setMetaPositions(live.positions?.length ? live.positions : DEFAULT_POSITIONS);
+    setKeptSessionIds(new Set(live.sessions.map((s) => s.id)));
+    setAddedDates([]);
+    setDateRangeStart("");
+    setDateRangeEnd("");
     setSaveError("");
   }, [resetKey, live?.id]);
+
+  const existingDates = new Set(live?.sessions.map((s) => s.date) ?? []);
+
+  const addDateRange = () => {
+    if (!dateRangeStart) return;
+    const end = dateRangeEnd || dateRangeStart;
+    if (dateRangeStart > end) return;
+    const added: string[] = [];
+    const cur = new Date(dateRangeStart + "T00:00:00");
+    const endD = new Date(end + "T00:00:00");
+    while (cur <= endD && added.length < 60) {
+      const ymd = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
+      if (!existingDates.has(ymd)) added.push(ymd);
+      cur.setDate(cur.getDate() + 1);
+    }
+    setAddedDates((prev) => Array.from(new Set([...prev, ...added])).sort());
+    setDateRangeStart("");
+    setDateRangeEnd("");
+  };
+
+  const removeExistingDate = (sessionId: string) => {
+    if (keptSessionIds.size + addedDates.length <= 1) return;
+    if (!confirm("이 날짜를 삭제할까요? 이 날짜에 달린 신청 내역은 더 이상 표시되지 않습니다.")) {
+      return;
+    }
+    setKeptSessionIds((prev) => {
+      const next = new Set(prev);
+      next.delete(sessionId);
+      return next;
+    });
+  };
+
+  const removeAddedDate = (date: string) => {
+    if (keptSessionIds.size + addedDates.length <= 1) return;
+    setAddedDates((prev) => prev.filter((d) => d !== date));
+  };
 
   const handleSaveMeta = async () => {
     if (!live) return false;
     if (!metaTitle.trim() || !metaVenue.trim()) return false;
+    if (keptSessionIds.size === 0 && addedDates.length === 0) {
+      setSaveError("날짜를 최소 1개 남겨주세요.");
+      return false;
+    }
     setSaveError("");
     try {
-      await onPersist(
-        updateEventDetails(live, {
-          title: metaTitle.trim(),
-          venue: metaVenue.trim(),
-          notice: metaNotice.trim() || undefined,
-          color: metaColor.trim() || undefined,
-          usePositions: metaUsePositions,
-          positions: metaUsePositions
-            ? metaPositions.filter((p) => p.label.trim())
-            : [],
-        }),
-      );
+      let next = updateEventDetails(live, {
+        title: metaTitle.trim(),
+        venue: metaVenue.trim(),
+        notice: metaNotice.trim() || undefined,
+        color: metaColor.trim() || undefined,
+        usePositions: metaUsePositions,
+        positions: metaUsePositions
+          ? metaPositions.filter((p) => p.label.trim())
+          : [],
+      });
+      for (const s of live.sessions) {
+        if (!keptSessionIds.has(s.id)) next = removeSession(next, s.id);
+      }
+      for (const date of addedDates) {
+        next = addSessionLikeExisting(next, date);
+      }
+      await onPersist(next);
     } catch (err) {
       setSaveError(
         err instanceof Error
@@ -194,6 +261,75 @@ export function SessionScheduleSheetBody({
               onChange={(e) => setMetaNotice(e.target.value)}
               className="min-h-[72px]"
             />
+          </div>
+
+          {/* 날짜 관리 */}
+          <div className="space-y-2">
+            <label className="text-[11px] text-muted-foreground">
+              날짜 <span className="font-normal">(구간·다른 날 추가 가능)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                className="h-8 flex-1 text-sm"
+                value={dateRangeStart}
+                onChange={(e) => setDateRangeStart(e.target.value)}
+              />
+              <span className="shrink-0 text-xs text-muted-foreground">~</span>
+              <Input
+                type="date"
+                className="h-8 flex-1 text-sm"
+                value={dateRangeEnd}
+                onChange={(e) => setDateRangeEnd(e.target.value)}
+                placeholder="비우면 하루만"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 text-xs"
+                disabled={!dateRangeStart}
+                onClick={addDateRange}
+              >
+                + 추가
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {live.sessions
+                .filter((s) => keptSessionIds.has(s.id))
+                .map((s) => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-1 text-xs tabular-nums text-foreground"
+                  >
+                    {formatDateChipLabel(s.date)}
+                    <button
+                      type="button"
+                      onClick={() => removeExistingDate(s.id)}
+                      className="text-muted-foreground hover:text-red-600"
+                      aria-label="날짜 삭제"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              {addedDates.map((date) => (
+                <span
+                  key={date}
+                  className="inline-flex items-center gap-1 rounded-md border border-accent bg-accent/10 px-2 py-1 text-xs tabular-nums text-accent"
+                >
+                  {formatDateChipLabel(date)} (신규)
+                  <button
+                    type="button"
+                    onClick={() => removeAddedDate(date)}
+                    className="text-accent/70 hover:text-red-600"
+                    aria-label="날짜 삭제"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* 포지션 설정 */}
@@ -372,7 +508,12 @@ export function SessionScheduleSheetBody({
               type="button"
               size="sm"
               variant="accent"
-              disabled={saving || !metaTitle.trim() || !metaVenue.trim()}
+              disabled={
+                saving ||
+                !metaTitle.trim() ||
+                !metaVenue.trim() ||
+                (keptSessionIds.size === 0 && addedDates.length === 0)
+              }
               onClick={() => void handleSaveMeta()}
             >
               저장

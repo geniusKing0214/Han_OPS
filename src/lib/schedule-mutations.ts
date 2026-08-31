@@ -39,6 +39,28 @@ export function addSession(event: EventItem, date: string): EventItem {
   return { ...event, sessions: [...event.sessions, session] };
 }
 
+/**
+ * 기존 일정에 날짜를 추가할 때 쓴다. 포지션 기반(usePositions) 이벤트는
+ * 정원이 event.positions 쪽 공유 템플릿에 있으므로 addSession과 동일하게
+ * slots: []로 충분하지만, 일반 슬롯 이벤트는 세션마다 실제 Slot(시간·정원)이
+ * 있어야 신청을 받을 수 있다 — 이 시트에는 슬롯을 새로 입력하는 UI가 없으므로
+ * 기존 세션의 슬롯 구성을 그대로 복제해 새 날짜도 바로 신청 가능하게 만든다.
+ */
+export function addSessionLikeExisting(event: EventItem, date: string): EventItem {
+  if (event.usePositions) return addSession(event, date);
+  const template = event.sessions[0]?.slots ?? [];
+  const session: Session = {
+    id: crypto.randomUUID(),
+    date,
+    slots: template.map((s) => ({
+      ...s,
+      id: crypto.randomUUID(),
+      applied_count: 0,
+    })),
+  };
+  return { ...event, sessions: [...event.sessions, session] };
+}
+
 export function removeSession(event: EventItem, sessionId: string): EventItem {
   return {
     ...event,
