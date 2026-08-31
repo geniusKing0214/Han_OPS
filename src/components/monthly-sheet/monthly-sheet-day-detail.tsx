@@ -37,13 +37,6 @@ function applicantBadgeLabel(a: SheetApplicant): string {
     : statusLabel(a.status);
 }
 
-/** 이름을 5개씩 끊어 1행5열이 넘어가면 다음 행으로 이어지게 한다 */
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
-
 type ApplicantGroup = {
   label: string;
   variant: "success" | "warning" | "destructive" | "default";
@@ -380,35 +373,30 @@ export function MonthlySheetDayDetail({
                     </p>
                   ) : null}
 
-                  {/* 신청자 목록 — 포지션(상태)별로 묶어서 뱃지는 한 번만, 이름은 5개씩 줄바꿈 */}
+                  {/* 신청자 목록 — 포지션(상태)·일수 뱃지는 그룹당 한 번만, 이름은 1행 5열 그리드로 */}
                   {row.applicants.length > 0 ? (
                     <div className="space-y-2">
                       {groupApplicants(row.applicants).map((group, gi) => (
                         <div key={`${row.entryKey}-g-${gi}`} className="space-y-1">
-                          {chunk(group.applicants, 5).map((chunkRow, ci) => (
-                            <div
-                              key={ci}
-                              className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant={group.variant}
+                              className="shrink-0 text-[10px] md:text-xs"
                             >
-                              {ci === 0 ? (
-                                <Badge
-                                  variant={group.variant}
-                                  className="shrink-0 text-[10px] md:text-xs"
-                                >
-                                  {group.label}
-                                </Badge>
-                              ) : null}
-                              {chunkRow.map((a, ai) => (
-                                <span
-                                  key={ai}
-                                  className="inline-flex items-center gap-1 text-sm md:text-base"
-                                >
-                                  {a.name}
-                                  <ApplicantExtraBadge a={a} />
-                                </span>
-                              ))}
-                            </div>
-                          ))}
+                              {group.label}
+                            </Badge>
+                            <ApplicantExtraBadge a={group.applicants[0]!} />
+                          </div>
+                          <div className="grid grid-cols-5 gap-x-2 gap-y-1">
+                            {group.applicants.map((a, ai) => (
+                              <span
+                                key={ai}
+                                className="truncate text-sm md:text-base"
+                              >
+                                {a.name}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
