@@ -211,13 +211,13 @@ export function FirestoreUsersPanel() {
               return (
                 <div
                   key={row.uid}
-                  className="flex flex-nowrap items-center gap-2 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-2"
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2"
                 >
-                  <p className="min-w-0 flex-1 shrink-0 truncate text-sm font-medium">
+                  <p className="w-full min-w-0 truncate text-sm font-medium sm:w-auto sm:flex-1">
                     {row.displayName?.trim() || row.email}
                   </p>
 
-                  <div className="flex shrink-0 flex-nowrap items-center gap-2">
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
                     <select
                       className="h-9 rounded-md border border-border bg-muted px-2 text-sm"
                       value={teamId}
