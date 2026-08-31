@@ -370,7 +370,6 @@ function buildWorkforceRow(
       : [];
 
   const totalCount = assignedCount + unassignedApprovedApplicants.length;
-  if (totalCount === 0 && !entryOverride) return null;
 
   const applicants = [
     ...assignedUsers.map((user) => ({
@@ -430,12 +429,19 @@ function buildDayBundle(
   const teams = teamsForFilter(teamFilter);
 
   for (const teamId of teams) {
+    // 이벤트에 연결된(sourceEventId 있음) 스케줄은 배정 인원이 있을 때만 여기
+    // 포함시킨다 — 그래야 아직 배정 전이면 아래 이벤트 기반 행(신청 현황·대기자
+    // 포함 옵션 등)이 그대로 보인다. 반대로 이벤트에 연결되지 않은(인력 배치
+    // 스케줄러에서 바로 만든) 스케줄은 대체할 이벤트 행이 아예 없으므로,
+    // 배정 인원이 0명이어도 여기 포함시켜야 취합표에서 사라지지 않는다.
     const dayWorkforceSchedules = workforceSchedules.filter(
       (schedule) =>
         schedule.date === date &&
         schedule.status !== "cancelled" &&
         schedule.teamIds.includes(teamId) &&
-        schedule.assignedUserIds.length > 0,
+        (schedule.assignedUserIds.length > 0 ||
+          !schedule.sourceEventId ||
+          !schedule.sourceSessionId),
     );
     const linkedSessionKeys = new Set(
       dayWorkforceSchedules
