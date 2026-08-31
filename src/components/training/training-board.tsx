@@ -244,17 +244,31 @@ export function TrainingBoard() {
           {loading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">불러오는 중...</p>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="grid min-w-[560px] grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
-                {WEEKDAYS.map((w) => (
-                  <div key={w} className="py-1">
+            <div className="w-full max-w-full overflow-hidden rounded-lg border border-border">
+              <div className="grid w-full grid-cols-7 border-b border-border bg-muted/30 text-center text-[9px] font-medium text-muted-foreground md:text-sm">
+                {WEEKDAYS.map((w, idx) => (
+                  <div
+                    key={w}
+                    className={cn(
+                      "min-w-0 border-r border-border py-1.5 last:border-r-0 md:py-2.5",
+                      idx === 0 && "text-red-600",
+                      idx === 6 && "text-blue-600",
+                    )}
+                  >
                     {w}
                   </div>
                 ))}
               </div>
-              <div className="grid min-w-[560px] grid-cols-7 gap-1">
+              <div className="grid w-full grid-cols-7">
                 {weeks.flat().map((ymd, idx) => {
-                  if (!ymd) return <div key={idx} className="min-h-20 rounded-md" />;
+                  if (!ymd) {
+                    return (
+                      <div
+                        key={idx}
+                        className="min-h-16 min-w-0 border-b border-r border-border bg-muted/10 last:border-r-0 md:min-h-[110px]"
+                      />
+                    );
+                  }
                   const dayTrainings = byDate.get(ymd) ?? [];
                   const isToday = ymd === today;
                   const isSelected = ymd === selectedDate;
@@ -264,19 +278,21 @@ export function TrainingBoard() {
                       type="button"
                       onClick={() => setSelectedDate(ymd)}
                       className={cn(
-                        "min-h-20 rounded-md border border-border p-1 text-left align-top transition-colors hover:border-accent/50",
-                        isSelected ? "border-accent bg-accent/10" : "bg-muted/10",
+                        "flex min-h-16 min-w-0 w-full flex-col overflow-hidden border-b border-r border-border p-1 text-left align-top transition-colors last:border-r-0 hover:bg-surface-hover md:min-h-[110px] md:p-2",
+                        isSelected && "bg-accent/10 ring-1 ring-inset ring-accent/40",
                       )}
                     >
                       <span
                         className={cn(
-                          "text-[11px] tabular-nums",
-                          isToday ? "font-bold text-accent" : "text-muted-foreground",
+                          "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold tabular-nums md:size-6 md:text-sm",
+                          isToday && "bg-accent text-accent-foreground",
+                          isSelected && !isToday && "text-accent",
+                          !isToday && !isSelected && "text-foreground/70",
                         )}
                       >
                         {Number(ymd.slice(-2))}
                       </span>
-                      <div className="mt-1 space-y-0.5">
+                      <div className="mt-1 hidden space-y-0.5 md:block">
                         {dayTrainings.slice(0, 2).map((t) => (
                           <p
                             key={t.id}
@@ -294,6 +310,11 @@ export function TrainingBoard() {
                           </p>
                         ) : null}
                       </div>
+                      {dayTrainings.length > 0 ? (
+                        <span className="mt-0.5 inline-flex w-fit items-center rounded px-1 py-0.5 text-[8px] font-medium text-accent bg-accent/15 md:hidden">
+                          교육 {dayTrainings.length}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}
