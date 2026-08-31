@@ -130,13 +130,14 @@ function buildPositionSessionRow(
   applications: ApplicationItem[],
   teamId: TeamId,
   includePending: boolean,
+  usersById: ReadonlyMap<string, WorkforceUserSummary>,
   entryOverride?: SheetEntryOverride,
 ): SheetSlotRow | null {
   // 그룹/패키지 신청 포함 매칭
   const sessionApps = applications.filter(
     (a) =>
       a.eventId === event.id &&
-      normalizeAppTeam(a) === teamId &&
+      normalizeAppTeam(a, usersById) === teamId &&
       (
         // 패키지 신청: packageDates에 이 날짜가 포함
         (a.packageId && (a.packageDates?.includes(session.date) ?? false)) ||
@@ -232,6 +233,7 @@ function buildSlotRow(
   applications: ApplicationItem[],
   teamId: TeamId,
   includePending: boolean,
+  usersById: ReadonlyMap<string, WorkforceUserSummary>,
   entryOverride?: SheetEntryOverride,
 ): SheetSlotRow | null {
   // 그룹 신청(slotId 없음)도 이 세션에 표시되도록 매칭
@@ -243,7 +245,7 @@ function buildSlotRow(
         !a.slotId &&
         (a.groupSessionIds?.includes(session.id) ?? false),
     ),
-  ].filter((a) => normalizeAppTeam(a) === teamId);
+  ].filter((a) => normalizeAppTeam(a, usersById) === teamId);
 
   const visibleApps = slotApps.filter((a) =>
     statusIncluded(a.status, includePending),
@@ -305,7 +307,19 @@ function buildSlotRow(
   return applyEntryOverride(base, entryOverride);
 }
 
-function normalizeAppTeam(app: ApplicationItem): TeamId {
+/**
+ * 신청 건이 어느 팀 소속으로 집계될지 판단한다. application.team_id는
+ * 신청 시점의 스냅샷이라, 이후 관리자가 그 사람의 팀을 바꿔도 과거 신청
+ * 건은 예전 팀에 그대로 남아 있었다. usersById(실시간 users 구독)에서
+ * 신청자의 현재 팀을 찾을 수 있으면 그 값을 우선해, 팀이 바뀐 순간
+ * 취합표에서도 새 팀 목록으로 즉시 옮겨 가도록 한다.
+ */
+function normalizeAppTeam(
+  app: ApplicationItem,
+  usersById: ReadonlyMap<string, WorkforceUserSummary>,
+): TeamId {
+  const currentTeam = app.userId ? usersById.get(app.userId)?.teamId : undefined;
+  if (currentTeam) return currentTeam;
   return app.team_id === "team_2" ? "team_2" : "team_1";
 }
 
@@ -346,7 +360,7 @@ function buildWorkforceRow(
           if (a.status !== "approved" && a.status !== "completed") return false;
           if (a.eventId !== schedule.sourceEventId) return false;
           if (a.sessionId !== schedule.sourceSessionId) return false;
-          if (normalizeAppTeam(a) !== teamId) return false;
+          if (normalizeAppTeam(a, usersById) !== teamId) return false;
           if (a.userId && assignedUidSet.has(a.userId)) return false;
           const dedupeKey = a.userId || applicantName(a);
           if (seenApplicantKeys.has(dedupeKey)) return false;
@@ -451,6 +465,7 @@ function buildDayBundle(
             applications,
             teamId,
             includePending,
+            workforceUsersById,
             posEntryOverride,
           );
           if (row) {
@@ -473,6 +488,7 @@ function buildDayBundle(
             applications,
             teamId,
             includePending,
+            workforceUsersById,
             entryOverride,
           );
           if (!row) continue;
