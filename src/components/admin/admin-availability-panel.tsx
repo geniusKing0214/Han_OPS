@@ -60,6 +60,15 @@ export function AdminAvailabilityPanel() {
   const [reasonMember, setReasonMember] = useState<ListedUserRow | null>(null);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [notSubmittedOpen, setNotSubmittedOpen] = useState(false);
+  const [excludedUids, setExcludedUids] = useState<Set<string>>(new Set());
+
+  const toggleExcluded = (uid: string) =>
+    setExcludedUids((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
+      return next;
+    });
 
   const [users, setUsers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
@@ -127,6 +136,14 @@ export function AdminAvailabilityPanel() {
       }),
     [weekDates, submitted, availMap],
   );
+
+  /** 미신청자 목록에서 체크되어 카운트에서 제외된 인원 수 */
+  const excludedCount = useMemo(
+    () => notSubmitted.filter((u) => excludedUids.has(u.uid)).length,
+    [notSubmitted, excludedUids],
+  );
+  const effectiveTotal = trackedMembers.length - excludedCount;
+  const effectiveNotSubmitted = notSubmitted.length - excludedCount;
 
   useEffect(() => {
     setExpandedDate(null);
@@ -204,8 +221,13 @@ export function AdminAvailabilityPanel() {
           <CardContent className="space-y-1 p-4">
             <p className="text-xs text-muted-foreground">전체 인원</p>
             <p className="text-2xl font-semibold tabular-nums">
-              {trackedMembers.length}
+              {effectiveTotal}
             </p>
+            {excludedCount > 0 ? (
+              <p className="text-[10px] text-muted-foreground">
+                제외 {excludedCount}명
+              </p>
+            ) : null}
           </CardContent>
         </Card>
         <Card className="bg-muted/30">
@@ -230,7 +252,7 @@ export function AdminAvailabilityPanel() {
             <p className="text-xs text-muted-foreground">미신청</p>
             <div className="flex items-center justify-between gap-2">
               <p className="text-2xl font-semibold tabular-nums text-red-600">
-                {notSubmitted.length}
+                {effectiveNotSubmitted}
               </p>
               {notSubmittedOpen ? (
                 <ChevronUp className="size-4 text-red-600" />
@@ -250,29 +272,51 @@ export function AdminAvailabilityPanel() {
         <Card className="border-red-500/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-red-600">
-              미신청자 목록 ({notSubmitted.length}명)
+              미신청자 목록 ({effectiveNotSubmitted}명)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-              {notSubmitted.map((u) => (
-                <div
-                  key={u.uid}
-                  className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {u.displayName || u.email}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {TEAM_LABELS[normalizeTeamId(u.team_id)]}
-                    </p>
-                  </div>
-                  <Badge variant="destructive" className="shrink-0 text-[10px]">
-                    미신청
-                  </Badge>
-                </div>
-              ))}
+              {notSubmitted.map((u) => {
+                const excluded = excludedUids.has(u.uid);
+                return (
+                  <label
+                    key={u.uid}
+                    className={cn(
+                      "flex cursor-pointer select-none items-center gap-2 rounded-md border px-3 py-2 transition-colors",
+                      excluded
+                        ? "border-border bg-muted/70 opacity-50 grayscale"
+                        : "border-border bg-muted/30",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={excluded}
+                      onChange={() => toggleExcluded(u.uid)}
+                      className="size-4 shrink-0 accent-red-600"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          "truncate text-sm font-medium",
+                          excluded && "line-through",
+                        )}
+                      >
+                        {u.displayName || u.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {TEAM_LABELS[normalizeTeamId(u.team_id)]}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={excluded ? "outline" : "destructive"}
+                      className="shrink-0 text-[10px]"
+                    >
+                      {excluded ? "제외" : "미신청"}
+                    </Badge>
+                  </label>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
