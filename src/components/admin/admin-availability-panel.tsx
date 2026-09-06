@@ -25,7 +25,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { subscribeAllAvailability } from "@/lib/firestore-workforce";
+import {
+  setAvailabilityExclusion,
+  subscribeAllAvailability,
+  subscribeAvailabilityExclusions,
+} from "@/lib/firestore-workforce";
 import {
   subscribeAllUsersForWorkforce,
   type ListedUserRow,
@@ -62,14 +66,6 @@ export function AdminAvailabilityPanel() {
   const [notSubmittedOpen, setNotSubmittedOpen] = useState(false);
   const [excludedUids, setExcludedUids] = useState<Set<string>>(new Set());
 
-  const toggleExcluded = (uid: string) =>
-    setExcludedUids((prev) => {
-      const next = new Set(prev);
-      if (next.has(uid)) next.delete(uid);
-      else next.add(uid);
-      return next;
-    });
-
   const [users, setUsers] = useState<ListedUserRow[]>([]);
   const [availMap, setAvailMap] = useState<Map<string, WorkforceAvailability>>(
     new Map(),
@@ -93,6 +89,32 @@ export function AdminAvailabilityPanel() {
       ),
     [],
   );
+
+  // 해당 주의 카운트 제외 인원을 실시간 구독 (관리자끼리 공유)
+  useEffect(() => {
+    setExcludedUids(new Set());
+    return subscribeAvailabilityExclusions(
+      weekStart,
+      (uids) => setExcludedUids(new Set(uids)),
+      (e) => setError(e.message),
+    );
+  }, [weekStart]);
+
+  const toggleExcluded = (uid: string) => {
+    const nextExcluded = !excludedUids.has(uid);
+    // 낙관적 업데이트 후 Firestore 에 반영 (구독으로 최종 동기화)
+    setExcludedUids((prev) => {
+      const next = new Set(prev);
+      if (nextExcluded) next.add(uid);
+      else next.delete(uid);
+      return next;
+    });
+    setAvailabilityExclusion(weekStart, uid, nextExcluded).catch((e: unknown) =>
+      setError(
+        e instanceof Error ? e.message : "제외 상태를 저장하지 못했습니다.",
+      ),
+    );
+  };
 
   const trackedMembers = useMemo(
     () =>
