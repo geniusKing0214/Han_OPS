@@ -150,6 +150,18 @@ export function MyAvailabilityForm({
     [weekDates, draft],
   );
 
+  /** 불가로 표시됐지만 사유 메모가 비어 있는 날 — 신청 전 반드시 채워야 한다 */
+  const missingMemoDates = useMemo(
+    () =>
+      weekDates.filter(
+        (d) =>
+          !draft[d] &&
+          appStatusByDate.get(d) !== "done" &&
+          (notes[d] ?? "").trim().length < 2,
+      ),
+    [weekDates, draft, notes, appStatusByDate],
+  );
+
   useEffect(() => {
     onAvailableCountChange?.(availableCount);
   }, [availableCount, onAvailableCountChange]);
@@ -169,6 +181,13 @@ export function MyAvailabilityForm({
 
   const confirmMemo = () => {
     if (!memoDialogDate) return;
+    const trimmed = memoDraft.trim();
+    if (trimmed.length < 2) {
+      setMemoError(
+        "근무 불가 사유는 반드시 입력해야 합니다. 구체적인 사유를 적어주세요.",
+      );
+      return;
+    }
     if (containsBannedMemoPhrase(memoDraft)) {
       setMemoError(
         "'개인 사정', '개인일정' 같은 표현은 사유로 쓸 수 없습니다. 구체적인 사유를 적어주세요.",
@@ -177,7 +196,7 @@ export function MyAvailabilityForm({
     }
     const date = memoDialogDate;
     setDraft((prev) => ({ ...prev, [date]: false }));
-    setNotes((prev) => ({ ...prev, [date]: memoDraft.trim() }));
+    setNotes((prev) => ({ ...prev, [date]: trimmed }));
     setDirty(true);
     setSaved(false);
     closeMemoDialog();
@@ -204,6 +223,13 @@ export function MyAvailabilityForm({
 
   const save = async () => {
     if (!user || locked) return;
+    if (missingMemoDates.length > 0) {
+      const labels = missingMemoDates
+        .map((d) => `${formatDayHeader(d).dow}요일`)
+        .join(", ");
+      setError(`${labels} 근무 불가 사유를 입력해야 신청할 수 있습니다.`);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -367,17 +393,17 @@ export function MyAvailabilityForm({
                   type="button"
                   disabled={locked}
                   onClick={() => openMemoDialog(date)}
-                  title={note || "사유 메모 없음"}
+                  title={note || "근무 불가 사유를 반드시 입력해 주세요"}
                   className={cn(
                     "flex max-w-full items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
                     note
                       ? "bg-red-500/20 text-red-800"
-                      : "text-red-800/60",
+                      : "bg-amber-500/25 text-amber-900 ring-1 ring-amber-500/50",
                     locked && "pointer-events-none opacity-70",
                   )}
                 >
                   <Pencil className="size-2.5 shrink-0" />
-                  <span className="truncate">{note ? "메모" : "메모 없음"}</span>
+                  <span className="truncate">{note ? "메모" : "사유 필요"}</span>
                 </button>
               ) : (
                 <span className="h-[18px]" />
@@ -406,11 +432,19 @@ export function MyAvailabilityForm({
                 저장되었습니다. 토요일 이후에는 관리자에게 수정 요청해 주세요.
               </p>
             ) : null}
+            {missingMemoDates.length > 0 ? (
+              <p className="mb-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800">
+                {missingMemoDates
+                  .map((d) => `${formatDayHeader(d).dow}요일`)
+                  .join(", ")}{" "}
+                근무 불가 사유를 입력해야 신청할 수 있습니다.
+              </p>
+            ) : null}
             <Button
               type="button"
               variant="accent"
               className="h-12 w-full rounded-xl text-base"
-              disabled={busy}
+              disabled={busy || missingMemoDates.length > 0}
               onClick={() => void save()}
             >
               {busy ? "저장 중…" : submitted ? "수정사항 저장하기" : "익주 가능일 신청하기"}
@@ -445,14 +479,24 @@ export function MyAvailabilityForm({
             maxLength={200}
             autoFocus
           />
-          {memoError ? (
-            <p className="text-xs text-red-700">{memoError}</p>
-          ) : null}
+          <p
+            className={cn(
+              "text-xs",
+              memoError ? "text-red-700" : "text-muted-foreground",
+            )}
+          >
+            {memoError || "근무 불가로 표시하려면 사유 입력이 필수입니다."}
+          </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={closeMemoDialog}>
               취소
             </Button>
-            <Button type="button" variant="accent" onClick={confirmMemo}>
+            <Button
+              type="button"
+              variant="accent"
+              disabled={memoDraft.trim().length < 2}
+              onClick={confirmMemo}
+            >
               근무 불가로 저장
             </Button>
           </DialogFooter>
