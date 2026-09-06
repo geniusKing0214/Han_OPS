@@ -273,6 +273,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // 미신청자 목록 카운트 제외 인원 (주 단위, 관리자 공용)
+    match /workforceAvailabilityExclusions/{weekId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
     match /workforceLogs/{logId} {
       allow read, update, delete: if isAdmin();
 

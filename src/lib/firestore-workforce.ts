@@ -1,6 +1,8 @@
 import {
   type FirestoreError,
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -47,6 +49,7 @@ import type { EventItem, PositionDef } from "@/types/schedule";
 export const WORKFORCE_WEEKS = "workforceWeeks";
 export const WORKFORCE_SCHEDULES = "workforceSchedules";
 export const WORKFORCE_AVAILABILITY = "workforceAvailability";
+export const WORKFORCE_AVAILABILITY_EXCLUSIONS = "workforceAvailabilityExclusions";
 export const WORKFORCE_LOGS = "workforceLogs";
 export const WORKFORCE_MONTHLY_EXPORTS = "workforceMonthlyExports";
 
@@ -294,6 +297,50 @@ export function subscribeAllAvailability(
       onData(map);
     },
     (err) => onError?.(err),
+  );
+}
+
+/**
+ * 미신청자 목록에서 카운트 제외 처리된 인원(주 단위, 관리자 공용).
+ * 문서 1건 = 1주, `uids` 배열에 제외된 사용자 uid 를 담는다.
+ */
+export function subscribeAvailabilityExclusions(
+  weekStart: string,
+  onData: (uids: string[]) => void,
+  onError?: (e: FirestoreError) => void,
+) {
+  return onSnapshot(
+    doc(db, WORKFORCE_AVAILABILITY_EXCLUSIONS, weekStart),
+    (snap) => {
+      const raw = snap.exists()
+        ? (snap.data() as Record<string, unknown>).uids
+        : null;
+      onData(
+        Array.isArray(raw)
+          ? raw.filter((x): x is string => typeof x === "string")
+          : [],
+      );
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** 특정 인원을 해당 주의 제외 목록에 추가/해제한다 (관리자 전용). */
+export async function setAvailabilityExclusion(
+  weekStart: string,
+  uid: string,
+  excluded: boolean,
+): Promise<void> {
+  const actorUid = await assertAdmin();
+  await setDoc(
+    doc(db, WORKFORCE_AVAILABILITY_EXCLUSIONS, weekStart),
+    {
+      weekStart,
+      uids: excluded ? arrayUnion(uid) : arrayRemove(uid),
+      updatedAt: serverTimestamp(),
+      updatedBy: actorUid,
+    },
+    { merge: true },
   );
 }
 
