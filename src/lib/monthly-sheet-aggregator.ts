@@ -335,32 +335,49 @@ function buildWorkforceRow(
   applications: ApplicationItem[],
   entryOverride?: SheetEntryOverride,
 ): SheetSlotRow | null {
+  // 일정의 팀 목록에 없는 팀 소속(팀 이동 등)이면 일정의 첫 팀으로 묶는다 —
+  // 그렇지 않으면 인력 배치 스케줄러에는 보이는 사람이 취합표에서는 사라진다.
+  const fallbackTeam = schedule.teamIds[0] ?? teamId;
+  const rowTeamOf = (team: TeamId): TeamId =>
+    schedule.teamIds.includes(team) ? team : fallbackTeam;
+
+  // 사용자 명단에 없는 uid(탈퇴·명단 미로딩 등)도 신청서 이름으로라도 표시한다.
+  const appNameByUid = new Map<string, string>();
+  for (const a of applications) {
+    if (a.userId && !appNameByUid.has(a.userId)) {
+      appNameByUid.set(a.userId, applicantName(a));
+    }
+  }
   const assignedUsers = schedule.assignedUserIds
-    .map((uid) => usersById.get(uid))
-    .filter(
-      (user): user is WorkforceUserSummary =>
-        Boolean(user) && user?.teamId === teamId,
-    );
-  const assignedCount = schedule.assignedUserIds.filter((uid) => {
-    const user = usersById.get(uid);
-    // 멤버 화면처럼 사용자 명단을 읽을 수 없을 때는 팀 공용 일정의
-    // 전체 배정 인원을 숫자로라도 표시한다.
-    return user ? user.teamId === teamId : schedule.teamIds.includes(teamId);
-  }).length;
+    .filter((uid) => {
+      const user = usersById.get(uid);
+      return user ? rowTeamOf(user.teamId) === teamId : fallbackTeam === teamId;
+    })
+    .map((uid) => ({
+      uid,
+      name: usersById.get(uid)?.name || appNameByUid.get(uid) || "이름 없음",
+    }));
+  const assignedCount = assignedUsers.length;
 
   // 스케줄러에 아직 배정으로 옮기지 않은, 원래 신청서로 승인된 인원도
   // 합쳐서 보여준다 — 그렇지 않으면 스케줄러에서 처음 배정하는 순간
   // 이 행이 신청서 기반 행을 대체하면서 기존 승인 인원이 화면에서
-  // 사라져 보인다 (인력 배치 스케줄러 화면은 이미 이렇게 합산해서 보여줌).
+  // 사라져 보인다. 인력 배치 스케줄러와 같은 기준(이벤트+세션 일치)으로
+  // 매칭하므로, 이후 일정·포지션이 수정되어 live 필터에서 빠지는 신청도 포함한다.
   const assignedUidSet = new Set(schedule.assignedUserIds);
   const seenApplicantKeys = new Set<string>();
+  const sessionId = schedule.sourceSessionId;
   const unassignedApprovedApplicants =
-    schedule.sourceEventId && schedule.sourceSessionId
+    schedule.sourceEventId && sessionId
       ? applications.filter((a) => {
           if (a.status !== "approved" && a.status !== "completed") return false;
           if (a.eventId !== schedule.sourceEventId) return false;
-          if (a.sessionId !== schedule.sourceSessionId) return false;
-          if (normalizeAppTeam(a, usersById) !== teamId) return false;
+          const matchesSession =
+            a.sessionId === sessionId ||
+            (a.groupSessionIds?.includes(sessionId) ?? false) ||
+            (!!a.packageId && (a.packageDates?.includes(schedule.date) ?? false));
+          if (!matchesSession) return false;
+          if (rowTeamOf(normalizeAppTeam(a, usersById)) !== teamId) return false;
           if (a.userId && assignedUidSet.has(a.userId)) return false;
           const dedupeKey = a.userId || applicantName(a);
           if (seenApplicantKeys.has(dedupeKey)) return false;
@@ -415,10 +432,49 @@ function buildWorkforceRow(
   };
 }
 
+/**
+ * 같은 이벤트 세션에 연결된 스케줄 문서가 여러 개(옛 슬롯별 문서 등)면
+ * 인력 배치 스케줄러(mergeWeekSchedulesWithEvents)처럼 하나로 합친다.
+ */
+function mergeLinkedSchedules(
+  schedules: WorkforceSchedule[],
+): WorkforceSchedule[] {
+  const out: WorkforceSchedule[] = [];
+  const indexBySession = new Map<string, number>();
+  for (const schedule of schedules) {
+    if (!schedule.sourceEventId || !schedule.sourceSessionId) {
+      out.push(schedule);
+      continue;
+    }
+    const key = `${schedule.sourceEventId}:${schedule.sourceSessionId}`;
+    const idx = indexBySession.get(key);
+    if (idx === undefined) {
+      indexBySession.set(key, out.length);
+      out.push(schedule);
+      continue;
+    }
+    const prev = out[idx]!;
+    out[idx] = {
+      ...prev,
+      assignedUserIds: [
+        ...new Set([...prev.assignedUserIds, ...schedule.assignedUserIds]),
+      ],
+      assigneePositions: {
+        ...(schedule.assigneePositions ?? {}),
+        ...(prev.assigneePositions ?? {}),
+      },
+      requiredCount: Math.max(prev.requiredCount, schedule.requiredCount),
+    };
+  }
+  return out;
+}
+
 function buildDayBundle(
   date: string,
   events: EventItem[],
   applications: ApplicationItem[],
+  /** live 필터 전 신청 목록 — 스케줄러 연동 행은 스케줄러와 같은 기준으로 매칭 */
+  workforceApplications: ApplicationItem[],
   workforceSchedules: WorkforceSchedule[],
   workforceUsersById: ReadonlyMap<string, WorkforceUserSummary>,
   teamFilter: TeamFilterValue,
@@ -434,14 +490,18 @@ function buildDayBundle(
     // 포함 옵션 등)이 그대로 보인다. 반대로 이벤트에 연결되지 않은(인력 배치
     // 스케줄러에서 바로 만든) 스케줄은 대체할 이벤트 행이 아예 없으므로,
     // 배정 인원이 0명이어도 여기 포함시켜야 취합표에서 사라지지 않는다.
-    const dayWorkforceSchedules = workforceSchedules.filter(
+    const dayWorkforceSchedules = mergeLinkedSchedules(
+      workforceSchedules.filter(
+        (schedule) =>
+          schedule.date === date &&
+          schedule.status !== "cancelled" &&
+          schedule.teamIds.includes(teamId),
+      ),
+    ).filter(
       (schedule) =>
-        schedule.date === date &&
-        schedule.status !== "cancelled" &&
-        schedule.teamIds.includes(teamId) &&
-        (schedule.assignedUserIds.length > 0 ||
-          !schedule.sourceEventId ||
-          !schedule.sourceSessionId),
+        schedule.assignedUserIds.length > 0 ||
+        !schedule.sourceEventId ||
+        !schedule.sourceSessionId,
     );
     const linkedSessionKeys = new Set(
       dayWorkforceSchedules
@@ -520,7 +580,7 @@ function buildDayBundle(
         schedule,
         teamId,
         workforceUsersById,
-        applications,
+        workforceApplications,
         entryOverride,
       );
       if (!row) continue;
@@ -606,6 +666,7 @@ export function buildMonthlySheetDays(input: {
         date,
         input.events,
         liveApps,
+        input.applications,
         input.workforceSchedules ?? [],
         workforceUsersById,
         input.teamFilter,
